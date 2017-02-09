@@ -8,6 +8,11 @@ export interface InteractiveMap {
   [s: string]: Interactive
 }
 
+export interface Activity {
+  student: Student
+  studentInteractive: StudentInteractive
+}
+
 export interface Student {
   id: string
   name: string

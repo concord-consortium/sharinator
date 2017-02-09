@@ -25,8 +25,8 @@ var __extends = (this && this.__extends) || function (d, b) {
 };
 var React = __webpack_require__(10);
 var iframe_overlay_1 = __webpack_require__(90);
-var queryString = __webpack_require__(61);
-var superagent = __webpack_require__(54);
+var queryString = __webpack_require__(34);
+var superagent = __webpack_require__(55);
 var IFrame = (function (_super) {
     __extends(IFrame, _super);
     function IFrame(props) {
@@ -191,10 +191,10 @@ var __extends = (this && this.__extends) || function (d, b) {
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var React = __webpack_require__(10);
-var escape_firebase_key_1 = __webpack_require__(56);
-var queryString = __webpack_require__(61);
-var base64url = __webpack_require__(57);
-var superagent = __webpack_require__(54);
+var escape_firebase_key_1 = __webpack_require__(57);
+var queryString = __webpack_require__(34);
+var base64url = __webpack_require__(58);
+var superagent = __webpack_require__(55);
 var IFrameOverlay = (function (_super) {
     __extends(IFrameOverlay, _super);
     function IFrameOverlay(props) {

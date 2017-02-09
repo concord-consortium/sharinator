@@ -1,6 +1,7 @@
 import * as React from "react";
-import { Interactive, InteractiveMap, Student, StudentMap, StudentInteractive} from "./types"
+import { Interactive, InteractiveMap, Student, StudentMap, StudentInteractive, Activity} from "./types"
 import { ClassInfo } from "./class-info"
+import { ago } from "./ago"
 
 export interface ClassroomPageProps {
   setStudentInteractive:(student:Student, interactive:StudentInteractive) => void
@@ -8,15 +9,27 @@ export interface ClassroomPageProps {
   class: string,
   interactives: Array<Interactive>
   students: Array<Student>
+  activity: Array<Activity>
   classInfo: ClassInfo
 }
 
+export type Tab = "students" | "interactives" | "activity"
+
 export interface ClassroomPageState {
+  currentTab: Tab
 }
 
 export type ClickHandler = (e:React.MouseEvent<HTMLAnchorElement>) => void
 
 export class ClassroomPage extends React.Component<ClassroomPageProps, ClassroomPageState> {
+
+  constructor(props: ClassroomPageProps) {
+    super(props)
+
+    this.state = {
+      currentTab: "students"
+    }
+  }
 
   createOnClick(href: string, student:Student, studentInteractive:StudentInteractive):ClickHandler {
     return (e:React.MouseEvent<HTMLAnchorElement>) => {
@@ -92,16 +105,51 @@ export class ClassroomPage extends React.Component<ClassroomPageProps, Classroom
            </table>
   }
 
+  renderActivity(activity:Activity):JSX.Element {
+    const href = this.props.getInteractiveHref(activity.student, activity.studentInteractive)
+    const onClick = this.createOnClick(href, activity.student, activity.studentInteractive)
+    return <div className="activity" key={`${activity.student.id}-${activity.studentInteractive.id}`}>
+            {activity.student.name} shared
+            <a href={href} onClick={onClick}>{activity.studentInteractive.name}</a>
+            {ago(activity.studentInteractive.createdAt)}
+           </div>
+  }
+
+  renderActivityList():JSX.Element {
+    if (this.props.activity.length === 0) {
+      return <div>There has been no activity in this classroom yet</div>
+    }
+    return <div className="activity-list">{this.props.activity.map(this.renderActivity.bind(this))}</div>
+  }
+
+  renderTabs() {
+    const selectTab = (tab:Tab) => {
+      return () => {
+        this.setState({currentTab: tab})
+      }
+    }
+    return <ul className="tab">
+             <li className={this.state.currentTab === "students" ? "active" : ""}><span onClick={selectTab("students")}>Students</span></li>
+             <li className={this.state.currentTab === "interactives" ? "active" : ""}><span onClick={selectTab("interactives")}>Interactives</span></li>
+             <li className={this.state.currentTab === "activity" ? "active" : ""}><span onClick={selectTab("activity")}>Activity</span></li>
+           </ul>
+  }
+
+  renderCurrentTab() {
+    switch (this.state.currentTab) {
+      case "students":
+        return this.renderStudents()
+      case "interactives":
+        return this.renderInteractives()
+      case "activity":
+        return this.renderActivityList()
+    }
+  }
+
   render() {
     return <div className="page">
-      <div className="section-header">
-        <h2>Students</h2>
-      </div>
-      { this.renderStudents() }
-      <div className="section-header">
-        <h2>Interactives</h2>
-      </div>
-      { this.renderInteractives() }
+      { this.renderTabs() }
+      { this.renderCurrentTab() }
     </div>
   }
 }

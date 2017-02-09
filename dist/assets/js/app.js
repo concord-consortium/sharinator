@@ -13,6 +13,36 @@ ReactDOM.render(React.createElement(app_1.App, null), document.getElementById("a
 
 /***/ }),
 
+/***/ 203:
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+var agoUnits = [
+    { max: 2760000, value: 60000, name: 'minute', prev: 'a minute ago' },
+    { max: 72000000, value: 3600000, name: 'hour', prev: 'an hour ago' },
+    { max: 518400000, value: 86400000, name: 'day', prev: 'yesterday' },
+    { max: 2419200000, value: 604800000, name: 'week', prev: 'last week' },
+    { max: 28512000000, value: 2592000000, name: 'month', prev: 'last month' },
+    { max: Infinity, value: 31536000000, name: 'year', prev: 'last year' }
+];
+function ago(timestamp) {
+    var diff = Math.abs(Date.now() - timestamp);
+    if (diff < 60000) {
+        return 'just now';
+    }
+    for (var i = 0; i < agoUnits.length; i++) {
+        if (diff < agoUnits[i].max) {
+            var val = Math.floor(diff / agoUnits[i].value);
+            return val <= 1 ? agoUnits[i].prev : val + " " + agoUnits[i].name + "s ago";
+        }
+    }
+}
+exports.ago = ago;
+
+
+/***/ }),
+
 /***/ 86:
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -27,8 +57,8 @@ var React = __webpack_require__(10);
 var student_page_1 = __webpack_require__(91);
 var classroom_page_1 = __webpack_require__(89);
 var class_info_1 = __webpack_require__(88);
-var base64url = __webpack_require__(57);
-var queryString = __webpack_require__(61);
+var base64url = __webpack_require__(58);
+var queryString = __webpack_require__(34);
 var App = (function (_super) {
     __extends(App, _super);
     function App(props) {
@@ -44,6 +74,7 @@ var App = (function (_super) {
             student: null,
             interactives: [],
             students: [],
+            activity: [],
             firebaseData: null
         };
         return _this;
@@ -71,6 +102,7 @@ var App = (function (_super) {
             _this.classroomRef.on("value", function (snapshot) {
                 var interactives = [];
                 var students = [];
+                var activity = [];
                 var firebaseData = snapshot.val();
                 var student = null;
                 var studentInteractive = null;
@@ -112,11 +144,16 @@ var App = (function (_super) {
                                         var firebaseStudentInteractives_1 = firebaseStudent.interactives[firebaseInteractiveId];
                                         Object.keys(firebaseStudentInteractives_1).forEach(function (firebaseStudentInteractiveId) {
                                             var firebaseStudentInteractive = firebaseStudentInteractives_1[firebaseStudentInteractiveId];
-                                            studentInteractives_1.push({
+                                            var studentInteractive = {
                                                 id: firebaseInteractiveId,
                                                 name: interactive.name,
                                                 url: firebaseStudentInteractive.url,
                                                 createdAt: firebaseStudentInteractive.createdAt
+                                            };
+                                            studentInteractives_1.push(studentInteractive);
+                                            activity.push({
+                                                student: student,
+                                                studentInteractive: studentInteractive
                                             });
                                         });
                                         studentInteractives_1.sort(function (a, b) { return b.createdAt - a.createdAt; });
@@ -173,6 +210,7 @@ var App = (function (_super) {
                     error: error,
                     interactives: interactives,
                     students: students,
+                    activity: activity,
                     student: student || _this.state.student,
                     studentInteractive: studentInteractive || _this.state.studentInteractive,
                     firebaseData: firebaseData
@@ -234,7 +272,7 @@ var App = (function (_super) {
             if ((this.state.studentInteractive !== null) && (this.state.student !== null)) {
                 return React.createElement(student_page_1.StudentPage, { studentInteractive: this.state.studentInteractive, student: this.state.student, setStudentInteractive: this.setStudentInteractive, getInteractiveHref: this.getInteractiveHref, classInfo: this.classInfo });
             }
-            return React.createElement(classroom_page_1.ClassroomPage, { class: this.state.class, interactives: this.state.interactives, students: this.state.students, setStudentInteractive: this.setStudentInteractive, getInteractiveHref: this.getInteractiveHref, classInfo: this.classInfo });
+            return React.createElement(classroom_page_1.ClassroomPage, { class: this.state.class, interactives: this.state.interactives, students: this.state.students, activity: this.state.activity, setStudentInteractive: this.setStudentInteractive, getInteractiveHref: this.getInteractiveHref, classInfo: this.classInfo });
         }
         return null;
     };
@@ -264,8 +302,8 @@ exports.App = App;
 
 "use strict";
 
-var superagent = __webpack_require__(54);
-var escape_firebase_key_1 = __webpack_require__(56);
+var superagent = __webpack_require__(55);
+var escape_firebase_key_1 = __webpack_require__(57);
 var ClassInfo = (function () {
     function ClassInfo(classInfoUrl) {
         this.classInfoUrl = classInfoUrl;
@@ -370,10 +408,15 @@ var __extends = (this && this.__extends) || function (d, b) {
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var React = __webpack_require__(10);
+var ago_1 = __webpack_require__(203);
 var ClassroomPage = (function (_super) {
     __extends(ClassroomPage, _super);
-    function ClassroomPage() {
-        return _super !== null && _super.apply(this, arguments) || this;
+    function ClassroomPage(props) {
+        var _this = _super.call(this, props) || this;
+        _this.state = {
+            currentTab: "students"
+        };
+        return _this;
     }
     ClassroomPage.prototype.createOnClick = function (href, student, studentInteractive) {
         var _this = this;
@@ -441,14 +484,50 @@ var ClassroomPage = (function (_super) {
                     React.createElement("th", null, "Students"))),
             React.createElement("tbody", null, this.props.interactives.map(this.renderInteractive.bind(this))));
     };
+    ClassroomPage.prototype.renderActivity = function (activity) {
+        var href = this.props.getInteractiveHref(activity.student, activity.studentInteractive);
+        var onClick = this.createOnClick(href, activity.student, activity.studentInteractive);
+        return React.createElement("div", { className: "activity", key: activity.student.id + "-" + activity.studentInteractive.id },
+            activity.student.name,
+            " shared",
+            React.createElement("a", { href: href, onClick: onClick }, activity.studentInteractive.name),
+            ago_1.ago(activity.studentInteractive.createdAt));
+    };
+    ClassroomPage.prototype.renderActivityList = function () {
+        if (this.props.activity.length === 0) {
+            return React.createElement("div", null, "There has been no activity in this classroom yet");
+        }
+        return React.createElement("div", { className: "activity-list" }, this.props.activity.map(this.renderActivity.bind(this)));
+    };
+    ClassroomPage.prototype.renderTabs = function () {
+        var _this = this;
+        var selectTab = function (tab) {
+            return function () {
+                _this.setState({ currentTab: tab });
+            };
+        };
+        return React.createElement("ul", { className: "tab" },
+            React.createElement("li", { className: this.state.currentTab === "students" ? "active" : "" },
+                React.createElement("span", { onClick: selectTab("students") }, "Students")),
+            React.createElement("li", { className: this.state.currentTab === "interactives" ? "active" : "" },
+                React.createElement("span", { onClick: selectTab("interactives") }, "Interactives")),
+            React.createElement("li", { className: this.state.currentTab === "activity" ? "active" : "" },
+                React.createElement("span", { onClick: selectTab("activity") }, "Activity")));
+    };
+    ClassroomPage.prototype.renderCurrentTab = function () {
+        switch (this.state.currentTab) {
+            case "students":
+                return this.renderStudents();
+            case "interactives":
+                return this.renderInteractives();
+            case "activity":
+                return this.renderActivityList();
+        }
+    };
     ClassroomPage.prototype.render = function () {
         return React.createElement("div", { className: "page" },
-            React.createElement("div", { className: "section-header" },
-                React.createElement("h2", null, "Students")),
-            this.renderStudents(),
-            React.createElement("div", { className: "section-header" },
-                React.createElement("h2", null, "Interactives")),
-            this.renderInteractives());
+            this.renderTabs(),
+            this.renderCurrentTab());
     };
     return ClassroomPage;
 }(React.Component));
@@ -468,14 +547,7 @@ var __extends = (this && this.__extends) || function (d, b) {
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var React = __webpack_require__(10);
-var agoUnits = [
-    { max: 2760000, value: 60000, name: 'minute', prev: 'a minute ago' },
-    { max: 72000000, value: 3600000, name: 'hour', prev: 'an hour ago' },
-    { max: 518400000, value: 86400000, name: 'day', prev: 'yesterday' },
-    { max: 2419200000, value: 604800000, name: 'week', prev: 'last week' },
-    { max: 28512000000, value: 2592000000, name: 'month', prev: 'last month' },
-    { max: Infinity, value: 31536000000, name: 'year', prev: 'last year' }
-];
+var ago_1 = __webpack_require__(203);
 var StudentPage = (function (_super) {
     __extends(StudentPage, _super);
     function StudentPage(props) {
@@ -499,18 +571,6 @@ var StudentPage = (function (_super) {
             }
         }
     };
-    StudentPage.prototype.ago = function (timestamp) {
-        var diff = Math.abs(Date.now() - timestamp);
-        if (diff < 60000) {
-            return 'just now';
-        }
-        for (var i = 0; i < agoUnits.length; i++) {
-            if (diff < agoUnits[i].max) {
-                var val = Math.floor(diff / agoUnits[i].value);
-                return val <= 1 ? agoUnits[i].prev : val + " " + agoUnits[i].name + "s ago";
-            }
-        }
-    };
     StudentPage.prototype.versionSelected = function (e) {
         e.preventDefault();
         var value = parseInt(e.currentTarget.value, 10);
@@ -521,7 +581,6 @@ var StudentPage = (function (_super) {
         }
     };
     StudentPage.prototype.renderDropdown = function () {
-        var _this = this;
         var interactives = this.props.student.interactives[this.props.studentInteractive.id];
         if (interactives.length < 2) {
             return null;
@@ -532,7 +591,7 @@ var StudentPage = (function (_super) {
                 "Version #",
                 number,
                 ", published ",
-                _this.ago(interactive.createdAt));
+                ago_1.ago(interactive.createdAt));
         });
         return React.createElement("div", null,
             React.createElement("select", { ref: "createdAtSelect", onChange: this.versionSelected, value: this.props.studentInteractive.createdAt }, options));

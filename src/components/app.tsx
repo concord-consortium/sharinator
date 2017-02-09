@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Interactive, InteractiveMap, Student, StudentMap, StudentInteractive, FirebaseInteractive, FirebaseStudent, FirebaseData, FirebaseStudentInteractive} from "./types"
+import { Interactive, InteractiveMap, Student, StudentMap, StudentInteractive, FirebaseInteractive, FirebaseStudent, FirebaseData, FirebaseStudentInteractive, Activity} from "./types"
 import { StudentPage } from "./student-page"
 import { ClassroomPage } from "./classroom-page"
 import { ClassInfo } from "./class-info"
@@ -21,6 +21,7 @@ export interface AppState {
   student: Student|null
   interactives: Array<Interactive>
   students: Array<Student>,
+  activity: Array<Activity>
   firebaseData: any|null
 }
 
@@ -43,6 +44,7 @@ export class App extends React.Component<AppProps, AppState> {
       student: null,
       interactives: [],
       students: [],
+      activity: [],
       firebaseData: null
     }
   }
@@ -73,6 +75,7 @@ export class App extends React.Component<AppProps, AppState> {
       this.classroomRef.on("value", (snapshot:any) => {
         const interactives:Array<Interactive> = []
         const students:Array<Student> = []
+        const activity:Array<Activity> = []
         const firebaseData = snapshot.val()
         let student:Student|null = null
         let studentInteractive:StudentInteractive|null = null
@@ -117,11 +120,17 @@ export class App extends React.Component<AppProps, AppState> {
                     const firebaseStudentInteractives = firebaseStudent.interactives[firebaseInteractiveId]
                     Object.keys(firebaseStudentInteractives).forEach((firebaseStudentInteractiveId) => {
                       const firebaseStudentInteractive = firebaseStudentInteractives[firebaseStudentInteractiveId]
-                      studentInteractives.push({
+                      const studentInteractive:StudentInteractive = {
                         id: firebaseInteractiveId,
                         name: interactive.name,
                         url: firebaseStudentInteractive.url,
                         createdAt: firebaseStudentInteractive.createdAt
+                      }
+                      studentInteractives.push(studentInteractive)
+
+                      activity.push({
+                        student: student,
+                        studentInteractive: studentInteractive
                       })
                     })
                     studentInteractives.sort((a, b) => {return b.createdAt - a.createdAt })
@@ -185,6 +194,7 @@ export class App extends React.Component<AppProps, AppState> {
           error: error,
           interactives: interactives,
           students: students,
+          activity: activity,
           student: student || this.state.student,
           studentInteractive: studentInteractive || this.state.studentInteractive,
           firebaseData: firebaseData
@@ -267,6 +277,7 @@ export class App extends React.Component<AppProps, AppState> {
                class={this.state.class}
                interactives={this.state.interactives}
                students={this.state.students}
+               activity={this.state.activity}
                setStudentInteractive={this.setStudentInteractive}
                getInteractiveHref={this.getInteractiveHref}
                classInfo={this.classInfo}
