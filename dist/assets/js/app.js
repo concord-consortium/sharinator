@@ -166,6 +166,7 @@ var App = (function (_super) {
                     }
                     students.sort(function (a, b) { return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0); });
                     interactives.sort(function (a, b) { return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0); });
+                    activity.sort(function (a, b) { return b.studentInteractive.createdAt - a.studentInteractive.createdAt; });
                     students.forEach(function (student) {
                         Object.keys(student.interactives).forEach(function (interactiveId) {
                             var interactive = interactiveMap[interactiveId];
@@ -464,23 +465,23 @@ var ClassroomPage = (function (_super) {
     };
     ClassroomPage.prototype.renderStudents = function () {
         if (this.props.students.length === 0) {
-            return React.createElement("div", null, "No students have started any interactives yet");
+            return React.createElement("div", null, "No students have published any interactives yet");
         }
         return React.createElement("table", { className: "u-full-width" },
             React.createElement("thead", null,
                 React.createElement("tr", null,
                     React.createElement("th", null, "Student"),
-                    React.createElement("th", null, "Shared Interactives"))),
+                    React.createElement("th", null, "Published Interactives"))),
             React.createElement("tbody", null, this.props.students.map(this.renderStudent.bind(this))));
     };
     ClassroomPage.prototype.renderInteractives = function () {
         if (this.props.interactives.length === 0) {
-            return React.createElement("div", null, "No interactives have been shared yet");
+            return React.createElement("div", null, "No interactives have been published yet");
         }
         return React.createElement("table", { className: "u-full-width" },
             React.createElement("thead", null,
                 React.createElement("tr", null,
-                    React.createElement("th", null, "Shared Interactive"),
+                    React.createElement("th", null, "Published Interactive"),
                     React.createElement("th", null, "Students"))),
             React.createElement("tbody", null, this.props.interactives.map(this.renderInteractive.bind(this))));
     };
@@ -489,7 +490,7 @@ var ClassroomPage = (function (_super) {
         var onClick = this.createOnClick(href, activity.student, activity.studentInteractive);
         return React.createElement("div", { className: "activity", key: activity.student.id + "-" + activity.studentInteractive.id + "-" + index },
             activity.student.name,
-            " shared",
+            " published",
             React.createElement("a", { href: href, onClick: onClick }, activity.studentInteractive.name),
             ago_1.ago(activity.studentInteractive.createdAt));
     };

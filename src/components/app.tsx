@@ -144,6 +144,7 @@ export class App extends React.Component<AppProps, AppState> {
 
           students.sort((a, b) => {return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0)})
           interactives.sort((a, b) => {return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0)})
+          activity.sort((a, b) => {return b.studentInteractive.createdAt - a.studentInteractive.createdAt})
 
           students.forEach((student) => {
             Object.keys(student.interactives).forEach((interactiveId) => {

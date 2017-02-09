@@ -73,13 +73,13 @@ export class ClassroomPage extends React.Component<ClassroomPageProps, Classroom
 
   renderStudents():JSX.Element {
     if (this.props.students.length === 0) {
-      return <div>No students have started any interactives yet</div>
+      return <div>No students have published any interactives yet</div>
     }
     return <table className="u-full-width">
              <thead>
                <tr>
                  <th>Student</th>
-                 <th>Shared Interactives</th>
+                 <th>Published Interactives</th>
                </tr>
              </thead>
              <tbody>
@@ -90,12 +90,12 @@ export class ClassroomPage extends React.Component<ClassroomPageProps, Classroom
 
   renderInteractives():JSX.Element {
     if (this.props.interactives.length === 0) {
-      return <div>No interactives have been shared yet</div>
+      return <div>No interactives have been published yet</div>
     }
     return <table className="u-full-width">
              <thead>
                <tr>
-                 <th>Shared Interactive</th>
+                 <th>Published Interactive</th>
                  <th>Students</th>
                </tr>
              </thead>
@@ -109,7 +109,7 @@ export class ClassroomPage extends React.Component<ClassroomPageProps, Classroom
     const href = this.props.getInteractiveHref(activity.student, activity.studentInteractive)
     const onClick = this.createOnClick(href, activity.student, activity.studentInteractive)
     return <div className="activity" key={`${activity.student.id}-${activity.studentInteractive.id}-${index}`}>
-            {activity.student.name} shared
+            {activity.student.name} published
             <a href={href} onClick={onClick}>{activity.studentInteractive.name}</a>
             {ago(activity.studentInteractive.createdAt)}
            </div>
