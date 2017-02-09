@@ -110,7 +110,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         documentServer: authoredState.docStoreUrl
       }
       const srcParams = {
-        server: `${authoredState.codapUrl}?${queryString.stringify({componentMode: "yes"})}`
+        server: `${authoredState.codapUrl}?${queryString.stringify(serverParams)}`
       }
       const src = `${authoredState.autoLaunchUrl}?${queryString.stringify(srcParams)}`
 

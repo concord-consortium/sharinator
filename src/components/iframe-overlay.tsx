@@ -4,6 +4,7 @@ import {FirebaseInteractive} from "./types"
 import {ClassInfoResultResponse} from "./class-info"
 import escapeFirebaseKey from "./escape-firebase-key"
 
+const queryString = require("query-string")
 const base64url = require("base64-url")
 const superagent = require("superagent")
 
@@ -95,7 +96,17 @@ export class IFrameOverlay extends React.Component<IFrameOverlayProps, IFrameOve
           try {
             const copyResults:CopyResults = JSON.parse(res.text)
             if (copyResults && copyResults.id && copyResults.readAccessKey) {
-              const url = `${this.props.authoredState.docStoreUrl}/v2/documents/${copyResults.id}?accessKey=RO::${copyResults.readAccessKey}`
+              const laraParams = {
+                recordid: copyResults.id,
+                accessKeys: {
+                  readOnly: copyResults.readAccessKey
+                }
+              }
+              const codapParams = {
+                componentMode: "yes",
+                documentServer: this.props.authoredState.docStoreUrl
+              }
+              const url = `${this.props.authoredState.codapUrl}?${queryString.stringify(codapParams)}#file=lara:${base64url.encode(JSON.stringify(laraParams))}`
 
               // save the interactive name (noop after it is first set)
               const firebaseInteractive:FirebaseInteractive = {name: data.interactive.name}

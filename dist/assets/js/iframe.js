@@ -66,7 +66,7 @@ var IFrame = (function (_super) {
                 documentServer: authoredState.docStoreUrl
             };
             var srcParams = {
-                server: authoredState.codapUrl + "?" + queryString.stringify({ componentMode: "yes" })
+                server: authoredState.codapUrl + "?" + queryString.stringify(serverParams)
             };
             var src = authoredState.autoLaunchUrl + "?" + queryString.stringify(srcParams);
             _this.setState({
@@ -192,6 +192,7 @@ var __extends = (this && this.__extends) || function (d, b) {
 };
 var React = __webpack_require__(10);
 var escape_firebase_key_1 = __webpack_require__(56);
+var queryString = __webpack_require__(61);
 var base64url = __webpack_require__(57);
 var superagent = __webpack_require__(54);
 var IFrameOverlay = (function (_super) {
@@ -252,7 +253,17 @@ var IFrameOverlay = (function (_super) {
                 try {
                     var copyResults = JSON.parse(res.text);
                     if (copyResults && copyResults.id && copyResults.readAccessKey) {
-                        var url = _this.props.authoredState.docStoreUrl + "/v2/documents/" + copyResults.id + "?accessKey=RO::" + copyResults.readAccessKey;
+                        var laraParams = {
+                            recordid: copyResults.id,
+                            accessKeys: {
+                                readOnly: copyResults.readAccessKey
+                            }
+                        };
+                        var codapParams = {
+                            componentMode: "yes",
+                            documentServer: _this.props.authoredState.docStoreUrl
+                        };
+                        var url = _this.props.authoredState.codapUrl + "?" + queryString.stringify(codapParams) + "#file=lara:" + base64url.encode(JSON.stringify(laraParams));
                         // save the interactive name (noop after it is first set)
                         var firebaseInteractive = { name: data.interactive.name };
                         _this.interactiveRef = _this.interactiveRef || firebase.database().ref(interactiveKey);
