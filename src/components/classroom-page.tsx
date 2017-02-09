@@ -105,10 +105,10 @@ export class ClassroomPage extends React.Component<ClassroomPageProps, Classroom
            </table>
   }
 
-  renderActivity(activity:Activity):JSX.Element {
+  renderActivity(activity:Activity, index:number):JSX.Element {
     const href = this.props.getInteractiveHref(activity.student, activity.studentInteractive)
     const onClick = this.createOnClick(href, activity.student, activity.studentInteractive)
-    return <div className="activity" key={`${activity.student.id}-${activity.studentInteractive.id}`}>
+    return <div className="activity" key={`${activity.student.id}-${activity.studentInteractive.id}-${index}`}>
             {activity.student.name} shared
             <a href={href} onClick={onClick}>{activity.studentInteractive.name}</a>
             {ago(activity.studentInteractive.createdAt)}

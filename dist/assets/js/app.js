@@ -484,10 +484,10 @@ var ClassroomPage = (function (_super) {
                     React.createElement("th", null, "Students"))),
             React.createElement("tbody", null, this.props.interactives.map(this.renderInteractive.bind(this))));
     };
-    ClassroomPage.prototype.renderActivity = function (activity) {
+    ClassroomPage.prototype.renderActivity = function (activity, index) {
         var href = this.props.getInteractiveHref(activity.student, activity.studentInteractive);
         var onClick = this.createOnClick(href, activity.student, activity.studentInteractive);
-        return React.createElement("div", { className: "activity", key: activity.student.id + "-" + activity.studentInteractive.id },
+        return React.createElement("div", { className: "activity", key: activity.student.id + "-" + activity.studentInteractive.id + "-" + index },
             activity.student.name,
             " shared",
             React.createElement("a", { href: href, onClick: onClick }, activity.studentInteractive.name),
