@@ -1,0 +1,63 @@
+/* sections */
+
+.header {
+  background-color: #f4b626;
+  color: #fff;
+  padding: 0 1rem;
+}
+
+.header img {
+  width: 12px;
+  text-align: left;
+}
+
+.loading {
+  margin: 2rem;
+}
+
+.error {
+  color: #f00;
+  margin: 2rem;
+}
+
+.nav {
+  margin: 1rem;
+}
+.nav button {
+  margin-right: 1rem;
+  float: right;
+}
+
+.page {
+  margin: 1rem;
+}
+
+.debug {
+  margin: 1rem;
+}
+
+iframe {
+  height: 600px;
+  border: 0;
+}
+
+h1 {
+  display: inline;
+  color: #33C3F0;
+}
+
+td span {
+  background-color: #f4b626;
+  padding: 3px 5px;
+  color: #fff;
+  margin-right: 10px;
+  -webkit-border-radius: 7px;
+  -moz-border-radius: 7px;
+  border-radius: 7px;
+  white-space: nowrap;
+}
+
+td span a {
+  color: #fff;
+}
+
