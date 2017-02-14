@@ -1,7 +1,8 @@
-import * as React from "react";
+import * as React from "react"
 import { Interactive, StudentInteractive, InteractiveMap, Student} from "./types"
 import { ClassInfo } from "./class-info"
 import { ago } from "./ago"
+import { IFrameOverlay } from "./iframe-overlay"
 
 export interface StudentPageProps {
   setStudentInteractive:(student:Student, interactive:StudentInteractive) => void
@@ -35,7 +36,7 @@ export class StudentPage extends React.Component<StudentPageProps, StudentPageSt
       const nextInteractives = nextProps.student.interactives[this.props.studentInteractive.id]
       const currentInteractives = this.props.student.interactives[this.props.studentInteractive.id]
       if (nextInteractives.length > currentInteractives.length) {
-        debugger
+        //debugger
       }
     }
   }
@@ -69,7 +70,10 @@ export class StudentPage extends React.Component<StudentPageProps, StudentPageSt
         <h4>{this.props.student.name}: {this.props.studentInteractive.name}</h4>
         { this.renderDropdown() }
       </div>
-      <iframe className="u-full-width" src={this.props.studentInteractive.url}></iframe>
+      <div id="iframe" className="u-full-width">
+        <iframe className="u-full-width" src={this.props.studentInteractive.url}></iframe>
+        <IFrameOverlay initInteractiveData={null} copyUrl={null} authoredState={null} />
+      </div>
     </div>
   }
 }

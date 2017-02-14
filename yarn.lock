@@ -6,6 +6,10 @@
   version "7.0.4"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-7.0.4.tgz#9aabc135979ded383325749f508894c662948c8b"
 
+"@types/papaparse@^4.1.28":
+  version "4.1.28"
+  resolved "https://registry.yarnpkg.com/@types/papaparse/-/papaparse-4.1.28.tgz#f71a521f37e1046944fb152df7aa600849cea3ee"
+
 "@types/react-dom@^0.14.22":
   version "0.14.22"
   resolved "https://registry.yarnpkg.com/@types/react-dom/-/react-dom-0.14.22.tgz#a9a9d2c1461dda668a8bbaef8d62f6abc7d6b9bd"
@@ -1607,6 +1611,10 @@ os-locale@^1.4.0:
 pako@~0.2.0:
   version "0.2.9"
   resolved "https://registry.yarnpkg.com/pako/-/pako-0.2.9.tgz#f3f7522f4ef782348da8161bad9ecfd51bf83a75"
+
+papaparse@^4.1.4:
+  version "4.1.4"
+  resolved "https://registry.yarnpkg.com/papaparse/-/papaparse-4.1.4.tgz#57b224621762da0f943d95b82a8e82c3b4b331a2"
 
 parse-asn1@^5.0.0:
   version "5.0.0"

@@ -71,7 +71,7 @@ export class App extends React.Component<AppProps, AppState> {
       this.setState({className: info.name})
 
       // connect to firebase
-      this.classroomRef = firebase.database().ref(`classes/${info.privateClassHash}`)
+      this.classroomRef = firebase.database().ref(`classes/${info.classHash}`)
       this.classroomRef.on("value", (snapshot:any) => {
         const interactives:Array<Interactive> = []
         const students:Array<Student> = []

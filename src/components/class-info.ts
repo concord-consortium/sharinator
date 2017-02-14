@@ -1,8 +1,9 @@
 const superagent = require("superagent")
 import escapeFirebaseKey from "./escape-firebase-key"
 
-export interface Student {
-  name: string
+export class Student {
+  first_name: string
+  last_name: string
   email: string
 }
 
@@ -10,13 +11,13 @@ export interface ClassInfoResultResponse {
   response_type?: string
   message?: string
   name: string
-  private_class_hash: string
+  class_hash: string
   students: Array<Student>
 }
 
 export interface AllClassInfo {
   name: string
-  privateClassHash: string
+  classHash: string
   studentNames: StudentNameCache
 }
 
@@ -35,7 +36,7 @@ type GetClassInfoCallback = (err:string|null, info:AllClassInfo) => void
 
 export class ClassInfo {
   private name:string|null
-  private privateClassHash:string|null
+  private classHash:string|null
   private studentNames:StudentNameCache
   private anonymousStudentNames:StudentNameCache
   private nextAnonymousId:number
@@ -50,10 +51,10 @@ export class ClassInfo {
   }
 
   getClassInfo(callback:GetClassInfoCallback) {
-    if (this.name && this.privateClassHash) {
+    if (this.name && this.classHash) {
       callback(null, {
         name: this.name,
-        privateClassHash: this.privateClassHash,
+        classHash: this.classHash,
         studentNames: this.studentNames
       })
     }
@@ -108,15 +109,15 @@ export class ClassInfo {
 
           if (result.response_type !== "ERROR") {
             this.name = result.name
-            this.privateClassHash = result.private_class_hash
+            this.classHash = result.class_hash
 
             this.studentNames = {}
             result.students.forEach((student) => {
-              this.studentNames[escapeFirebaseKey(student.email)] = student.name
+              this.studentNames[escapeFirebaseKey(student.email)] = `${student.first_name} ${student.last_name}`
             })
             allInfo = {
               name: result.name,
-              privateClassHash: result.private_class_hash,
+              classHash: result.class_hash,
               studentNames: this.studentNames
             }
           }

@@ -105,14 +105,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       }
 
       const authoredState:AuthoredState = data.authoredState
-      const serverParams = {
-        componentMode: "yes",
-        documentServer: authoredState.docStoreUrl
-      }
-      const srcParams = {
-        server: `${authoredState.codapUrl}?${queryString.stringify(serverParams)}`
-      }
-      const src = `${authoredState.autoLaunchUrl}?${queryString.stringify(srcParams)}`
+      const src = `${authoredState.autoLaunchUrl}?${queryString.stringify({server: authoredState.codapUrl})}`
 
       this.setState({
         src: src,
@@ -147,6 +140,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   }
 
   getInteractiveState() {
+    const iframe = this
     superagent
       .get(this.state.irsUrl)
       .withCredentials()
@@ -158,7 +152,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
             if (json && json.raw_data) {
               const rawData = JSON.parse(json.raw_data)
               if (rawData && rawData.docStore && rawData.docStore.accessKeys && rawData.docStore.accessKeys.readOnly && this.state.authoredState) {
-                this.setState({
+                iframe.setState({
                   copyUrl: `${this.state.authoredState.docStoreUrl}/v2/documents?source=${rawData.docStore.recordid}&accessKey=RO::${rawData.docStore.accessKeys.readOnly}`,
                 })
               }
@@ -175,7 +169,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     e.preventDefault()
 
     const url = this.refs.laraSharedUrl.value
-    const [docStoreUrl, query, ...rest] = url.split("?")
+    let [docStoreUrl, query, ...rest] = url.split("?")
     const urlMatches = docStoreUrl.match(/^((https?:\/\/[^/]+\/)v2\/documents\/\d+\/(auto)?launch)/)
     const launchParams = queryString.parse(query || "")
 
@@ -185,11 +179,20 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     }
     this.setState({authoringError: null})
 
+    docStoreUrl = this.matchProtocol(urlMatches[2].replace(/\/+$/, "")) // remove trailing slashes
+
+    let codapUrl
+    [codapUrl, query, ...rest] = launchParams.server.split("?")
+    const codapParams = queryString.parse(query || "")
+    codapParams.componentMode = "yes"
+    codapParams.documentServer = docStoreUrl
+    codapUrl = this.matchProtocol(`${codapUrl}?${queryString.stringify(codapParams)}`)
+
     const authoredState:AuthoredState = {
       laraSharedUrl: url,
-      docStoreUrl: this.matchProtocol(urlMatches[2].replace(/\/+$/, "")), // remove trailing slashes
+      docStoreUrl: codapParams.documentServer,
       autoLaunchUrl: this.matchProtocol(urlMatches[1].replace("/launch", "/autolaunch")), // change to autolaunch
-      codapUrl: this.matchProtocol(launchParams.server)
+      codapUrl: codapUrl
     }
 
     this.clientPhone.post('authoredState', authoredState)
@@ -215,7 +218,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   }
 
   renderIFrame():JSX.Element {
-    if (this.state.src && this.state.initInteractiveData && this.state.authoredState) {
+    if (this.state.src) {
       return <div id="iframe">
               <iframe ref="iframe" src={this.state.src}></iframe>
               <IFrameOverlay initInteractiveData={this.state.initInteractiveData} copyUrl={this.state.copyUrl} authoredState={this.state.authoredState} />

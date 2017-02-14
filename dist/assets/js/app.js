@@ -1,19 +1,19 @@
 webpackJsonp([0],{
 
-/***/ 200:
+/***/ 202:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-var React = __webpack_require__(10);
+var React = __webpack_require__(9);
 var ReactDOM = __webpack_require__(21);
-var app_1 = __webpack_require__(86);
+var app_1 = __webpack_require__(87);
 ReactDOM.render(React.createElement(app_1.App, null), document.getElementById("app"));
 
 
 /***/ }),
 
-/***/ 203:
+/***/ 57:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43,7 +43,7 @@ exports.ago = ago;
 
 /***/ }),
 
-/***/ 86:
+/***/ 87:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -53,11 +53,11 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var React = __webpack_require__(10);
-var student_page_1 = __webpack_require__(91);
-var classroom_page_1 = __webpack_require__(89);
-var class_info_1 = __webpack_require__(88);
-var base64url = __webpack_require__(58);
+var React = __webpack_require__(9);
+var student_page_1 = __webpack_require__(93);
+var classroom_page_1 = __webpack_require__(90);
+var class_info_1 = __webpack_require__(89);
+var base64url = __webpack_require__(59);
 var queryString = __webpack_require__(34);
 var App = (function (_super) {
     __extends(App, _super);
@@ -98,7 +98,7 @@ var App = (function (_super) {
             }
             _this.setState({ className: info.name });
             // connect to firebase
-            _this.classroomRef = firebase.database().ref("classes/" + info.privateClassHash);
+            _this.classroomRef = firebase.database().ref("classes/" + info.classHash);
             _this.classroomRef.on("value", function (snapshot) {
                 var interactives = [];
                 var students = [];
@@ -298,13 +298,19 @@ exports.App = App;
 
 /***/ }),
 
-/***/ 88:
+/***/ 89:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 var superagent = __webpack_require__(55);
-var escape_firebase_key_1 = __webpack_require__(57);
+var escape_firebase_key_1 = __webpack_require__(58);
+var Student = (function () {
+    function Student() {
+    }
+    return Student;
+}());
+exports.Student = Student;
 var ClassInfo = (function () {
     function ClassInfo(classInfoUrl) {
         this.classInfoUrl = classInfoUrl;
@@ -315,10 +321,10 @@ var ClassInfo = (function () {
         this.callbacks = [];
     }
     ClassInfo.prototype.getClassInfo = function (callback) {
-        if (this.name && this.privateClassHash) {
+        if (this.name && this.classHash) {
             callback(null, {
                 name: this.name,
-                privateClassHash: this.privateClassHash,
+                classHash: this.classHash,
                 studentNames: this.studentNames
             });
         }
@@ -370,14 +376,14 @@ var ClassInfo = (function () {
                 var error_1 = null;
                 if (result.response_type !== "ERROR") {
                     _this.name = result.name;
-                    _this.privateClassHash = result.private_class_hash;
+                    _this.classHash = result.class_hash;
                     _this.studentNames = {};
                     result.students.forEach(function (student) {
-                        _this.studentNames[escape_firebase_key_1.default(student.email)] = student.name;
+                        _this.studentNames[escape_firebase_key_1.default(student.email)] = student.first_name + " " + student.last_name;
                     });
                     allInfo_1 = {
                         name: result.name,
-                        privateClassHash: result.private_class_hash,
+                        classHash: result.class_hash,
                         studentNames: _this.studentNames
                     };
                 }
@@ -398,7 +404,7 @@ exports.ClassInfo = ClassInfo;
 
 /***/ }),
 
-/***/ 89:
+/***/ 90:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -408,8 +414,8 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var React = __webpack_require__(10);
-var ago_1 = __webpack_require__(203);
+var React = __webpack_require__(9);
+var ago_1 = __webpack_require__(57);
 var ClassroomPage = (function (_super) {
     __extends(ClassroomPage, _super);
     function ClassroomPage(props) {
@@ -537,7 +543,7 @@ exports.ClassroomPage = ClassroomPage;
 
 /***/ }),
 
-/***/ 91:
+/***/ 93:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -547,8 +553,9 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var React = __webpack_require__(10);
-var ago_1 = __webpack_require__(203);
+var React = __webpack_require__(9);
+var ago_1 = __webpack_require__(57);
+var iframe_overlay_1 = __webpack_require__(92);
 var StudentPage = (function (_super) {
     __extends(StudentPage, _super);
     function StudentPage(props) {
@@ -568,7 +575,6 @@ var StudentPage = (function (_super) {
             var nextInteractives = nextProps.student.interactives[this.props.studentInteractive.id];
             var currentInteractives = this.props.student.interactives[this.props.studentInteractive.id];
             if (nextInteractives.length > currentInteractives.length) {
-                debugger;
             }
         }
     };
@@ -605,7 +611,9 @@ var StudentPage = (function (_super) {
                     ": ",
                     this.props.studentInteractive.name),
                 this.renderDropdown()),
-            React.createElement("iframe", { className: "u-full-width", src: this.props.studentInteractive.url }));
+            React.createElement("div", { id: "iframe", className: "u-full-width" },
+                React.createElement("iframe", { className: "u-full-width", src: this.props.studentInteractive.url }),
+                React.createElement(iframe_overlay_1.IFrameOverlay, { initInteractiveData: null, copyUrl: null, authoredState: null })));
     };
     return StudentPage;
 }(React.Component));
@@ -614,5 +622,5 @@ exports.StudentPage = StudentPage;
 
 /***/ })
 
-},[200]);
+},[202]);
 //# sourceMappingURL=app.js.map

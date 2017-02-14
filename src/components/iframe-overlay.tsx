@@ -1,5 +1,6 @@
 import * as React from "react";
 import {InitInteractiveData, AuthoredState} from "./iframe"
+import {ExportLibrary} from "./export-library"
 import {FirebaseInteractive} from "./types"
 import {ClassInfoResultResponse} from "./class-info"
 import escapeFirebaseKey from "./escape-firebase-key"
@@ -11,13 +12,13 @@ const superagent = require("superagent")
 declare var firebase: any;  // @types/firebase is not Firebase 3
 
 export interface IFrameOverlayProps {
-  initInteractiveData: InitInteractiveData
-  authoredState: AuthoredState
+  initInteractiveData: InitInteractiveData|null
+  authoredState: AuthoredState|null
   copyUrl: string|null
 }
 
 export interface IFrameOverlayState {
-  privateClassHash: string|null
+  classHash: string|null
   loadingClassInfo: boolean
   publishing: boolean
   publishingError: string|null
@@ -41,7 +42,7 @@ export class IFrameOverlay extends React.Component<IFrameOverlayProps, IFrameOve
 
     this.onPublish = this.onPublish.bind(this)
     this.state = {
-      privateClassHash: null,
+      classHash: null,
       loadingClassInfo: false,
       publishing: false,
       publishingError: null,
@@ -50,7 +51,7 @@ export class IFrameOverlay extends React.Component<IFrameOverlayProps, IFrameOve
   }
 
   componentDidMount() {
-    if (!this.state.privateClassHash && !this.state.loadingClassInfo) {
+    if (!this.state.classHash && !this.state.loadingClassInfo && this.props.initInteractiveData) {
       this.setState({loadingClassInfo: true})
       superagent
         .get(this.props.initInteractiveData.classInfoUrl)
@@ -63,7 +64,7 @@ export class IFrameOverlay extends React.Component<IFrameOverlayProps, IFrameOve
               if (result.response_type !== "ERROR") {
                 this.setState({
                   loadingClassInfo: false,
-                  privateClassHash: result.private_class_hash
+                  classHash: result.class_hash
                 })
               }
             }
@@ -76,13 +77,17 @@ export class IFrameOverlay extends React.Component<IFrameOverlayProps, IFrameOve
   onPublish(e:React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault()
 
+    if (!this.props.initInteractiveData) {
+      return
+    }
+
     this.setState({
       publishing: true,
       publishingStatus: "Publishing..."
     })
 
     const data = this.props.initInteractiveData
-    const classroomKey = `classes/${this.state.privateClassHash}`
+    const classroomKey = `classes/${this.state.classHash}`
     const interactiveKey = `${classroomKey}/interactives/interactive_${data.interactive.id}`
     const studentInteractivesKey = `${classroomKey}/students/${escapeFirebaseKey(data.authInfo.email)}/interactives/interactive_${data.interactive.id}`
 
@@ -102,11 +107,7 @@ export class IFrameOverlay extends React.Component<IFrameOverlayProps, IFrameOve
                   readOnly: copyResults.readAccessKey
                 }
               }
-              const codapParams = {
-                componentMode: "yes",
-                documentServer: this.props.authoredState.docStoreUrl
-              }
-              const url = `${this.props.authoredState.codapUrl}?${queryString.stringify(codapParams)}#file=lara:${base64url.encode(JSON.stringify(laraParams))}`
+              const url = `${this.props.authoredState.codapUrl}?#file=lara:${base64url.encode(JSON.stringify(laraParams))}`
 
               // save the interactive name (noop after it is first set)
               const firebaseInteractive:FirebaseInteractive = {name: data.interactive.name}
@@ -160,19 +161,21 @@ export class IFrameOverlay extends React.Component<IFrameOverlayProps, IFrameOve
   }
 
   render() {
-    if (!this.props.initInteractiveData || !this.state.privateClassHash) {
-      return null
+    let topButtons = null
+    if (this.props.initInteractiveData && this.state.classHash && this.props.copyUrl) {
+      const href = `../dashboard/?class=${base64url.encode(this.props.initInteractiveData.classInfoUrl)}`
+      topButtons = <div className="buttons">
+                     <button className="button button-primary" onClick={this.onPublish} disabled={this.state.publishing}>Publish</button>
+                     <a className="button button-primary" href={href} target="_blank">View</a>
+                   </div>
     }
-    const href = `../dashboard/?class=${base64url.encode(this.props.initInteractiveData.classInfoUrl)}`
 
     return <div id="iframe-overlay">
              <div id="background"></div>
-             <div id="buttons">
-               <button className="button button-primary" onClick={this.onPublish} disabled={this.state.publishing}>Publish</button>
-               <a className="button button-primary" href={href} target="_blank">View</a>
-             </div>
+             { topButtons }
              { this.renderPublishingError() }
              { this.renderPublishingStatus() }
+             <ExportLibrary />
            </div>
   }
 }

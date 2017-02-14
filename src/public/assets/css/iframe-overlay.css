@@ -1,0 +1,48 @@
+#iframe-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 225px;
+  overflow: auto;
+}
+
+#iframe-overlay #background {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  background-color: #777;
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.buttons {
+  text-align: center;
+}
+
+button {
+  margin: 10px 5px;
+}
+
+.status, .error {
+  margin: 5px 10px;
+  text-align: center;
+}
+
+.error {
+  color: #f00;
+}
+
+#export-library div {
+  margin: 10px;
+  font-size: 12px;
+}
+#export-library img {
+  margin: 0 10px 10px 0;
+  max-width: 90px;
+  max-height: 90px;
+}
+
+#items img.exported {
+  border: 1px solid #aaa;
+}
