@@ -1,19 +1,19 @@
 webpackJsonp([1],{
 
-/***/ 203:
+/***/ 204:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 var React = __webpack_require__(9);
 var ReactDOM = __webpack_require__(21);
-var iframe_1 = __webpack_require__(88);
+var iframe_1 = __webpack_require__(89);
 ReactDOM.render(React.createElement(iframe_1.IFrame, null), document.getElementById("app"));
 
 
 /***/ }),
 
-/***/ 88:
+/***/ 89:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -24,9 +24,9 @@ var __extends = (this && this.__extends) || function (d, b) {
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var React = __webpack_require__(9);
-var iframe_overlay_1 = __webpack_require__(92);
-var queryString = __webpack_require__(34);
-var superagent = __webpack_require__(55);
+var iframe_overlay_1 = __webpack_require__(60);
+var queryString = __webpack_require__(35);
+var superagent = __webpack_require__(56);
 var IFrame = (function (_super) {
     __extends(IFrame, _super);
     function IFrame(props) {
@@ -135,6 +135,7 @@ var IFrame = (function (_super) {
         var codapParams = queryString.parse(query || "");
         codapParams.componentMode = "yes";
         codapParams.documentServer = docStoreUrl;
+        codapParams.saveSecondaryFileViaPostMessage = "yes";
         codapUrl = this.matchProtocol(codapUrl + "?" + queryString.stringify(codapParams));
         var authoredState = {
             laraSharedUrl: url,
@@ -182,5 +183,5 @@ exports.IFrame = IFrame;
 
 /***/ })
 
-},[203]);
+},[204]);
 //# sourceMappingURL=iframe.js.map

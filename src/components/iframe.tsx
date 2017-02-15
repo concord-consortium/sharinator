@@ -186,6 +186,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     const codapParams = queryString.parse(query || "")
     codapParams.componentMode = "yes"
     codapParams.documentServer = docStoreUrl
+    codapParams.saveSecondaryFileViaPostMessage = "yes"
     codapUrl = this.matchProtocol(`${codapUrl}?${queryString.stringify(codapParams)}`)
 
     const authoredState:AuthoredState = {
