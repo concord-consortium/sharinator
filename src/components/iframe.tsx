@@ -218,7 +218,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
            </form>
   }
 
-  renderIFrame():JSX.Element {
+  renderIFrame():JSX.Element|null {
     if (this.state.src) {
       return <div id="iframe">
               <iframe ref="iframe" src={this.state.src}></iframe>
