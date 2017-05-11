@@ -10948,6 +10948,7 @@ var ExportLibrary = (function (_super) {
         }
     };
     ExportLibrary.prototype.createCSVClickHandler = function (item) {
+        var _this = this;
         return function (e) {
             e.preventDefault();
             Papa.parse(item.content, {
@@ -10998,48 +10999,53 @@ var ExportLibrary = (function (_super) {
                                 document.body.removeChild(mark);
                             }
                             if (copied) {
-                                alert("The table has been copied to the clipboard.  You can now paste it into a Google Doc.");
+                                item.copied = true;
+                                setTimeout(function () {
+                                    item.copied = false;
+                                    _this.forceUpdate();
+                                }, 2000);
+                                _this.forceUpdate();
                                 return;
                             }
                         }
                     }
-                    if ((results.errors.length > 0) || !copied) {
-                        alert("Sorry, the table could not be copied to the clipboard.");
-                    }
+                    var error = (results.errors.length > 0) || !copied ? "Sorry, the table could not be copied to the clipboard." : null;
+                    _this.setState({ error: error });
                 }
             });
         };
     };
-    ExportLibrary.prototype.render = function () {
-        var items, i;
-        if (this.state.items.length > 0) {
-            items = [];
-            for (i = 0; i < this.state.items.length; i++) {
-                var item = this.state.items[i];
-                if (item.type === "image") {
-                    items.push(React.createElement("img", { key: i, className: "exported", src: "data:image/png;base64," + this.state.items[i].content }));
-                }
-                else {
-                    items.push(React.createElement("a", { key: i, onClick: this.createCSVClickHandler(item), href: "data:text/csv;charset=utf-8," + encodeURIComponent(this.state.items[i].content) },
-                        React.createElement("img", { src: "../assets/img/spreadsheet.png" })));
-                }
+    ExportLibrary.prototype.renderItems = function () {
+        var items = [];
+        var i;
+        if (this.state.items.length === 0) {
+            return (React.createElement("div", { id: "no-items" }, "No items in library.  Use the controls on the left to export tables and images."));
+        }
+        for (i = 0; i < this.state.items.length; i++) {
+            var item = this.state.items[i];
+            if (item.type === "image") {
+                var imgItem = (React.createElement("div", { key: i, className: "item" },
+                    React.createElement("img", { key: i, className: "exported", src: "data:image/png;base64," + this.state.items[i].content })));
+                items.push(imgItem);
             }
-            return React.createElement("div", { id: "export-library" },
-                React.createElement("div", null, "You can now drag any of the graph snapshots from the list below directly into a Google Doc."),
-                React.createElement("div", null, "If you want to insert a table from the list below into a Google Doc first click on it to automatically copy it.  You can then paste it into the Google Doc."),
-                React.createElement("div", null, "Finally you can drag any table from the list below back to your activity to import the data."),
-                React.createElement("div", { id: "items" }, items),
-                React.createElement("div", { className: "buttons" },
-                    React.createElement("button", { className: "button button-primary", onClick: this.clearItems }, "Clear Items")));
+            else {
+                var csvItem = (React.createElement("div", { key: i, className: "item" },
+                    React.createElement("a", { onClick: this.createCSVClickHandler(item), href: "data:text/csv;charset=utf-8," + encodeURIComponent(this.state.items[i].content) },
+                        React.createElement("img", { src: "../assets/img/spreadsheet.png" })),
+                    item.copied ? React.createElement("span", { className: "copied" }, "COPIED!") : null));
+                items.push(csvItem);
+            }
         }
-        else if (this.state.error !== null) {
-            return React.createElement("div", { id: "export-library" },
-                React.createElement("div", null, this.state.error));
-        }
-        else {
-            return React.createElement("div", { id: "export-library" },
-                React.createElement("div", null, "Select any graph or table to the left and then click on the camera icon to export the data to here."));
-        }
+        return (React.createElement("div", null,
+            React.createElement("div", { id: "items" }, items),
+            React.createElement("div", { className: "buttons" },
+                React.createElement("button", { className: "button button-primary", onClick: this.clearItems }, "Clear"))));
+    };
+    ExportLibrary.prototype.render = function () {
+        return (React.createElement("div", { id: "export-library" },
+            React.createElement("div", { id: "export-library-header" }, "Sharing Library"),
+            this.state.error ? React.createElement("div", { id: "export-library-error" }, this.state.error) : null,
+            this.renderItems()));
     };
     return ExportLibrary;
 }(React.Component));

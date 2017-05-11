@@ -14,9 +14,10 @@ export interface ExportLibraryState {
 interface ExportItem {
   type: "image" | "csv"
   content: string
+  copied?: boolean
 }
 
-export class ExportLibrary  extends React.Component<ExportLibraryProps, ExportLibraryState> {
+export class ExportLibrary extends React.Component<ExportLibraryProps, ExportLibraryState> {
 
   constructor(props: ExportLibraryProps) {
     super(props)
@@ -131,49 +132,73 @@ export class ExportLibrary  extends React.Component<ExportLibraryProps, ExportLi
               }
 
               if (copied) {
-                alert("The table has been copied to the clipboard.  You can now paste it into a Google Doc.")
+                item.copied = true
+                setTimeout(() => {
+                  item.copied = false
+                  this.forceUpdate()
+                }, 2000)
+                this.forceUpdate()
                 return
               }
             }
           }
 
-          if ((results.errors.length > 0) || !copied) {
-            alert("Sorry, the table could not be copied to the clipboard.")
-          }
+          const error = (results.errors.length > 0) || !copied ? "Sorry, the table could not be copied to the clipboard." : null
+          this.setState({error: error})
         }
       })
     }
   }
 
-  render() {
-    var items, i
+  renderItems() {
+    const items = []
+    let i
 
-    if (this.state.items.length > 0) {
-      items = []
-      for (i = 0; i < this.state.items.length; i++) {
-        const item = this.state.items[i]
-        if (item.type === "image") {
-          items.push(<img key={i} className="exported" src={`data:image/png;base64,${this.state.items[i].content}`} />)
-        }
-        else {
-          items.push(<a key={i} onClick={this.createCSVClickHandler(item)} href={`data:text/csv;charset=utf-8,${encodeURIComponent(this.state.items[i].content)}`} ><img src="../assets/img/spreadsheet.png" /></a>)
-        }
+    if (this.state.items.length === 0) {
+      return (
+        <div id="no-items">
+          No items in library.  Use the controls on the left to export tables and images.
+        </div>
+      )
+    }
+
+    for (i = 0; i < this.state.items.length; i++) {
+      const item = this.state.items[i]
+      if (item.type === "image") {
+        const imgItem = (
+          <div key={i} className="item">
+            <img key={i} className="exported" src={`data:image/png;base64,${this.state.items[i].content}`} />
+          </div>
+        )
+        items.push(imgItem)
       }
-      return <div id="export-library">
-        <div>You can now drag any of the graph snapshots from the list below directly into a Google Doc.</div>
-        <div>If you want to insert a table from the list below into a Google Doc first click on it to automatically copy it.  You can then paste it into the Google Doc.</div>
-        <div>Finally you can drag any table from the list below back to your activity to import the data.</div>
+      else {
+        const csvItem = (
+          <div key={i} className="item">
+            <a onClick={this.createCSVClickHandler(item)} href={`data:text/csv;charset=utf-8,${encodeURIComponent(this.state.items[i].content)}`} >
+              <img src="../assets/img/spreadsheet.png" />
+            </a>
+            {item.copied ? <span className="copied">COPIED!</span> : null}
+          </div>
+        )
+        items.push(csvItem)
+      }
+    }
+    return (
+      <div>
         <div id="items">{items}</div>
-        <div className="buttons"><button className="button button-primary" onClick={this.clearItems}>Clear Items</button></div>
+        <div className="buttons"><button className="button button-primary" onClick={this.clearItems}>Clear</button></div>
       </div>
-    }
-    else if (this.state.error !== null) {
-      return <div id="export-library"><div>{this.state.error}</div></div>
-    }
-    else {
-      return <div id="export-library">
-               <div>Select any graph or table to the left and then click on the camera icon to export the data to here.</div>
-             </div>
-    }
+    )
+  }
+
+  render() {
+    return (
+      <div id="export-library">
+        <div id="export-library-header">Sharing Library</div>
+        {this.state.error ? <div id="export-library-error">{this.state.error}</div> : null}
+        { this.renderItems() }
+      </div>
+    )
   }
 }

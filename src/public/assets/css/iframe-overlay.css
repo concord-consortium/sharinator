@@ -5,6 +5,7 @@
   bottom: 0;
   width: 225px;
   overflow: auto;
+  cursor: pointer;
 }
 
 #iframe-overlay #background {
@@ -33,16 +34,44 @@ button {
   color: #f00;
 }
 
-#export-library div {
-  margin: 10px;
-  font-size: 12px;
-}
 #export-library img {
-  margin: 0 10px 10px 0;
-  max-width: 90px;
-  max-height: 90px;
+  max-width: 70px;
+  max-height: 70px;
+}
+
+#items {
+  margin: 10px 7px;
 }
 
 #items img.exported {
   border: 1px solid #aaa;
+}
+
+#items .item {
+  display: inline-block;
+  position: relative;
+}
+
+#items .copied {
+  display: inline-block;
+  position: absolute;
+  left: 8px;
+  top: 25px;
+  font-weight: bold;
+  color: darkgreen;
+  font-size: 12px;
+}
+
+#export-library-header {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 10px;
+}
+
+#export-library-error {
+  color: #f00;
+}
+
+#no-items {
+  margin: 10px;
 }
