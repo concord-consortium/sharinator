@@ -31,6 +31,7 @@ var IFrame = (function (_super) {
     __extends(IFrame, _super);
     function IFrame(props) {
         var _this = _super.call(this, props) || this;
+        _this.iframeCanAutosave = false;
         _this.submitAuthoringInfo = _this.submitAuthoringInfo.bind(_this);
         _this.getInteractiveState = _this.getInteractiveState.bind(_this);
         _this.delayedMount = _this.delayedMount.bind(_this);
@@ -72,13 +73,27 @@ var IFrame = (function (_super) {
                 setTimeout(_this.getInteractiveState, 1000);
             }
         });
+        this.clientPhone.addListener('getInteractiveState', function () {
+            if (_this.iframeCanAutosave) {
+                _this.postMessageToInnerIframe('cfm::autosave');
+            }
+            else {
+                _this.clientPhone.post('interactiveState', 'nochange');
+            }
+        });
         this.clientPhone.initialize();
         this.clientPhone.post('supportedFeatures', {
             apiVersion: 1,
             features: {
-                authoredState: true
+                authoredState: true,
+                interactiveState: true
             }
         });
+    };
+    IFrame.prototype.postMessageToInnerIframe = function (type) {
+        if (this.refs.iframe) {
+            this.refs.iframe.contentWindow.postMessage({ type: type }, '*');
+        }
     };
     IFrame.prototype.componentDidUpdate = function () {
         var _this = this;
@@ -90,6 +105,30 @@ var IFrame = (function (_super) {
             this.serverPhone = new iframePhone.ParentEndpoint(this.refs.iframe, function () {
                 _this.serverPhone.post("initInteractive", _this.state.initInteractiveData);
             });
+            // setup a generic postmessage CFM listener for the iframed CODAP window that autolaunch loads
+            // we can't use the serverPhone here because it is an iframe embedded in an iframe
+            var keepPollingForCommands_1 = true;
+            window.onmessage = function (e) {
+                switch (e.data.type) {
+                    case "cfm::commands":
+                        _this.iframeCanAutosave = e.data.commands && e.data.commands.indexOf('cfm::autosave') !== -1;
+                        keepPollingForCommands_1 = false;
+                        break;
+                    case "cfm::autosaved":
+                        if (_this.clientPhone) {
+                            _this.clientPhone.post('interactiveState', 'nochange');
+                        }
+                        break;
+                }
+            };
+            // keep asking for the cfm commands available until we get a response once the inner iframe loads
+            var pollForCommandList_1 = function () {
+                if (keepPollingForCommands_1) {
+                    _this.postMessageToInnerIframe('cfm::getCommands');
+                    setTimeout(pollForCommandList_1, 100);
+                }
+            };
+            pollForCommandList_1();
         }
     };
     IFrame.prototype.getInteractiveState = function () {

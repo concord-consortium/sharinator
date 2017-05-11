@@ -63,6 +63,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   private classroomRef:any
   private clientPhone:any
   private serverPhone:any
+  private iframeCanAutosave = false
 
   refs: {
     [string: string]: any;
@@ -118,13 +119,28 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         setTimeout(this.getInteractiveState, 1000)
       }
     })
+    this.clientPhone.addListener('getInteractiveState', () => {
+      if (this.iframeCanAutosave) {
+        this.postMessageToInnerIframe('cfm::autosave');
+      }
+      else {
+        this.clientPhone.post('interactiveState', 'nochange');
+      }
+    });
     this.clientPhone.initialize();
     this.clientPhone.post('supportedFeatures', {
       apiVersion: 1,
       features: {
-        authoredState: true
+        authoredState: true,
+        interactiveState: true
       }
     })
+  }
+
+  postMessageToInnerIframe(type:string) {
+    if (this.refs.iframe) {
+      this.refs.iframe.contentWindow.postMessage({type: type}, '*')
+    }
   }
 
   componentDidUpdate() {
@@ -136,6 +152,32 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       this.serverPhone = new iframePhone.ParentEndpoint(this.refs.iframe, () => {
         this.serverPhone.post("initInteractive", this.state.initInteractiveData)
       })
+
+      // setup a generic postmessage CFM listener for the iframed CODAP window that autolaunch loads
+      // we can't use the serverPhone here because it is an iframe embedded in an iframe
+      let keepPollingForCommands = true
+      window.onmessage = (e) => {
+        switch (e.data.type) {
+          case "cfm::commands":
+            this.iframeCanAutosave = e.data.commands && e.data.commands.indexOf('cfm::autosave') !== -1
+            keepPollingForCommands = false
+            break
+          case "cfm::autosaved":
+            if (this.clientPhone) {
+              this.clientPhone.post('interactiveState', 'nochange')
+            }
+            break
+        }
+      }
+
+      // keep asking for the cfm commands available until we get a response once the inner iframe loads
+      const pollForCommandList = () => {
+        if (keepPollingForCommands) {
+          this.postMessageToInnerIframe('cfm::getCommands')
+          setTimeout(pollForCommandList, 100)
+        }
+      }
+      pollForCommandList()
     }
   }
 
