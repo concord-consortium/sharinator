@@ -4,6 +4,7 @@ module.exports = {
     entry: {
         app: "./src/app.tsx",
         iframe: "./src/iframe.tsx",
+        demo: "./src/demo.tsx",
         globals: ["react", "react-dom"]
     },
 
