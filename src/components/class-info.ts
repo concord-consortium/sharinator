@@ -7,12 +7,18 @@ export class Student {
   email: string
 }
 
+export class Teacher {
+  first_name: string
+  last_name: string
+}
+
 export interface ClassInfoResultResponse {
   response_type?: string
   message?: string
   name: string
   class_hash: string
   students: Array<Student>
+  teachers: Array<Teacher>
 }
 
 export interface AllClassInfo {

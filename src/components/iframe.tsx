@@ -1,11 +1,12 @@
 import * as React from "react";
 import { IFrameOverlay } from "./iframe-overlay"
+import { getParam, getUID, FirebaseDemo } from "./demo"
 
 const queryString = require("query-string")
 const superagent = require("superagent")
 
-declare var firebase: any  // @types/firebase is not Firebase 3
 declare var iframePhone: any
+declare var firebase: any  // @types/firebase is not Firebase 3
 
 export interface IFrameProps {
 }
@@ -18,6 +19,8 @@ export interface IFrameState {
   authoredState: AuthoredState|null,
   authoringError: string|null
   initInteractiveData: InitInteractiveData|null
+  demoUID: string|null
+  demoUser?: string
 }
 
 export interface AuthoredState {
@@ -76,7 +79,10 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
 
     this.submitAuthoringInfo = this.submitAuthoringInfo.bind(this)
     this.getInteractiveState = this.getInteractiveState.bind(this)
-    this.delayedMount = this.delayedMount.bind(this)
+    this.setupNormalMode = this.setupNormalMode.bind(this)
+
+    const demoUID = getUID("demo")
+    const demoUser = getParam("demoUser")
 
     this.state = {
       irsUrl: null,
@@ -85,16 +91,59 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       authoredState: null,
       authoringError: null,
       initInteractiveData: null,
-      copyUrl: null
+      copyUrl: null,
+      demoUID: demoUID,
+      demoUser: demoUser
     }
   }
 
   componentDidMount() {
-    // TODO: figure out why iframe phone needs the delay
-    setTimeout(this.delayedMount, 1000)
+    if (this.state.demoUID) {
+      this.setupDemoMode()
+    }
+    else {
+      // TODO: figure out why iframe phone needs the delay
+      setTimeout(this.setupNormalMode, 1000)
+    }
   }
 
-  delayedMount() {
+  setupDemoMode() {
+    const demoRef = firebase.database().ref(`demos/${this.state.demoUID}`)
+    demoRef.once("value", (snapshot:any) => {
+      const demo:FirebaseDemo = snapshot.val()
+      const authoredState:AuthoredState = demo.authoredState
+      const email = this.state.demoUser ? demo.users[this.state.demoUser].email : "no-email@example.com"
+      const src = `${authoredState.autoLaunchUrl}?${queryString.stringify({server: authoredState.codapUrl})}`
+      const demoParams = `demo=${this.state.demoUID}&demoUser=${this.state.demoUser}`
+      const demoAPIUrl = (endPoint:string) => {
+        return `https://us-central1-classroom-sharing.cloudfunctions.net/${endPoint}?${demoParams}`
+      }
+      this.setState({
+        src: src,
+        irsUrl: demoAPIUrl("demoInteractiveRunState"),
+        initInteractiveData: {
+          version: 1,
+          error: null,
+          mode: "runtime",
+          authoredState: authoredState,
+          interactiveState: null,
+          globalInteractiveState: null,
+          hasLinkedInteractive: false,
+          linkedState: null,
+          interactiveStateUrl: demoAPIUrl("demoInteractiveRunState"),
+          collaboratorUrls: null,
+          publicClassHash: this.state.demoUID,
+          classInfoUrl: demoAPIUrl("demoClassInfo"),
+          interactive: {id: 1, name: "demo"},
+          authInfo: {provider: "demo", loggedIn: true, email: email}
+        },
+        authoredState: authoredState
+      })
+      setTimeout(this.getInteractiveState, 10);
+    })
+  }
+
+  setupNormalMode() {
     this.clientPhone = iframePhone.getIFrameEndpoint()
     this.clientPhone.addListener('initInteractive', (data:InitInteractiveData) => {
       if (data.mode === "authoring") {
@@ -209,43 +258,14 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
 
   submitAuthoringInfo(e:React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-
-    const url = this.refs.laraSharedUrl.value
-    let [docStoreUrl, query, ...rest] = url.split("?")
-    const urlMatches = docStoreUrl.match(/^((https?:\/\/[^/]+\/)v2\/documents\/\d+\/(auto)?launch)/)
-    const launchParams = queryString.parse(query || "")
-
-    if (!urlMatches || !launchParams.server) {
-      this.setState({authoringError: "This URL does not appear to be a shared URL from the LARA tab in CODAP"})
-      return
+    try {
+      const authoredState = parseURLIntoAuthoredState(this.refs.laraSharedUrl.value)
+      this.setState({authoringError: null})
+      this.clientPhone.post('authoredState', authoredState)
     }
-    this.setState({authoringError: null})
-
-    docStoreUrl = this.matchProtocol(urlMatches[2].replace(/\/+$/, "")) // remove trailing slashes
-
-    let codapUrl
-    [codapUrl, query, ...rest] = launchParams.server.split("?")
-    const codapParams = queryString.parse(query || "")
-    codapParams.componentMode = "yes"
-    codapParams.documentServer = docStoreUrl
-    codapParams.saveSecondaryFileViaPostMessage = "yes"
-    codapUrl = this.matchProtocol(`${codapUrl}?${queryString.stringify(codapParams)}`)
-
-    const authoredState:AuthoredState = {
-      laraSharedUrl: url,
-      docStoreUrl: codapParams.documentServer,
-      autoLaunchUrl: this.matchProtocol(urlMatches[1].replace("/launch", "/autolaunch")), // change to autolaunch
-      codapUrl: codapUrl
+    catch (e) {
+      this.setState({authoringError: e.message})
     }
-
-    this.clientPhone.post('authoredState', authoredState)
-  }
-
-  matchProtocol(url:string):string {
-    const a = document.createElement("a")
-    a.href = url
-    a.protocol = location.protocol
-    return a.href
   }
 
   renderAuthoring():JSX.Element {
@@ -277,3 +297,39 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     return this.renderIFrame()
   }
 }
+
+export function parseURLIntoAuthoredState(url:string) {
+  let [docStoreUrl, query, ...rest] = url.split("?")
+  const urlMatches = docStoreUrl.match(/^((https?:\/\/[^/]+\/)v2\/documents\/\d+\/(auto)?launch)/)
+  const launchParams = queryString.parse(query || "")
+  const matchProtocol = (url:string):string => {
+    const a = document.createElement("a")
+    a.href = url
+    a.protocol = location.protocol
+    return a.href
+  }
+
+  if (!urlMatches || !launchParams.server) {
+    throw new Error("This URL does not appear to be a shared URL from the LARA tab in CODAP")
+  }
+
+  docStoreUrl = matchProtocol(urlMatches[2].replace(/\/+$/, "")) // remove trailing slashes
+
+  let codapUrl
+  [codapUrl, query, ...rest] = launchParams.server.split("?")
+  const codapParams = queryString.parse(query || "")
+  codapParams.componentMode = "yes"
+  codapParams.documentServer = docStoreUrl
+  codapParams.saveSecondaryFileViaPostMessage = "yes"
+  codapUrl = matchProtocol(`${codapUrl}?${queryString.stringify(codapParams)}`)
+
+  const authoredState:AuthoredState = {
+    laraSharedUrl: url,
+    docStoreUrl: codapParams.documentServer,
+    autoLaunchUrl: matchProtocol(urlMatches[1].replace("/launch", "/autolaunch")), // change to autolaunch
+    codapUrl: codapUrl
+  }
+
+  return authoredState
+}
+

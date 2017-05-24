@@ -1,14 +1,14 @@
-webpackJsonp([1],{
+webpackJsonp([2],{
 
-/***/ 206:
+/***/ 205:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 var React = __webpack_require__(7);
 var ReactDOM = __webpack_require__(15);
-var iframe_1 = __webpack_require__(30);
-ReactDOM.render(React.createElement(iframe_1.IFrame, null), document.getElementById("app"));
+var demo_1 = __webpack_require__(29);
+ReactDOM.render(React.createElement(demo_1.Demo, null), document.getElementById("app"));
 
 
 /***/ }),
@@ -461,5 +461,5 @@ exports.parseURLIntoAuthoredState = parseURLIntoAuthoredState;
 
 /***/ })
 
-},[206]);
-//# sourceMappingURL=iframe.js.map
+},[205]);
+//# sourceMappingURL=demo.js.map

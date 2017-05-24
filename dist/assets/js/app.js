@@ -1,19 +1,19 @@
 webpackJsonp([0],{
 
-/***/ 203:
+/***/ 204:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-var React = __webpack_require__(9);
-var ReactDOM = __webpack_require__(21);
-var app_1 = __webpack_require__(88);
+var React = __webpack_require__(7);
+var ReactDOM = __webpack_require__(15);
+var app_1 = __webpack_require__(90);
 ReactDOM.render(React.createElement(app_1.App, null), document.getElementById("app"));
 
 
 /***/ }),
 
-/***/ 58:
+/***/ 61:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43,7 +43,7 @@ exports.ago = ago;
 
 /***/ }),
 
-/***/ 88:
+/***/ 90:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -53,12 +53,12 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var React = __webpack_require__(9);
-var student_page_1 = __webpack_require__(93);
-var classroom_page_1 = __webpack_require__(91);
-var class_info_1 = __webpack_require__(90);
-var base64url = __webpack_require__(33);
-var queryString = __webpack_require__(35);
+var React = __webpack_require__(7);
+var student_page_1 = __webpack_require__(94);
+var classroom_page_1 = __webpack_require__(92);
+var class_info_1 = __webpack_require__(91);
+var base64url = __webpack_require__(38);
+var queryString = __webpack_require__(19);
 var App = (function (_super) {
     __extends(App, _super);
     function App(props) {
@@ -298,19 +298,25 @@ exports.App = App;
 
 /***/ }),
 
-/***/ 90:
+/***/ 91:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-var superagent = __webpack_require__(56);
-var escape_firebase_key_1 = __webpack_require__(59);
+var superagent = __webpack_require__(23);
+var escape_firebase_key_1 = __webpack_require__(62);
 var Student = (function () {
     function Student() {
     }
     return Student;
 }());
 exports.Student = Student;
+var Teacher = (function () {
+    function Teacher() {
+    }
+    return Teacher;
+}());
+exports.Teacher = Teacher;
 var ClassInfo = (function () {
     function ClassInfo(classInfoUrl) {
         this.classInfoUrl = classInfoUrl;
@@ -404,7 +410,7 @@ exports.ClassInfo = ClassInfo;
 
 /***/ }),
 
-/***/ 91:
+/***/ 92:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -414,8 +420,8 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var React = __webpack_require__(9);
-var ago_1 = __webpack_require__(58);
+var React = __webpack_require__(7);
+var ago_1 = __webpack_require__(61);
 var ClassroomPage = (function (_super) {
     __extends(ClassroomPage, _super);
     function ClassroomPage(props) {
@@ -543,7 +549,7 @@ exports.ClassroomPage = ClassroomPage;
 
 /***/ }),
 
-/***/ 93:
+/***/ 94:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -553,9 +559,9 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var React = __webpack_require__(9);
-var ago_1 = __webpack_require__(58);
-var iframe_overlay_1 = __webpack_require__(60);
+var React = __webpack_require__(7);
+var ago_1 = __webpack_require__(61);
+var iframe_overlay_1 = __webpack_require__(37);
 var StudentPage = (function (_super) {
     __extends(StudentPage, _super);
     function StudentPage(props) {
@@ -622,5 +628,5 @@ exports.StudentPage = StudentPage;
 
 /***/ })
 
-},[203]);
+},[204]);
 //# sourceMappingURL=app.js.map
