@@ -1,7 +1,7 @@
 export interface Interactive {
   id: string
   name: string
-  students: StudentMap
+  users: UserMap
 }
 
 export interface InteractiveMap {
@@ -9,29 +9,29 @@ export interface InteractiveMap {
 }
 
 export interface Activity {
-  student: Student
-  studentInteractive: StudentInteractive
+  user: User
+  userInteractive: UserInteractive
 }
 
-export interface Student {
+export interface User {
   id: string
   name: string
-  interactives: StudentInteractivesMap
+  interactives: UserInteractivesMap
 }
 
-export interface StudentMap {
-  [s: string]: Student
+export interface UserMap {
+  [s: string]: User
 }
 
-export interface StudentInteractive {
+export interface UserInteractive {
   id: string
   name: string
   url: string
   createdAt: number
 }
 
-export interface StudentInteractivesMap {
-  [s: string]: Array<StudentInteractive>
+export interface UserInteractivesMap {
+  [s: string]: Array<UserInteractive>
 }
 
 export interface FirebaseInteractive {
@@ -42,28 +42,39 @@ export interface FirebaseInteractiveMap {
   [s: string]: FirebaseInteractive
 }
 
-export interface FirebaseStudent {
-  interactives: FirebaseStudentInteractiveMap
+export interface FirebaseUser {
+  interactives: FirebaseUserInteractiveMap
 }
 
-export interface FirebaseStudentMap {
-  [s: string]: FirebaseStudent
+export interface FirebaseUserMap {
+  [s: string]: FirebaseUser
 }
 
-export interface FirebaseStudentInteractive {
-  url: string
+export interface FirebaseDataContext {
+  dataContext: string
+  name: string
+  title: string
+}
+
+export interface FirebaseDataContextRefMap {
+  [s: string]: string
+}
+
+export interface FirebaseUserInteractive {
   createdAt: number
+  documentUrl: string
+  dataContexts: FirebaseDataContextRefMap
 }
 
-export interface FirebaseStudentInteractiveMap {
-  [s: string]: FirebaseStudentInteractiveInstanceMap
+export interface FirebaseUserInteractiveMap {
+  [s: string]: FirebaseUserInteractiveInstanceMap
 }
 
-export interface FirebaseStudentInteractiveInstanceMap {
-  [s: string]: FirebaseStudentInteractive
+export interface FirebaseUserInteractiveInstanceMap {
+  [s: string]: FirebaseUserInteractive
 }
 
 export interface FirebaseData {
   interactives: FirebaseInteractiveMap
-  students: FirebaseStudentMap
+  users: FirebaseUserMap
 }

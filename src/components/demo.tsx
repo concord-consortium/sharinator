@@ -1,7 +1,7 @@
 import * as React from "react";
-import { IFrameOverlay } from "./iframe-overlay"
+import { IFrameSidebar } from "./iframe-sidebar"
 import { parseURLIntoAuthoredState, AuthoredState } from "./iframe"
-import { ClassInfoResultResponse, Student, Teacher } from "./class-info"
+import { ClassInfoResultResponse, User } from "./class-info"
 const queryString = require("query-string")
 const superagent = require("superagent")
 
@@ -112,8 +112,8 @@ export class Demo extends React.Component<DemoProps, DemoState> {
       const authoredState = parseURLIntoAuthoredState(codapURL)
       const demoUID = generateUID()
       const users:DemoUserMap = {}
-      const teachers:Teacher[] = []
-      const students:Student[] = []
+      const teachers:User[] = []
+      const students:User[] = []
       let i = 0
 
       for (i = 0; i < this.state.numTeachers; i++) {
@@ -127,7 +127,8 @@ export class Demo extends React.Component<DemoProps, DemoState> {
         }
         teachers.push({
           first_name: "Teacher",
-          last_name: `${i+1}`
+          last_name: `${i+1}`,
+          email: `teacher${i+1}@example.com`
         })
       }
 

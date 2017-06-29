@@ -155,11 +155,7 @@ export class ExportLibrary extends React.Component<ExportLibraryProps, ExportLib
     let i
 
     if (this.state.items.length === 0) {
-      return (
-        <div id="no-items">
-          No items in library.  Use the controls on the left to export tables and images.
-        </div>
-      )
+      return null
     }
 
     for (i = 0; i < this.state.items.length; i++) {
@@ -195,7 +191,6 @@ export class ExportLibrary extends React.Component<ExportLibraryProps, ExportLib
   render() {
     return (
       <div id="export-library">
-        <div id="export-library-header">Sharing Library</div>
         {this.state.error ? <div id="export-library-error">{this.state.error}</div> : null}
         { this.renderItems() }
       </div>

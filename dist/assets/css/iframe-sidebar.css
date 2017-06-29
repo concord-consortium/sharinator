@@ -1,0 +1,128 @@
+#iframe-sidebar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 225px;
+  overflow: auto;
+  border-left: 1px solid #105262;
+  background-color: #ececec;
+}
+
+.buttons {
+  text-align: center;
+}
+
+button {
+  margin: 10px 5px;
+}
+
+.status, .error {
+  margin: 5px 10px;
+  text-align: center;
+}
+
+.error {
+  color: #f00;
+}
+
+#export-library img {
+  max-width: 70px;
+  max-height: 70px;
+}
+
+#items {
+  margin: 10px 7px;
+}
+
+#items img.exported {
+  border: 1px solid #aaa;
+}
+
+#items .item {
+  display: inline-block;
+  position: relative;
+}
+
+#items .copied {
+  display: inline-block;
+  position: absolute;
+  left: 8px;
+  top: 25px;
+  font-weight: bold;
+  color: darkgreen;
+  font-size: 12px;
+}
+
+#export-library-header {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 10px;
+}
+
+#export-library-error {
+  color: #f00;
+}
+
+#no-items {
+  margin: 10px;
+}
+
+.user-interactives {
+  margin: 10px;
+}
+
+.user-interactives-name {
+  font-weight: bold;
+  cursor: pointer;
+}
+.user-interactives-name:hover {
+  text-decoration: underline;
+}
+
+.user-interactives-toggle {
+  font-weight: normal;
+  cursor: pointer;
+  font-size: 0.8em;
+  margin-left: 5px;
+}
+.user-interactives-toggle:hover {
+  text-decoration: underline;
+}
+.user-interactive {
+  margin: 5px 0 5px 10px;
+  font-size: 0.9em;
+}
+.user-interactive-with-border {
+  border-top: 1px solid #222;
+  padding-top: 5px;
+}
+.user-interactive-created-at {
+  font-size: 0.8em;
+}
+
+.user-interactive-list {
+  margin: 0;
+}
+
+.user-interactive-document:hover,
+.user-interactive-datacontext:hover,
+.user-interactive-option:hover {
+  text-decoration: underline;
+  cursor: pointer;
+  color: #222;
+}
+
+.user-interactive-document-options,
+.user-interactive-datacontext-options {
+  margin: 5px 0px 5px 10px;
+}
+
+.user-interactive-option {
+  color: #222;
+  text-decoration: none;
+}
+
+.user-interactive-action-state {
+  margin-left: 15px;
+}
