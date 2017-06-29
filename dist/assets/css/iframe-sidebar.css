@@ -126,3 +126,11 @@ button {
 .user-interactive-action-state {
   margin-left: 15px;
 }
+
+.username-header {
+  background-color: #0fa2d0;
+  padding: 2px;
+  text-align: center;
+  color: #fff;
+  font-size: 13.3333px;
+}

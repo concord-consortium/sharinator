@@ -527,7 +527,7 @@ var UserInteractives = (function (_super) {
         }
         var userInteractives = this.props.userInteractives;
         return this.props.userInteractives.userInteractives.slice(1).map(function (userInteractive, index) {
-            return (React.createElement(UserInteractive, { key: userInteractive.createdAt, userInteractive: userInteractive, version: _this.getVersion(index + 1), classHash: _this.props.classHash, interactiveId: _this.props.interactiveId, initInteractiveData: _this.props.initInteractiveData, email: _this.props.userInteractives.email, codapPhone: _this.props.codapPhone, first: false }));
+            return (React.createElement(UserInteractive, { key: userInteractive.createdAt, userInteractive: userInteractive, version: _this.getVersion(index + 1), classHash: _this.props.classHash, interactiveId: _this.props.interactiveId, initInteractiveData: _this.props.initInteractiveData, email: _this.props.userInteractives.email, codapPhone: _this.props.codapPhone, first: false, myEmail: _this.props.myEmail, classInfo: _this.props.classInfo }));
         });
     };
     UserInteractives.prototype.render = function () {
@@ -535,7 +535,7 @@ var UserInteractives = (function (_super) {
         var hasMoreThanOne = userInteractives.userInteractives.length > 1;
         return (React.createElement("div", { className: "user-interactives" },
             React.createElement("div", { className: "user-interactives-name", onClick: this.toggleShowAll }, userInteractives.name),
-            React.createElement(UserInteractive, { userInteractive: userInteractives.userInteractives[0], version: this.getVersion(0), classHash: this.props.classHash, interactiveId: this.props.interactiveId, email: this.props.email, codapPhone: this.props.codapPhone, first: true, initInteractiveData: this.props.initInteractiveData }),
+            React.createElement(UserInteractive, { userInteractive: userInteractives.userInteractives[0], version: this.getVersion(0), classHash: this.props.classHash, interactiveId: this.props.interactiveId, email: this.props.email, codapPhone: this.props.codapPhone, first: true, initInteractiveData: this.props.initInteractiveData, myEmail: this.props.myEmail, classInfo: this.props.classInfo }),
             this.renderAll()));
     };
     return UserInteractives;
@@ -575,7 +575,7 @@ var UserInteractive = (function (_super) {
         return (React.createElement("div", { className: "user-interactive " + (!this.props.first ? 'user-interactive-with-border' : '') },
             React.createElement(UserInteractiveDocument, { userInteractive: userInteractive, version: this.props.version, classHash: this.props.classHash, interactiveId: this.props.interactiveId, initInteractiveData: this.props.initInteractiveData, email: this.props.email }),
             Object.keys(userInteractive.dataContexts).map(function (firebaseId) {
-                return (React.createElement(UserInteractiveDataContext, { key: firebaseId, dataContextId: firebaseId, dataContextName: userInteractive.dataContexts[firebaseId], version: _this.props.version, classHash: _this.props.classHash, interactiveId: _this.props.interactiveId, email: _this.props.email, codapPhone: _this.props.codapPhone }));
+                return (React.createElement(UserInteractiveDataContext, { key: firebaseId, dataContextId: firebaseId, dataContextName: userInteractive.dataContexts[firebaseId], version: _this.props.version, classHash: _this.props.classHash, interactiveId: _this.props.interactiveId, email: _this.props.email, codapPhone: _this.props.codapPhone, myEmail: _this.props.myEmail, classInfo: _this.props.classInfo }));
             }),
             this.renderCreatedAt()));
     };
@@ -678,10 +678,12 @@ var UserInteractiveDataContext = (function (_super) {
     UserInteractiveDataContext.prototype.handleMerge = function () {
         var _this = this;
         var dataContextName = this.state.dataContext.name;
-        var mergedUserCollectionName = "MergedUsers";
-        var mergedUserCollectionTitle = "Merged Users";
+        var mergedUserCollectionName = "Merged";
+        var mergedUserCollectionTitle = "Merged";
         var mergedUserAttributeName = "User";
         var mergedUserAttributeTitle = "User";
+        var mergedEmailAttributeName = "Email";
+        var mergedEmailAttributeTitle = "Email";
         this.setState({ mergeState: "Merging..." });
         var merge = function () {
             addCases(_this.tree, function () {
@@ -746,7 +748,9 @@ var UserInteractiveDataContext = (function (_super) {
             };
             if (!parentId) {
                 var values = {};
-                values[mergedUserAttributeName] = "Them!";
+                var them = _this.props.classInfo.getUserName(_this.props.email);
+                values[mergedUserAttributeName] = them.found ? them.name : _this.props.email;
+                values[mergedEmailAttributeName] = _this.props.email;
                 _this.props.codapPhone.call({
                     action: 'create',
                     resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "].case",
@@ -819,13 +823,28 @@ var UserInteractiveDataContext = (function (_super) {
                 callback();
             });
         };
-        var setUserAttribute = function (callback) {
+        var createEmailAttribute = function (callback) {
+            _this.props.codapPhone.call({
+                action: 'create',
+                resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "].attribute",
+                values: {
+                    name: mergedEmailAttributeName,
+                    title: mergedEmailAttributeTitle,
+                    hidden: true
+                }
+            }, function (result) {
+                callback();
+            });
+        };
+        var setUserAttributeAndEmail = function (callback) {
             _this.props.codapPhone.call({
                 action: "get",
                 resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "].allCases"
             }, function (result) {
                 var values = {};
-                values[mergedUserAttributeName] = "Me!";
+                var me = _this.props.classInfo.getUserName(_this.props.myEmail);
+                values[mergedUserAttributeName] = me.found ? me.name : _this.props.myEmail;
+                values[mergedEmailAttributeName] = _this.props.myEmail;
                 var requests = result.values.cases.map(function (_case) {
                     return {
                         action: 'update',
@@ -848,8 +867,10 @@ var UserInteractiveDataContext = (function (_super) {
                 addUserAttribute(function () {
                     createMergedCollection(function () {
                         moveUserAttribute(function () {
-                            setUserAttribute(function () {
-                                merge();
+                            createEmailAttribute(function () {
+                                setUserAttributeAndEmail(function () {
+                                    merge();
+                                });
                             });
                         });
                     });
@@ -979,7 +1000,8 @@ var IFrameSidebar = (function (_super) {
             publishing: false,
             publishingError: null,
             publishingStatus: null,
-            userInteractives: []
+            userInteractives: [],
+            myEmail: _this.props.initInteractiveData.authInfo.email
         };
         _this.classInfo = new class_info_1.ClassInfo(_this.props.initInteractiveData.classInfoUrl || "");
         return _this;
@@ -1221,21 +1243,28 @@ var IFrameSidebar = (function (_super) {
             return null;
         }
         return (React.createElement("div", { className: "user-interactive-list" }, this.state.userInteractives.map(function (userInteractives) {
-            return (React.createElement(UserInteractives, { key: userInteractives.email, userInteractives: userInteractives, classHash: _this.state.classHash || "", interactiveId: _this.props.initInteractiveData.interactive.id, email: userInteractives.email, codapPhone: _this.props.codapPhone, initInteractiveData: _this.props.initInteractiveData }));
+            return (React.createElement(UserInteractives, { key: userInteractives.email, userInteractives: userInteractives, classHash: _this.state.classHash || "", interactiveId: _this.props.initInteractiveData.interactive.id, email: userInteractives.email, codapPhone: _this.props.codapPhone, initInteractiveData: _this.props.initInteractiveData, myEmail: _this.state.myEmail, classInfo: _this.classInfo }));
         })));
+    };
+    IFrameSidebar.prototype.renderUsernameHeader = function () {
+        var me = this.classInfo.getUserName(this.state.myEmail);
+        var username = me.found ? me.name : null;
+        if (!username) {
+            return null;
+        }
+        return React.createElement("div", { className: "username-header" }, username);
     };
     IFrameSidebar.prototype.render = function () {
         if (this.state.error) {
             return React.createElement("div", { id: "iframe-sidebar" }, this.state.error);
         }
-        console.log("this.state.classHash", this.state.classHash);
-        console.log("this.props.codapPhone", this.props.codapPhone);
         if (!this.state.classHash || !this.props.codapPhone) {
             return null;
         }
         // const href = `../dashboard/?class=${base64url.encode(this.props.initInteractiveData.classInfoUrl)}`
         //            <a className="button button-primary" href={href} target="_blank">View</a>
         return React.createElement("div", { id: "iframe-sidebar" },
+            this.renderUsernameHeader(),
             React.createElement("div", { className: "buttons" },
                 React.createElement("button", { className: "button button-primary", onClick: this.onPublish, disabled: this.state.publishing }, "Publish")),
             this.renderPublishingError(),

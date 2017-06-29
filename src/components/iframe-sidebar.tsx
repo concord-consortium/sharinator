@@ -2,7 +2,7 @@ import * as React from "react";
 import {InitInteractiveData, AuthoredState} from "./iframe"
 import {ExportLibrary} from "./export-library"
 import {FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseData, FirebaseDataContext} from "./types"
-import {ClassInfo} from "./class-info"
+import {ClassInfo, GetUserName} from "./class-info"
 import escapeFirebaseKey from "./escape-firebase-key"
 
 const queryString = require("query-string")
@@ -25,6 +25,7 @@ export interface IFrameSidebarState {
   publishingError: string|null
   publishingStatus: string|null
   userInteractives: PublishedUserInteractives[]
+  myEmail: string
 }
 
 interface CopyResults {
@@ -49,6 +50,8 @@ export interface UserInteractivesProps {
   email: string
   codapPhone: any
   initInteractiveData: any
+  myEmail: string
+  classInfo: ClassInfo
 }
 
 export interface UserInteractivesState {
@@ -89,6 +92,8 @@ export class UserInteractives extends React.Component<UserInteractivesProps, Use
           email={this.props.userInteractives.email}
           codapPhone={this.props.codapPhone}
           first={false}
+          myEmail={this.props.myEmail}
+          classInfo={this.props.classInfo}
          />
       )
     })
@@ -111,6 +116,8 @@ export class UserInteractives extends React.Component<UserInteractivesProps, Use
           codapPhone={this.props.codapPhone}
           first={true}
           initInteractiveData={this.props.initInteractiveData}
+          myEmail={this.props.myEmail}
+          classInfo={this.props.classInfo}
         />
         {this.renderAll()}
       </div>
@@ -127,6 +134,8 @@ export interface UserInteractiveProps {
   codapPhone: any
   first: boolean
   initInteractiveData: any
+  myEmail: string
+  classInfo: ClassInfo
 }
 
 export interface UserInteractiveState {
@@ -184,6 +193,8 @@ export class UserInteractive extends React.Component<UserInteractiveProps, UserI
               interactiveId={this.props.interactiveId}
               email={this.props.email}
               codapPhone={this.props.codapPhone}
+              myEmail={this.props.myEmail}
+              classInfo={this.props.classInfo}
             />
           )
         })}
@@ -257,6 +268,8 @@ export interface UserInteractiveDataContextProps {
   interactiveId: number
   email: string
   codapPhone: any
+  myEmail: string
+  classInfo: ClassInfo
 }
 
 export interface UserInteractiveDataContextState {
@@ -328,10 +341,12 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
 
   handleMerge() {
     const dataContextName = this.state.dataContext.name
-    const mergedUserCollectionName = "MergedUsers"
-    const mergedUserCollectionTitle = "Merged Users"
+    const mergedUserCollectionName = "Merged"
+    const mergedUserCollectionTitle = "Merged"
     const mergedUserAttributeName = "User"
     const mergedUserAttributeTitle = "User"
+    const mergedEmailAttributeName = "Email"
+    const mergedEmailAttributeTitle = "Email"
 
     this.setState({mergeState: "Merging..."})
 
@@ -403,7 +418,9 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
 
       if (!parentId) {
         const values:any = {}
-        values[mergedUserAttributeName] = "Them!"
+        const them = this.props.classInfo.getUserName(this.props.email)
+        values[mergedUserAttributeName] = them.found ? them.name : this.props.email
+        values[mergedEmailAttributeName] = this.props.email
 
         this.props.codapPhone.call({
           action: 'create',
@@ -484,13 +501,29 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
       })
     }
 
-    const setUserAttribute = (callback:() => void) => {
+    const createEmailAttribute = (callback:() => void) => {
+      this.props.codapPhone.call({
+        action: 'create',
+        resource: `dataContext[${dataContextName}].collection[${mergedUserCollectionName}].attribute`,
+        values: {
+          name: mergedEmailAttributeName,
+          title: mergedEmailAttributeTitle,
+          hidden: true
+        }
+      }, (result:any) => {
+        callback()
+      });
+    }
+
+    const setUserAttributeAndEmail = (callback:() => void) => {
       this.props.codapPhone.call({
         action: "get",
         resource: `dataContext[${dataContextName}].collection[${mergedUserCollectionName}].allCases`
       }, (result:any) => {
         const values:any = {}
-        values[mergedUserAttributeName] = "Me!"
+        const me = this.props.classInfo.getUserName(this.props.myEmail)
+        values[mergedUserAttributeName] = me.found ? me.name : this.props.myEmail
+        values[mergedEmailAttributeName] = this.props.myEmail
         const requests = result.values.cases.map((_case:any) => {
           return {
             action: 'update',
@@ -514,8 +547,10 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
         addUserAttribute(() => {
           createMergedCollection(() => {
             moveUserAttribute(() => {
-              setUserAttribute(() => {
-                merge()
+              createEmailAttribute(() => {
+                setUserAttributeAndEmail(() => {
+                  merge()
+                })
               })
             })
           })
@@ -668,7 +703,8 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
       publishing: false,
       publishingError: null,
       publishingStatus: null,
-      userInteractives: []
+      userInteractives: [],
+      myEmail: this.props.initInteractiveData.authInfo.email
     }
 
     this.classInfo = new ClassInfo(this.props.initInteractiveData.classInfoUrl || "")
@@ -954,6 +990,8 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
               email={userInteractives.email}
               codapPhone={this.props.codapPhone}
               initInteractiveData={this.props.initInteractiveData}
+              myEmail={this.state.myEmail}
+              classInfo={this.classInfo}
             />
           )
         })
@@ -962,13 +1000,19 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     )
   }
 
+  renderUsernameHeader() {
+    var me = this.classInfo.getUserName(this.state.myEmail)
+    var username = me.found ? me.name : null;
+    if (!username) {
+      return null;
+    }
+    return <div className="username-header">{username}</div>
+  }
+
   render() {
     if (this.state.error) {
       return <div id="iframe-sidebar">{this.state.error}</div>
     }
-
-    console.log("this.state.classHash", this.state.classHash);
-    console.log("this.props.codapPhone", this.props.codapPhone);
 
     if (!this.state.classHash || !this.props.codapPhone) {
       return null;
@@ -977,6 +1021,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     // const href = `../dashboard/?class=${base64url.encode(this.props.initInteractiveData.classInfoUrl)}`
     //            <a className="button button-primary" href={href} target="_blank">View</a>
     return <div id="iframe-sidebar">
+             { this.renderUsernameHeader() }
              <div className="buttons">
                <button className="button button-primary" onClick={this.onPublish} disabled={this.state.publishing}>Publish</button>
              </div>
