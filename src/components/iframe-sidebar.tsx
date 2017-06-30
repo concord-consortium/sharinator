@@ -11,6 +11,13 @@ const superagent = require("superagent")
 
 declare var firebase: any;  // @types/firebase is not Firebase 3
 
+const mergedUserCollectionName = "Merged"
+const mergedUserCollectionTitle = "Merged"
+const mergedUserAttributeName = "User"
+const mergedUserAttributeTitle = "User"
+const mergedEmailAttributeName = "Email"
+const mergedEmailAttributeTitle = "Email"
+
 export interface IFrameSidebarProps {
   initInteractiveData: InitInteractiveData
   authoredState: AuthoredState|null
@@ -341,12 +348,6 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
 
   handleMerge() {
     const dataContextName = this.state.dataContext.name
-    const mergedUserCollectionName = "Merged"
-    const mergedUserCollectionTitle = "Merged"
-    const mergedUserAttributeName = "User"
-    const mergedUserAttributeTitle = "User"
-    const mergedEmailAttributeName = "Email"
-    const mergedEmailAttributeTitle = "Email"
 
     this.setState({mergeState: "Merging..."})
 
@@ -420,42 +421,6 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
               callback(parentId, result.map((result:any) => result.values.case))
             })
           })
-          /*
-          -- this removes the parent
-          this.props.codapPhone.call({
-            action: 'delete',
-            resource: `dataContext[${dataContextName}].collection[${mergedUserCollectionName}].caseByID[${result.values[0].id}]`
-          }, (result:any) => {
-            createNewMergedUser()
-          })
-          */
-          /*
-          var parentId = result.values[0].id
-          -- this clears all the children, which then automatically removes the parent
-          this.props.codapPhone.call({
-            action: 'get',
-            resource: `dataContext[${dataContextName}].collection[${mergedUserCollectionName}].caseByID[${parentId}]`
-          }, (result:any) => {
-            const actions = result.values.case.children.map((childId:number) => {
-              return {
-                action: 'get',
-                resource: `dataContext[${dataContextName}].caseByID[${childId}]`
-              }
-            })
-            this.props.codapPhone.call(actions, (result:any) => {
-              const actions = result.map((result:any) => {
-                const _case = result.values.case
-                return {
-                  action: 'delete',
-                  resource: `dataContext[${dataContextName}].collection[${_case.collection.name}].caseByID[${_case.id}]`
-                }
-              })
-              this.props.codapPhone.call(actions, (result:any) => {
-                createNewMergedUser()
-              });
-            });
-          })
-          */
         }
         else {
           createNewMergedUser([])
@@ -871,7 +836,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
       const uniqueDataContextNames:string[] = []
       const collectionRequests:any[] = []
       result.values.forEach((value:any) => {
-        // in testing it was found that sometimes duplicate data context names are returned
+        // ignore duplicate context names (generated from ill behaving DIs)
         if (uniqueDataContextNames.indexOf(value.name) !== -1) {
           return
         }
@@ -881,7 +846,8 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
           name: value.name,
           title: value.title,
           collections: {},
-          cases: {}
+          cases: {},
+          mergedCollection: 0
         })
         collectionRequests.push({
           action: "get",
@@ -901,10 +867,13 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
             return
           }
           const dataContext = dataContexts[dataContextIndex]
-          result.values.forEach((value:any) => {
+          result.values.forEach((value:any, requestIndex:number) => {
             dataContext.collections[value.id] = {
               name: value.name,
               title: value.title
+            }
+            if (value.name === mergedUserCollectionName) {
+              dataContext.mergedCollection = value.id
             }
             dataContextForRequest.push(dataContext)
             caseRequests.push({
@@ -941,11 +910,45 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
             })
           })
 
-
           const dataContextMap:FirebaseDataContextRefMap = {}
           const userDataContextsRef = firebase.database().ref(userDataContextsKey)
 
           dataContexts.forEach((dataContext) => {
+            if (dataContext.mergedCollection) {
+              // remove merged collection and all data not associated with the current user
+              const checkIfCurrentUserCase = (_case:any):any => {
+                if (_case.collection === dataContext.mergedCollection) {
+                  return {
+                    isCurrentUserCase: _case.values[mergedEmailAttributeName] === this.state.myEmail,
+                    collection: _case.collection
+                  }
+                }
+                if (!_case.parent) {
+                  return {
+                    isCurrentUserCase: true,
+                    collection: 0
+                  }
+                }
+                return checkIfCurrentUserCase(dataContext.cases[_case.parent])
+              }
+
+              const userCases:any = {}
+              Object.keys(dataContext.cases).forEach((caseId) => {
+                const _case = dataContext.cases[caseId]
+                if (_case.collection !== dataContext.mergedCollection) {
+                  const check = checkIfCurrentUserCase(_case)
+                  if (check.isCurrentUserCase) {
+                    if (check.collection === dataContext.mergedCollection) {
+                      _case.parent = null
+                    }
+                    userCases[caseId] = _case
+                  }
+                }
+              })
+              dataContext.cases = userCases
+              delete dataContext.collections[dataContext.mergedCollection]
+            }
+
             const userDataContextRef = userDataContextsRef.push()
             userDataContextRef.set(JSON.stringify(dataContext))
             dataContextMap[userDataContextRef.key] = dataContext.title || dataContext.name

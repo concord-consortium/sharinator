@@ -504,6 +504,12 @@ var escape_firebase_key_1 = __webpack_require__(39);
 var queryString = __webpack_require__(16);
 var base64url = __webpack_require__(24);
 var superagent = __webpack_require__(20);
+var mergedUserCollectionName = "Merged";
+var mergedUserCollectionTitle = "Merged";
+var mergedUserAttributeName = "User";
+var mergedUserAttributeTitle = "User";
+var mergedEmailAttributeName = "Email";
+var mergedEmailAttributeTitle = "Email";
 var UserInteractives = (function (_super) {
     __extends(UserInteractives, _super);
     function UserInteractives(props) {
@@ -678,12 +684,6 @@ var UserInteractiveDataContext = (function (_super) {
     UserInteractiveDataContext.prototype.handleMerge = function () {
         var _this = this;
         var dataContextName = this.state.dataContext.name;
-        var mergedUserCollectionName = "Merged";
-        var mergedUserCollectionTitle = "Merged";
-        var mergedUserAttributeName = "User";
-        var mergedUserAttributeTitle = "User";
-        var mergedEmailAttributeName = "Email";
-        var mergedEmailAttributeTitle = "Email";
         this.setState({ mergeState: "Merging..." });
         var merge = function () {
             addOrClearMergedUser(function (parentId, childrenToRemove) {
@@ -1119,7 +1119,7 @@ var IFrameSidebar = (function (_super) {
             var uniqueDataContextNames = [];
             var collectionRequests = [];
             result.values.forEach(function (value) {
-                // in testing it was found that sometimes duplicate data context names are returned
+                // ignore duplicate context names (generated from ill behaving DIs)
                 if (uniqueDataContextNames.indexOf(value.name) !== -1) {
                     return;
                 }
@@ -1128,7 +1128,8 @@ var IFrameSidebar = (function (_super) {
                     name: value.name,
                     title: value.title,
                     collections: {},
-                    cases: {}
+                    cases: {},
+                    mergedCollection: 0
                 });
                 collectionRequests.push({
                     action: "get",
@@ -1146,11 +1147,14 @@ var IFrameSidebar = (function (_super) {
                         return;
                     }
                     var dataContext = dataContexts[dataContextIndex];
-                    result.values.forEach(function (value) {
+                    result.values.forEach(function (value, requestIndex) {
                         dataContext.collections[value.id] = {
                             name: value.name,
                             title: value.title
                         };
+                        if (value.name === mergedUserCollectionName) {
+                            dataContext.mergedCollection = value.id;
+                        }
                         dataContextForRequest.push(dataContext);
                         caseRequests.push({
                             action: "get",
@@ -1184,6 +1188,39 @@ var IFrameSidebar = (function (_super) {
                     var dataContextMap = {};
                     var userDataContextsRef = firebase.database().ref(userDataContextsKey);
                     dataContexts.forEach(function (dataContext) {
+                        if (dataContext.mergedCollection) {
+                            // remove merged collection and all data not associated with the current user
+                            var checkIfCurrentUserCase_1 = function (_case) {
+                                if (_case.collection === dataContext.mergedCollection) {
+                                    return {
+                                        isCurrentUserCase: _case.values[mergedEmailAttributeName] === _this.state.myEmail,
+                                        collection: _case.collection
+                                    };
+                                }
+                                if (!_case.parent) {
+                                    return {
+                                        isCurrentUserCase: true,
+                                        collection: 0
+                                    };
+                                }
+                                return checkIfCurrentUserCase_1(dataContext.cases[_case.parent]);
+                            };
+                            var userCases_1 = {};
+                            Object.keys(dataContext.cases).forEach(function (caseId) {
+                                var _case = dataContext.cases[caseId];
+                                if (_case.collection !== dataContext.mergedCollection) {
+                                    var check = checkIfCurrentUserCase_1(_case);
+                                    if (check.isCurrentUserCase) {
+                                        if (check.collection === dataContext.mergedCollection) {
+                                            _case.parent = null;
+                                        }
+                                        userCases_1[caseId] = _case;
+                                    }
+                                }
+                            });
+                            dataContext.cases = userCases_1;
+                            delete dataContext.collections[dataContext.mergedCollection];
+                        }
                         var userDataContextRef = userDataContextsRef.push();
                         userDataContextRef.set(JSON.stringify(dataContext));
                         dataContextMap[userDataContextRef.key] = dataContext.title || dataContext.name;
