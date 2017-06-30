@@ -686,16 +686,79 @@ var UserInteractiveDataContext = (function (_super) {
         var mergedEmailAttributeTitle = "Email";
         this.setState({ mergeState: "Merging..." });
         var merge = function () {
-            addCases(_this.tree, function () {
-                _this.setState({ mergeState: "Merged" });
-                setTimeout(function () {
-                    _this.setState({ mergeState: null });
-                }, 2000);
+            addOrClearMergedUser(function (parentId, childrenToRemove) {
+                addCases(_this.tree, parentId, function () {
+                    removeCases(childrenToRemove, function () {
+                        _this.setState({ mergeState: "Merged" });
+                        setTimeout(function () {
+                            _this.setState({ mergeState: null });
+                        }, 2000);
+                    });
+                });
             });
         };
-        var addCases = function (branch, callback, parentId) {
-            if (parentId === void 0) { parentId = null; }
-            var atRoot = parentId === null;
+        var removeCases = function (cases, callback) {
+            if (cases.length > 0) {
+                var actions = cases.map(function (_case) {
+                    return {
+                        action: 'delete',
+                        resource: "dataContext[" + dataContextName + "].collection[" + _case.collection.name + "].caseByID[" + _case.id + "]"
+                    };
+                });
+                _this.props.codapPhone.call(actions, function (result) {
+                    callback();
+                });
+            }
+            else {
+                callback();
+            }
+        };
+        var addOrClearMergedUser = function (callback) {
+            var createNewMergedUser = function (childrenToRemove) {
+                var values = {};
+                var them = _this.props.classInfo.getUserName(_this.props.email);
+                values[mergedUserAttributeName] = them.found ? them.name : _this.props.email;
+                values[mergedEmailAttributeName] = _this.props.email;
+                _this.props.codapPhone.call({
+                    action: 'create',
+                    resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "].case",
+                    values: [{
+                            parent: null,
+                            values: values
+                        }]
+                }, function (result) {
+                    callback(result.values[0].id, childrenToRemove);
+                });
+            };
+            _this.props.codapPhone.call({
+                action: 'get',
+                resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "].caseSearch[" + mergedEmailAttributeName + "==" + _this.props.email + "]"
+            }, function (result) {
+                if (result.success && (result.values.length > 0)) {
+                    var parentId = result.values[0].id;
+                    _this.props.codapPhone.call({
+                        action: 'get',
+                        resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "].caseByID[" + parentId + "]"
+                    }, function (result) {
+                        var actions = result.values.case.children.map(function (childId) {
+                            return {
+                                action: 'get',
+                                resource: "dataContext[" + dataContextName + "].caseByID[" + childId + "]"
+                            };
+                        });
+                        _this.props.codapPhone.call(actions, function (result) {
+                            var casesToDelete = result.map(function (result) { return result.values.case; });
+                            callback(parentId, result.map(function (result) { return result.values.case; }));
+                        });
+                    });
+                }
+                else {
+                    createNewMergedUser([]);
+                }
+            });
+        };
+        var addCases = function (branch, parentId, callback) {
+            var atRoot = branch === _this.tree;
             var cases = Object.keys(branch).map(function (id) { return branch[id]; });
             var checkIfDone = function () {
                 if (atRoot) {
@@ -716,7 +779,7 @@ var UserInteractiveDataContext = (function (_super) {
                             values: _case_1.values
                         }
                     }, function (result) {
-                        addCases(_case_1.children, callback, result.values[0].id);
+                        addCases(_case_1.children, result.values[0].id, callback);
                         addEachCase();
                     });
                 }
@@ -746,26 +809,7 @@ var UserInteractiveDataContext = (function (_super) {
                     }
                 }
             };
-            if (!parentId) {
-                var values = {};
-                var them = _this.props.classInfo.getUserName(_this.props.email);
-                values[mergedUserAttributeName] = them.found ? them.name : _this.props.email;
-                values[mergedEmailAttributeName] = _this.props.email;
-                _this.props.codapPhone.call({
-                    action: 'create',
-                    resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "].case",
-                    values: [{
-                            parent: null,
-                            values: values
-                        }]
-                }, function (result) {
-                    parentId = result.values[0].id;
-                    processCases();
-                });
-            }
-            else {
-                processCases();
-            }
+            processCases();
         };
         var addUserAttribute = function (callback) {
             var collections = _this.state.dataContext.collections;
@@ -836,7 +880,7 @@ var UserInteractiveDataContext = (function (_super) {
                 callback();
             });
         };
-        var setUserAttributeAndEmail = function (callback) {
+        var setUserAndEmailAttribute = function (callback) {
             _this.props.codapPhone.call({
                 action: "get",
                 resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "].allCases"
@@ -868,7 +912,7 @@ var UserInteractiveDataContext = (function (_super) {
                     createMergedCollection(function () {
                         moveUserAttribute(function () {
                             createEmailAttribute(function () {
-                                setUserAttributeAndEmail(function () {
+                                setUserAndEmailAttribute(function () {
                                     merge();
                                 });
                             });

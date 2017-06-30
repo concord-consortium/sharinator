@@ -351,16 +351,120 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
     this.setState({mergeState: "Merging..."})
 
     const merge = () => {
-      addCases(this.tree, () => {
-        this.setState({mergeState: "Merged"})
-        setTimeout(() => {
-          this.setState({mergeState: null})
-        }, 2000)
+      addOrClearMergedUser((parentId, childrenToRemove) => {
+        addCases(this.tree, parentId, () => {
+          removeCases(childrenToRemove, () => {
+            this.setState({mergeState: "Merged"})
+            setTimeout(() => {
+              this.setState({mergeState: null})
+            }, 2000)
+          })
+        })
       })
     }
 
-    const addCases = (branch:any, callback:Function, parentId:number|null = null) => {
-      const atRoot = parentId === null
+    const removeCases = (cases:any[], callback:Function) => {
+      if (cases.length > 0) {
+        const actions = cases.map((_case:any) => {
+          return {
+            action: 'delete',
+            resource: `dataContext[${dataContextName}].collection[${_case.collection.name}].caseByID[${_case.id}]`
+          }
+        })
+        this.props.codapPhone.call(actions, (result:any) => {
+          callback()
+        });
+      }
+      else {
+        callback()
+      }
+    }
+
+    const addOrClearMergedUser = (callback:(parentId:number, childrenToRemove:any[]) => void) => {
+      const createNewMergedUser = (childrenToRemove:number[]) => {
+        const values:any = {}
+        const them = this.props.classInfo.getUserName(this.props.email)
+        values[mergedUserAttributeName] = them.found ? them.name : this.props.email
+        values[mergedEmailAttributeName] = this.props.email
+
+        this.props.codapPhone.call({
+          action: 'create',
+          resource: `dataContext[${dataContextName}].collection[${mergedUserCollectionName}].case`,
+          values: [{
+            parent: null,
+            values: values
+          }]
+        }, (result:any) => {
+          callback(result.values[0].id, childrenToRemove)
+        })
+      }
+
+      this.props.codapPhone.call({
+        action: 'get',
+        resource: `dataContext[${dataContextName}].collection[${mergedUserCollectionName}].caseSearch[${mergedEmailAttributeName}==${this.props.email}]`
+      }, (result:any) => {
+        if (result.success && (result.values.length > 0)) {
+          var parentId = result.values[0].id
+          this.props.codapPhone.call({
+            action: 'get',
+            resource: `dataContext[${dataContextName}].collection[${mergedUserCollectionName}].caseByID[${parentId}]`
+          }, (result:any) => {
+            const actions = result.values.case.children.map((childId:number) => {
+              return {
+                action: 'get',
+                resource: `dataContext[${dataContextName}].caseByID[${childId}]`
+              }
+            })
+            this.props.codapPhone.call(actions, (result:any) => {
+              const casesToDelete = result.map((result:any) => result.values.case)
+              callback(parentId, result.map((result:any) => result.values.case))
+            })
+          })
+          /*
+          -- this removes the parent
+          this.props.codapPhone.call({
+            action: 'delete',
+            resource: `dataContext[${dataContextName}].collection[${mergedUserCollectionName}].caseByID[${result.values[0].id}]`
+          }, (result:any) => {
+            createNewMergedUser()
+          })
+          */
+          /*
+          var parentId = result.values[0].id
+          -- this clears all the children, which then automatically removes the parent
+          this.props.codapPhone.call({
+            action: 'get',
+            resource: `dataContext[${dataContextName}].collection[${mergedUserCollectionName}].caseByID[${parentId}]`
+          }, (result:any) => {
+            const actions = result.values.case.children.map((childId:number) => {
+              return {
+                action: 'get',
+                resource: `dataContext[${dataContextName}].caseByID[${childId}]`
+              }
+            })
+            this.props.codapPhone.call(actions, (result:any) => {
+              const actions = result.map((result:any) => {
+                const _case = result.values.case
+                return {
+                  action: 'delete',
+                  resource: `dataContext[${dataContextName}].collection[${_case.collection.name}].caseByID[${_case.id}]`
+                }
+              })
+              this.props.codapPhone.call(actions, (result:any) => {
+                createNewMergedUser()
+              });
+            });
+          })
+          */
+        }
+        else {
+          createNewMergedUser([])
+        }
+      })
+    }
+
+    const addCases = (branch:any, parentId:number, callback:Function) => {
+      const atRoot = branch === this.tree
       const cases = Object.keys(branch).map((id) => branch[id])
 
       const checkIfDone = () => {
@@ -383,7 +487,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
               values: _case.values
             }
           }, (result:any) => {
-            addCases(_case.children, callback, result.values[0].id)
+            addCases(_case.children, result.values[0].id, callback)
             addEachCase()
           })
         }
@@ -416,27 +520,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
         }
       }
 
-      if (!parentId) {
-        const values:any = {}
-        const them = this.props.classInfo.getUserName(this.props.email)
-        values[mergedUserAttributeName] = them.found ? them.name : this.props.email
-        values[mergedEmailAttributeName] = this.props.email
-
-        this.props.codapPhone.call({
-          action: 'create',
-          resource: `dataContext[${dataContextName}].collection[${mergedUserCollectionName}].case`,
-          values: [{
-            parent: null,
-            values: values
-          }]
-        }, (result:any) => {
-          parentId = result.values[0].id
-          processCases()
-        })
-      }
-      else {
-        processCases()
-      }
+      processCases()
     }
 
     const addUserAttribute = (callback:() => void) => {
@@ -515,7 +599,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
       });
     }
 
-    const setUserAttributeAndEmail = (callback:() => void) => {
+    const setUserAndEmailAttribute = (callback:() => void) => {
       this.props.codapPhone.call({
         action: "get",
         resource: `dataContext[${dataContextName}].collection[${mergedUserCollectionName}].allCases`
@@ -548,7 +632,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
           createMergedCollection(() => {
             moveUserAttribute(() => {
               createEmailAttribute(() => {
-                setUserAttributeAndEmail(() => {
+                setUserAndEmailAttribute(() => {
                   merge()
                 })
               })
