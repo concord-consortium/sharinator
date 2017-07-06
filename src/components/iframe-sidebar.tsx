@@ -493,48 +493,26 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
               {name: mergedEmailAndVersionAttributeName, title: mergedEmailAndVersionAttributeTitle, hidden: true}
             ]
           }]
+          const {dataContext} = this.state
+          Object.keys(dataContext.collections).forEach((id) => {
+            const collection = dataContext.collections[id]
+            collections.push({
+              name: collection.name,
+              title: collection.title,
+              parent: collection.parent ? collection.parent : mergedUserCollectionName,
+              attrs: collection.attrs
+            })
+          })
           this.props.codapPhone.call({
-            action: "get",
-            resource: `dataContext[${dataContextName}].collectionList`
+            action: 'create',
+            resource: 'dataContext',
+            values: {
+              name: mergedDataContext.name,
+              title: mergedDataContext.title,
+              collections: collections
+            }
           }, (result:any) => {
-            const moreInfoRequests = result.values.map((collection:any) => {
-              return {
-                action: "get",
-                resource: `dataContext[${dataContextName}].collection[${collection.name}]`
-              }
-            });
-            this.props.codapPhone.call(moreInfoRequests, (result:any) => {
-              const collectionMap:any = {}
-              result.forEach((result:any) => {
-                collectionMap[result.values.id] = result.values
-              })
-              Object.keys(collectionMap).forEach((id) => {
-                const collection = collectionMap[id]
-                collections.push({
-                  name: collection.name,
-                  title: collection.title,
-                  parent: collection.parent ? collectionMap[collection.parent].name : mergedUserCollectionName,
-                  attrs: collection.attrs.map((attr:any) => {
-                    return {
-                      name: attr.name,
-                      title: attr.title,
-                      hidden: attr.hidden
-                    }
-                  })
-                })
-              })
-              this.props.codapPhone.call({
-                action: 'create',
-                resource: 'dataContext',
-                values: {
-                  name: mergedDataContext.name,
-                  title: mergedDataContext.title,
-                  collections: collections
-                }
-              }, (result:any) => {
-                callback()
-              })
-            });
+            callback()
           })
         }
         else {
@@ -825,8 +803,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
           name: value.name,
           title: value.title,
           collections: {},
-          cases: {},
-          mergedCollection: 0
+          cases: {}
         })
         collectionRequests.push({
           action: "get",
@@ -839,6 +816,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
         let error:string|null = null
 
         const dataContextForRequest:any[] = []
+        const collectionInfoRequests:any[] = []
         const caseRequests:any[] = []
         results.forEach((result:any, dataContextIndex:number) => {
           if (error || !result.success) {
@@ -852,6 +830,10 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
               title: value.title
             }
             dataContextForRequest.push(dataContext)
+            collectionInfoRequests.push({
+              action: "get",
+              resource: `dataContext[${dataContext.name}].collection[${value.name}]`
+            })
             caseRequests.push({
               action: "get",
               resource: `dataContext[${dataContext.name}].collection[${value.name}].allCases`
@@ -863,8 +845,8 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
           return callback(error)
         }
 
-        this.props.codapPhone.call(caseRequests, (results:any) => {
-          results = results || [{success: false, values: {error: "Unable to get case data!"}}]
+        this.props.codapPhone.call(collectionInfoRequests, (results:any) => {
+          results = results || [{success: false, values: {error: "Unable to get collection data!"}}]
           let error:string|null = null
 
           results.forEach((result:any, requestIndex:number) => {
@@ -872,30 +854,52 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
               error = error || result.values.error
               return
             }
-
             const dataContext = dataContextForRequest[requestIndex]
-            const collectionId = result.values.collection.id
-            result.values.cases.forEach((_case:any) => {
-              if (_case.hasOwnProperty('caseIndex')) {
-                dataContext.cases[_case.case.id] = {
-                  parent: _case.case.parent || null,
-                  values: _case.case.values,
-                  collection: collectionId
-                }
+            const collection = result.values
+            dataContext.collections[collection.id].parent = collection.parent ?  dataContext.collections[collection.parent].name : null
+            dataContext.collections[collection.id].attrs = collection.attrs.map((attr:any) => {
+              return {
+                name: attr.name,
+                title: attr.title,
+                hidden: attr.hidden
               }
             })
           })
 
-          const dataContextMap:FirebaseDataContextRefMap = {}
-          const userDataContextsRef = firebase.database().ref(userDataContextsKey)
+          this.props.codapPhone.call(caseRequests, (results:any) => {
+            results = results || [{success: false, values: {error: "Unable to get case data!"}}]
+            let error:string|null = null
 
-          dataContexts.forEach((dataContext) => {
-            const userDataContextRef = userDataContextsRef.push()
-            userDataContextRef.set(JSON.stringify(dataContext))
-            dataContextMap[userDataContextRef.key] = dataContext.title || dataContext.name
+            results.forEach((result:any, requestIndex:number) => {
+              if (error || !result.success) {
+                error = error || result.values.error
+                return
+              }
+
+              const dataContext = dataContextForRequest[requestIndex]
+              const collectionId = result.values.collection.id
+              result.values.cases.forEach((_case:any) => {
+                if (_case.hasOwnProperty('caseIndex')) {
+                  dataContext.cases[_case.case.id] = {
+                    parent: _case.case.parent || null,
+                    values: _case.case.values,
+                    collection: collectionId
+                  }
+                }
+              })
+            })
+
+            const dataContextMap:FirebaseDataContextRefMap = {}
+            const userDataContextsRef = firebase.database().ref(userDataContextsKey)
+
+            dataContexts.forEach((dataContext) => {
+              const userDataContextRef = userDataContextsRef.push()
+              userDataContextRef.set(JSON.stringify(dataContext))
+              dataContextMap[userDataContextRef.key] = dataContext.title || dataContext.name
+            })
+
+            callback(error, dataContextMap)
           })
-
-          callback(error, dataContextMap)
         })
       })
     })

@@ -813,48 +813,26 @@ var UserInteractiveDataContext = (function (_super) {
                                 { name: mergedEmailAndVersionAttributeName, title: mergedEmailAndVersionAttributeTitle, hidden: true }
                             ]
                         }];
+                    var dataContext_2 = _this.state.dataContext;
+                    Object.keys(dataContext_2.collections).forEach(function (id) {
+                        var collection = dataContext_2.collections[id];
+                        collections_1.push({
+                            name: collection.name,
+                            title: collection.title,
+                            parent: collection.parent ? collection.parent : mergedUserCollectionName,
+                            attrs: collection.attrs
+                        });
+                    });
                     _this.props.codapPhone.call({
-                        action: "get",
-                        resource: "dataContext[" + dataContextName + "].collectionList"
+                        action: 'create',
+                        resource: 'dataContext',
+                        values: {
+                            name: mergedDataContext.name,
+                            title: mergedDataContext.title,
+                            collections: collections_1
+                        }
                     }, function (result) {
-                        var moreInfoRequests = result.values.map(function (collection) {
-                            return {
-                                action: "get",
-                                resource: "dataContext[" + dataContextName + "].collection[" + collection.name + "]"
-                            };
-                        });
-                        _this.props.codapPhone.call(moreInfoRequests, function (result) {
-                            var collectionMap = {};
-                            result.forEach(function (result) {
-                                collectionMap[result.values.id] = result.values;
-                            });
-                            Object.keys(collectionMap).forEach(function (id) {
-                                var collection = collectionMap[id];
-                                collections_1.push({
-                                    name: collection.name,
-                                    title: collection.title,
-                                    parent: collection.parent ? collectionMap[collection.parent].name : mergedUserCollectionName,
-                                    attrs: collection.attrs.map(function (attr) {
-                                        return {
-                                            name: attr.name,
-                                            title: attr.title,
-                                            hidden: attr.hidden
-                                        };
-                                    })
-                                });
-                            });
-                            _this.props.codapPhone.call({
-                                action: 'create',
-                                resource: 'dataContext',
-                                values: {
-                                    name: mergedDataContext.name,
-                                    title: mergedDataContext.title,
-                                    collections: collections_1
-                                }
-                            }, function (result) {
-                                callback();
-                            });
-                        });
+                        callback();
                     });
                 }
                 else {
@@ -1109,8 +1087,7 @@ var IFrameSidebar = (function (_super) {
                     name: value.name,
                     title: value.title,
                     collections: {},
-                    cases: {},
-                    mergedCollection: 0
+                    cases: {}
                 });
                 collectionRequests.push({
                     action: "get",
@@ -1121,6 +1098,7 @@ var IFrameSidebar = (function (_super) {
                 results = results || [{ success: false, values: { error: "Unable to get list of collections!" } }];
                 var error = null;
                 var dataContextForRequest = [];
+                var collectionInfoRequests = [];
                 var caseRequests = [];
                 results.forEach(function (result, dataContextIndex) {
                     if (error || !result.success) {
@@ -1134,6 +1112,10 @@ var IFrameSidebar = (function (_super) {
                             title: value.title
                         };
                         dataContextForRequest.push(dataContext);
+                        collectionInfoRequests.push({
+                            action: "get",
+                            resource: "dataContext[" + dataContext.name + "].collection[" + value.name + "]"
+                        });
                         caseRequests.push({
                             action: "get",
                             resource: "dataContext[" + dataContext.name + "].collection[" + value.name + "].allCases"
@@ -1143,8 +1125,8 @@ var IFrameSidebar = (function (_super) {
                 if (error) {
                     return callback(error);
                 }
-                _this.props.codapPhone.call(caseRequests, function (results) {
-                    results = results || [{ success: false, values: { error: "Unable to get case data!" } }];
+                _this.props.codapPhone.call(collectionInfoRequests, function (results) {
+                    results = results || [{ success: false, values: { error: "Unable to get collection data!" } }];
                     var error = null;
                     results.forEach(function (result, requestIndex) {
                         if (error || !result.success) {
@@ -1152,25 +1134,45 @@ var IFrameSidebar = (function (_super) {
                             return;
                         }
                         var dataContext = dataContextForRequest[requestIndex];
-                        var collectionId = result.values.collection.id;
-                        result.values.cases.forEach(function (_case) {
-                            if (_case.hasOwnProperty('caseIndex')) {
-                                dataContext.cases[_case.case.id] = {
-                                    parent: _case.case.parent || null,
-                                    values: _case.case.values,
-                                    collection: collectionId
-                                };
-                            }
+                        var collection = result.values;
+                        dataContext.collections[collection.id].parent = collection.parent ? dataContext.collections[collection.parent].name : null;
+                        dataContext.collections[collection.id].attrs = collection.attrs.map(function (attr) {
+                            return {
+                                name: attr.name,
+                                title: attr.title,
+                                hidden: attr.hidden
+                            };
                         });
                     });
-                    var dataContextMap = {};
-                    var userDataContextsRef = firebase.database().ref(userDataContextsKey);
-                    dataContexts.forEach(function (dataContext) {
-                        var userDataContextRef = userDataContextsRef.push();
-                        userDataContextRef.set(JSON.stringify(dataContext));
-                        dataContextMap[userDataContextRef.key] = dataContext.title || dataContext.name;
+                    _this.props.codapPhone.call(caseRequests, function (results) {
+                        results = results || [{ success: false, values: { error: "Unable to get case data!" } }];
+                        var error = null;
+                        results.forEach(function (result, requestIndex) {
+                            if (error || !result.success) {
+                                error = error || result.values.error;
+                                return;
+                            }
+                            var dataContext = dataContextForRequest[requestIndex];
+                            var collectionId = result.values.collection.id;
+                            result.values.cases.forEach(function (_case) {
+                                if (_case.hasOwnProperty('caseIndex')) {
+                                    dataContext.cases[_case.case.id] = {
+                                        parent: _case.case.parent || null,
+                                        values: _case.case.values,
+                                        collection: collectionId
+                                    };
+                                }
+                            });
+                        });
+                        var dataContextMap = {};
+                        var userDataContextsRef = firebase.database().ref(userDataContextsKey);
+                        dataContexts.forEach(function (dataContext) {
+                            var userDataContextRef = userDataContextsRef.push();
+                            userDataContextRef.set(JSON.stringify(dataContext));
+                            dataContextMap[userDataContextRef.key] = dataContext.title || dataContext.name;
+                        });
+                        callback(error, dataContextMap);
                     });
-                    callback(error, dataContextMap);
                 });
             });
         });
