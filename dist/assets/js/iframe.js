@@ -505,12 +505,14 @@ var escape_firebase_key_1 = __webpack_require__(39);
 var queryString = __webpack_require__(16);
 var base64url = __webpack_require__(24);
 var superagent = __webpack_require__(20);
+var mergedDataContextName = "Merged";
+var mergedDataContextTitle = "Merged";
 var mergedUserCollectionName = "Merged";
 var mergedUserCollectionTitle = "Merged";
 var mergedUserAttributeName = "User";
 var mergedUserAttributeTitle = "User";
-var mergedEmailAttributeName = "Email";
-var mergedEmailAttributeTitle = "Email";
+var mergedEmailAndVersionAttributeName = "EmailAndVersion";
+var mergedEmailAndVersionAttributeTitle = "EmailAndVersion";
 var UserInteractives = (function (_super) {
     __extends(UserInteractives, _super);
     function UserInteractives(props) {
@@ -686,79 +688,63 @@ var UserInteractiveDataContext = (function (_super) {
         var _this = this;
         var dataContextName = this.state.dataContext.name;
         this.setState({ mergeState: "Merging..." });
-        var merge = function () {
-            addOrClearMergedUser(function (parentId, childrenToRemove) {
-                addCases(_this.tree, parentId, function () {
-                    removeCases(childrenToRemove, function () {
-                        _this.setState({ mergeState: "Merged" });
-                        setTimeout(function () {
-                            _this.setState({ mergeState: null });
-                        }, 2000);
-                    });
-                });
-            });
+        var showThenClear = function (mergeState) {
+            _this.setState({ mergeState: mergeState });
+            setTimeout(function () {
+                _this.setState({ mergeState: null });
+            }, 2000);
         };
-        var removeCases = function (cases, callback) {
-            if (cases.length > 0) {
-                var actions = cases.map(function (_case) {
-                    return {
-                        action: 'delete',
-                        resource: "dataContext[" + dataContextName + "].collection[" + _case.collection.name + "].caseByID[" + _case.id + "]"
-                    };
-                });
-                _this.props.codapPhone.call(actions, function (result) {
-                    callback();
-                });
-            }
-            else {
-                callback();
-            }
-        };
-        var addOrClearMergedUser = function (callback) {
-            var createNewMergedUser = function (childrenToRemove) {
-                var values = {};
-                var them = _this.props.classInfo.getUserName(_this.props.email);
-                values[mergedUserAttributeName] = them.found ? them.name : _this.props.email;
-                values[mergedEmailAttributeName] = _this.props.email;
-                _this.props.codapPhone.call({
-                    action: 'create',
-                    resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "].case",
-                    values: [{
-                            parent: null,
-                            values: values
-                        }]
-                }, function (result) {
-                    callback(result.values[0].id, childrenToRemove);
-                });
+        var mergedDataContextInfo = function () {
+            var dataContext = _this.state.dataContext;
+            return {
+                name: "Merged" + dataContext.name,
+                title: "Merged: " + dataContext.title
             };
-            _this.props.codapPhone.call({
-                action: 'get',
-                resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "].caseSearch[" + mergedEmailAttributeName + "==" + _this.props.email + "]"
-            }, function (result) {
-                if (result.success && (result.values.length > 0)) {
-                    var parentId = result.values[0].id;
-                    _this.props.codapPhone.call({
-                        action: 'get',
-                        resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "].caseByID[" + parentId + "]"
-                    }, function (result) {
-                        var actions = result.values.case.children.map(function (childId) {
-                            return {
-                                action: 'get',
-                                resource: "dataContext[" + dataContextName + "].caseByID[" + childId + "]"
-                            };
-                        });
-                        _this.props.codapPhone.call(actions, function (result) {
-                            var casesToDelete = result.map(function (result) { return result.values.case; });
-                            callback(parentId, result.map(function (result) { return result.values.case; }));
-                        });
-                    });
+        };
+        var merge = function (callback) {
+            checkIfAlreadyMerged(function (existingCaseId) {
+                if (existingCaseId) {
+                    showThenClear("Already merged!");
+                    callback(existingCaseId);
                 }
                 else {
-                    createNewMergedUser([]);
+                    createNewMergeCase(function (newCaseId) {
+                        addCases(_this.tree, newCaseId, function () {
+                            showThenClear("Merged");
+                            callback(newCaseId);
+                        });
+                    });
                 }
+            });
+        };
+        var checkIfAlreadyMerged = function (callback) {
+            var mergedDataContext = mergedDataContextInfo();
+            _this.props.codapPhone.call({
+                action: 'get',
+                resource: "dataContext[" + mergedDataContext.name + "].collection[" + mergedUserCollectionName + "].caseSearch[" + mergedEmailAndVersionAttributeName + "==" + _this.props.email + ":" + _this.props.version + "]"
+            }, function (result) {
+                callback(result.success && (result.values.length > 0) ? result.values[0].id : 0);
+            });
+        };
+        var createNewMergeCase = function (callback) {
+            var mergedDataContext = mergedDataContextInfo();
+            var values = {};
+            var them = _this.props.classInfo.getUserName(_this.props.email);
+            values[mergedUserAttributeName] = (them.found ? them.name : _this.props.email) + " #" + _this.props.version;
+            values[mergedEmailAndVersionAttributeName] = _this.props.email + ":" + _this.props.version;
+            _this.props.codapPhone.call({
+                action: 'create',
+                resource: "dataContext[" + mergedDataContext.name + "].collection[" + mergedUserCollectionName + "].case",
+                values: [{
+                        parent: null,
+                        values: values
+                    }]
+            }, function (result) {
+                callback(result.values[0].id);
             });
         };
         var addCases = function (branch, parentId, callback) {
+            var mergedDataContext = mergedDataContextInfo();
             var atRoot = branch === _this.tree;
             var cases = Object.keys(branch).map(function (id) { return branch[id]; });
             var checkIfDone = function () {
@@ -774,7 +760,7 @@ var UserInteractiveDataContext = (function (_super) {
                     var _case_1 = cases.shift();
                     _this.props.codapPhone.call({
                         action: 'create',
-                        resource: "dataContext[" + dataContextName + "].collection[" + _case_1.collection + "].case",
+                        resource: "dataContext[" + mergedDataContext.name + "].collection[" + _case_1.collection + "].case",
                         values: {
                             parent: parentId,
                             values: _case_1.values
@@ -789,7 +775,7 @@ var UserInteractiveDataContext = (function (_super) {
                 var values = cases.map(function (_case) { return { parent: parentId, values: _case.values }; });
                 _this.props.codapPhone.call({
                     action: 'create',
-                    resource: "dataContext[" + dataContextName + "].collection[" + cases[0].collection + "].case",
+                    resource: "dataContext[" + mergedDataContext.name + "].collection[" + cases[0].collection + "].case",
                     values: values
                 }, function (result) {
                     checkIfDone();
@@ -812,116 +798,109 @@ var UserInteractiveDataContext = (function (_super) {
             };
             processCases();
         };
-        var addUserAttribute = function (callback) {
-            var collections = _this.state.dataContext.collections;
-            var collectionNames = Object.keys(collections).map(function (id) { return collections[id].name; });
-            //FIXME: only add the attribute to the "leaf" collection
-            var addUserAttributeToCollection = function () {
-                if (collectionNames.length === 0) {
-                    callback();
-                }
-                else {
-                    var collectionName = collectionNames.shift();
-                    // create the merge attribute
-                    _this.props.codapPhone.call({
-                        action: 'create',
-                        resource: "dataContext[" + dataContextName + "].collection[" + collectionName + "].attribute",
-                        values: {
-                            name: mergedUserAttributeName,
-                            title: mergedUserAttributeTitle
-                        }
-                    }, function (result) {
-                        addUserAttributeToCollection();
-                    });
-                }
-            };
-            addUserAttributeToCollection();
-        };
-        var checkIfMergedCollectionExists = function (callback) {
+        var ensureMergedDataContextExists = function (callback) {
+            var mergedDataContext = mergedDataContextInfo();
             _this.props.codapPhone.call({
                 action: 'get',
-                resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "]"
+                resource: "dataContext[" + mergedDataContext.name + "]"
             }, function (result) {
-                callback(result.success);
-            });
-        };
-        var createMergedCollection = function (callback) {
-            _this.props.codapPhone.call({
-                action: 'create',
-                resource: "dataContext[" + dataContextName + "].collection",
-                values: {
-                    name: mergedUserCollectionName,
-                    title: mergedUserCollectionTitle,
-                    parent: "_root_"
-                }
-            }, function (result) {
-                callback();
-            });
-        };
-        var moveUserAttribute = function (callback) {
-            _this.props.codapPhone.call({
-                action: 'update',
-                resource: "dataContext[" + dataContextName + "].attributeLocation[" + mergedUserAttributeName + "]",
-                values: {
-                    collection: mergedUserCollectionName
-                }
-            }, function (result) {
-                callback();
-            });
-        };
-        var createEmailAttribute = function (callback) {
-            _this.props.codapPhone.call({
-                action: 'create',
-                resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "].attribute",
-                values: {
-                    name: mergedEmailAttributeName,
-                    title: mergedEmailAttributeTitle,
-                    hidden: true
-                }
-            }, function (result) {
-                callback();
-            });
-        };
-        var setUserAndEmailAttribute = function (callback) {
-            _this.props.codapPhone.call({
-                action: "get",
-                resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "].allCases"
-            }, function (result) {
-                var values = {};
-                var me = _this.props.classInfo.getUserName(_this.props.myEmail);
-                values[mergedUserAttributeName] = me.found ? me.name : _this.props.myEmail;
-                values[mergedEmailAttributeName] = _this.props.myEmail;
-                var requests = result.values.cases.map(function (_case) {
-                    return {
-                        action: 'update',
-                        resource: "dataContext[" + dataContextName + "].collection[" + mergedUserCollectionName + "].caseByID[" + _case.case.id + "]",
-                        values: {
-                            values: values
-                        }
-                    };
-                });
-                _this.props.codapPhone.call(requests, function (result) {
-                    callback();
-                });
-            });
-        };
-        checkIfMergedCollectionExists(function (exists) {
-            if (exists) {
-                merge();
-            }
-            else {
-                addUserAttribute(function () {
-                    createMergedCollection(function () {
-                        moveUserAttribute(function () {
-                            createEmailAttribute(function () {
-                                setUserAndEmailAttribute(function () {
-                                    merge();
+                if (!result.success) {
+                    var collections_1 = [{
+                            name: mergedUserCollectionName,
+                            title: mergedUserCollectionTitle,
+                            attrs: [
+                                { name: mergedUserAttributeName, title: mergedUserAttributeTitle },
+                                { name: mergedEmailAndVersionAttributeName, title: mergedEmailAndVersionAttributeTitle, hidden: true }
+                            ]
+                        }];
+                    _this.props.codapPhone.call({
+                        action: "get",
+                        resource: "dataContext[" + dataContextName + "].collectionList"
+                    }, function (result) {
+                        var moreInfoRequests = result.values.map(function (collection) {
+                            return {
+                                action: "get",
+                                resource: "dataContext[" + dataContextName + "].collection[" + collection.name + "]"
+                            };
+                        });
+                        _this.props.codapPhone.call(moreInfoRequests, function (result) {
+                            var collectionMap = {};
+                            result.forEach(function (result) {
+                                collectionMap[result.values.id] = result.values;
+                            });
+                            Object.keys(collectionMap).forEach(function (id) {
+                                var collection = collectionMap[id];
+                                collections_1.push({
+                                    name: collection.name,
+                                    title: collection.title,
+                                    parent: collection.parent ? collectionMap[collection.parent].name : mergedUserCollectionName,
+                                    attrs: collection.attrs.map(function (attr) {
+                                        return {
+                                            name: attr.name,
+                                            title: attr.title,
+                                            hidden: attr.hidden
+                                        };
+                                    })
                                 });
+                            });
+                            _this.props.codapPhone.call({
+                                action: 'create',
+                                resource: 'dataContext',
+                                values: {
+                                    name: mergedDataContext.name,
+                                    title: mergedDataContext.title,
+                                    collections: collections_1
+                                }
+                            }, function (result) {
+                                callback();
                             });
                         });
                     });
+                }
+                else {
+                    callback();
+                }
+            });
+        };
+        var showCaseTable = function (callback) {
+            var mergedDataContext = mergedDataContextInfo();
+            _this.props.codapPhone.call({
+                action: 'get',
+                resource: "component[" + mergedDataContext.name + "]"
+            }, function (result) {
+                if (!result.success) {
+                    _this.props.codapPhone.call({
+                        action: 'create',
+                        resource: 'component',
+                        values: {
+                            type: 'caseTable',
+                            name: mergedDataContext.name,
+                            title: mergedDataContext.title,
+                            dataContext: mergedDataContext.name
+                        }
+                    }, function (result) {
+                        callback();
+                    });
+                }
+                else {
+                    callback();
+                }
+            });
+        };
+        var selectMergedCase = function (caseId) {
+            var mergedDataContext = mergedDataContextInfo();
+            _this.props.codapPhone.call({
+                action: 'create',
+                resource: "dataContext[" + mergedDataContext.name + "].selectionList",
+                values: [caseId]
+            });
+        };
+        ensureMergedDataContextExists(function () {
+            merge(function (caseId) {
+                showCaseTable(function () {
+                    selectMergedCase(caseId);
                 });
-            }
+            });
         });
     };
     UserInteractiveDataContext.prototype.handleCopy = function () {
@@ -1121,8 +1100,8 @@ var IFrameSidebar = (function (_super) {
             var uniqueDataContextNames = [];
             var collectionRequests = [];
             result.values.forEach(function (value) {
-                // ignore duplicate context names (generated from ill behaving DIs)
-                if (uniqueDataContextNames.indexOf(value.name) !== -1) {
+                // ignore duplicate context names (generated from ill behaving DIs) and merged data contexts
+                if ((uniqueDataContextNames.indexOf(value.name) !== -1) || (value.name.substr(0, mergedDataContextName.length) === mergedDataContextName)) {
                     return;
                 }
                 uniqueDataContextNames.push(value.name);
@@ -1154,9 +1133,6 @@ var IFrameSidebar = (function (_super) {
                             name: value.name,
                             title: value.title
                         };
-                        if (value.name === mergedUserCollectionName) {
-                            dataContext.mergedCollection = value.id;
-                        }
                         dataContextForRequest.push(dataContext);
                         caseRequests.push({
                             action: "get",
@@ -1190,39 +1166,6 @@ var IFrameSidebar = (function (_super) {
                     var dataContextMap = {};
                     var userDataContextsRef = firebase.database().ref(userDataContextsKey);
                     dataContexts.forEach(function (dataContext) {
-                        if (dataContext.mergedCollection) {
-                            // remove merged collection and all data not associated with the current user
-                            var checkIfCurrentUserCase_1 = function (_case) {
-                                if (_case.collection === dataContext.mergedCollection) {
-                                    return {
-                                        isCurrentUserCase: _case.values[mergedEmailAttributeName] === _this.state.myEmail,
-                                        collection: _case.collection
-                                    };
-                                }
-                                if (!_case.parent) {
-                                    return {
-                                        isCurrentUserCase: true,
-                                        collection: 0
-                                    };
-                                }
-                                return checkIfCurrentUserCase_1(dataContext.cases[_case.parent]);
-                            };
-                            var userCases_1 = {};
-                            Object.keys(dataContext.cases).forEach(function (caseId) {
-                                var _case = dataContext.cases[caseId];
-                                if (_case.collection !== dataContext.mergedCollection) {
-                                    var check = checkIfCurrentUserCase_1(_case);
-                                    if (check.isCurrentUserCase) {
-                                        if (check.collection === dataContext.mergedCollection) {
-                                            _case.parent = null;
-                                        }
-                                        userCases_1[caseId] = _case;
-                                    }
-                                }
-                            });
-                            dataContext.cases = userCases_1;
-                            delete dataContext.collections[dataContext.mergedCollection];
-                        }
                         var userDataContextRef = userDataContextsRef.push();
                         userDataContextRef.set(JSON.stringify(dataContext));
                         dataContextMap[userDataContextRef.key] = dataContext.title || dataContext.name;
