@@ -492,6 +492,8 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
       const { collections } = this.state.dataContext
       const collectionNames:string[] = Object.keys(collections).map((id) => collections[id].name)
 
+      //FIXME: only add the attribute to the "leaf" collection
+
       const addUserAttributeToCollection = () => {
         if (collectionNames.length === 0) {
           callback()

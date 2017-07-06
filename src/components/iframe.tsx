@@ -223,6 +223,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   codapPhoneHandler(command:any, callback:Function) {
     var success = false;
     if (command) {
+      console.log('COMMAND!', command)
       switch (command.message) {
         case "codap-present":
           success = true;

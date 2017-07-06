@@ -354,6 +354,7 @@ var IFrame = (function (_super) {
     IFrame.prototype.codapPhoneHandler = function (command, callback) {
         var success = false;
         if (command) {
+            console.log('COMMAND!', command);
             switch (command.message) {
                 case "codap-present":
                     success = true;
@@ -814,6 +815,7 @@ var UserInteractiveDataContext = (function (_super) {
         var addUserAttribute = function (callback) {
             var collections = _this.state.dataContext.collections;
             var collectionNames = Object.keys(collections).map(function (id) { return collections[id].name; });
+            //FIXME: only add the attribute to the "leaf" collection
             var addUserAttributeToCollection = function () {
                 if (collectionNames.length === 0) {
                     callback();
