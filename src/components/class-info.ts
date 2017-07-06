@@ -1,15 +1,10 @@
 const superagent = require("superagent")
 import escapeFirebaseKey from "./escape-firebase-key"
 
-export class Student {
+export class User {
   first_name: string
   last_name: string
   email: string
-}
-
-export class Teacher {
-  first_name: string
-  last_name: string
 }
 
 export interface ClassInfoResultResponse {
@@ -17,41 +12,41 @@ export interface ClassInfoResultResponse {
   message?: string
   name: string
   class_hash: string
-  students: Array<Student>
-  teachers: Array<Teacher>
+  students: Array<User>
+  teachers: Array<User>
 }
 
 export interface AllClassInfo {
   name: string
   classHash: string
-  studentNames: StudentNameCache
+  userNames: UserNameCache
 }
 
-interface StudentNameCache {
+interface UserNameCache {
   [key: string]: string
 }
 
-export interface GetStudentName {
+export interface GetUserName {
   found: boolean
   name: string
 }
 
 type EndpointCallback = (err: string|null, results:AllClassInfo|null) => void
-type GetStudentNameCallback = (err: string|null, names:StudentNameCache) => void
+type GetUserNameCallback = (err: string|null, names:UserNameCache) => void
 type GetClassInfoCallback = (err:string|null, info:AllClassInfo) => void
 
 export class ClassInfo {
   private name:string|null
   private classHash:string|null
-  private studentNames:StudentNameCache
-  private anonymousStudentNames:StudentNameCache
+  private userNames:UserNameCache
+  private anonymousUserNames:UserNameCache
   private nextAnonymousId:number
   private callbacks:Array<EndpointCallback>
 
   constructor (private classInfoUrl:string) {
     this.name = null
-    this.studentNames = {}
-    this.anonymousStudentNames = {}
+    this.userNames = {}
+    this.anonymousUserNames = {}
     this.nextAnonymousId = 1
     this.callbacks = []
   }
@@ -61,7 +56,7 @@ export class ClassInfo {
       callback(null, {
         name: this.name,
         classHash: this.classHash,
-        studentNames: this.studentNames
+        userNames: this.userNames
       })
     }
     else {
@@ -69,30 +64,30 @@ export class ClassInfo {
     }
   }
 
-  getStudentName(email:string):GetStudentName {
+  getUserName(email:string):GetUserName {
     const key = escapeFirebaseKey(email)
-    if (this.studentNames[key] !== undefined) {
+    if (this.userNames[key] !== undefined) {
       return {
         found: true,
-        name: this.studentNames[key]
+        name: this.userNames[key]
       }
     }
-    if (this.anonymousStudentNames[key] !== undefined) {
+    if (this.anonymousUserNames[key] !== undefined) {
       return {
         found: true,
-        name: this.anonymousStudentNames[key]
+        name: this.anonymousUserNames[key]
       }
     }
-    this.anonymousStudentNames[key] = `Student ${this.nextAnonymousId++}`
+    this.anonymousUserNames[key] = `Student ${this.nextAnonymousId++}`
     return {
       found: false,
-      name: this.anonymousStudentNames[key]
+      name: this.anonymousUserNames[key]
     }
   }
 
-  getStudentNames(callback:GetStudentNameCallback) {
+  getStudentNames(callback:GetUserNameCallback) {
     this.callEndpoint((err, result) => {
-      callback(err, this.studentNames)
+      callback(err, this.userNames)
     })
   }
 
@@ -117,14 +112,14 @@ export class ClassInfo {
             this.name = result.name
             this.classHash = result.class_hash
 
-            this.studentNames = {}
+            this.userNames = {}
             result.students.forEach((student) => {
-              this.studentNames[escapeFirebaseKey(student.email)] = `${student.first_name} ${student.last_name}`
+              this.userNames[escapeFirebaseKey(student.email)] = `${student.first_name} ${student.last_name}`
             })
             allInfo = {
               name: result.name,
               classHash: result.class_hash,
-              studentNames: this.studentNames
+              userNames: this.userNames
             }
           }
           else if (result.message) {

@@ -1,9 +1,10 @@
 import * as React from "react";
-import { IFrameOverlay } from "./iframe-overlay"
+import { IFrameSidebar } from "./iframe-sidebar"
 import { getParam, getUID, FirebaseDemo } from "./demo"
 
 const queryString = require("query-string")
 const superagent = require("superagent")
+const base64url = require("base64-url")
 
 declare var iframePhone: any
 declare var firebase: any  // @types/firebase is not Firebase 3
@@ -21,13 +22,15 @@ export interface IFrameState {
   initInteractiveData: InitInteractiveData|null
   demoUID: string|null
   demoUser?: string
+  codapPhone:any
 }
 
 export interface AuthoredState {
   laraSharedUrl: string
   docStoreUrl: string
-  autoLaunchUrl: string
   codapUrl: string
+  codapParams: any
+  documentId: string
 }
 
 export interface InteractiveRunStateData {
@@ -39,7 +42,7 @@ export interface InitInteractiveData {
   version: number
   error: string|null
   mode: "authoring"|"runtime"
-  authoredState: AuthoredState
+  authoredState: AuthoredState|string
   interactiveState: any|null
   globalInteractiveState: any|null
   hasLinkedInteractive: boolean
@@ -65,7 +68,6 @@ export interface InitInteractiveAuthInfoData {
 export class IFrame extends React.Component<IFrameProps, IFrameState> {
   private classroomRef:any
   private clientPhone:any
-  private serverPhone:any
   private iframeCanAutosave = false
 
   refs: {
@@ -93,7 +95,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       initInteractiveData: null,
       copyUrl: null,
       demoUID: demoUID,
-      demoUser: demoUser
+      demoUser: demoUser,
+      codapPhone: null
     }
   }
 
@@ -107,37 +110,55 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     }
   }
 
+  generateIframeSrc(initInteractiveData:InitInteractiveData) {
+    const authoredState:AuthoredState = initInteractiveData.authoredState as AuthoredState
+    const launchParams:any = {url: initInteractiveData.interactiveStateUrl, source: authoredState.documentId, collaboratorUrls: initInteractiveData.collaboratorUrls}
+    const linkedState = initInteractiveData.linkedState || {}
+    const interactiveRunState = initInteractiveData.interactiveState || {}
+    const codapParams = authoredState.codapParams || {}
+
+    // if there is a linked state and no interactive state then change the source document to point to the linked recordid and add the access key
+    if (linkedState.docStore && linkedState.docStore.recordid && linkedState.docStore.accessKeys && linkedState.docStore.accessKeys.readOnly && !(interactiveRunState && interactiveRunState.docStore && interactiveRunState.docStore.recordid)) {
+      launchParams.source = linkedState.docStore.recordid;
+      launchParams.readOnlyKey = linkedState.docStore.accessKeys.readOnly;
+    }
+
+    //codapParams.componentMode = "yes"
+    codapParams.embeddedServer = "yes"
+    codapParams.documentServer = authoredState.docStoreUrl
+    codapParams.launchFromLara = base64url.encode(JSON.stringify(launchParams))
+
+    return `${authoredState.codapUrl}?${queryString.stringify(codapParams)}`
+  }
+
   setupDemoMode() {
     const demoRef = firebase.database().ref(`demos/${this.state.demoUID}`)
     demoRef.once("value", (snapshot:any) => {
       const demo:FirebaseDemo = snapshot.val()
-      const authoredState:AuthoredState = demo.authoredState
-      const email = this.state.demoUser ? demo.users[this.state.demoUser].email : "no-email@example.com"
-      const src = `${authoredState.autoLaunchUrl}?${queryString.stringify({server: authoredState.codapUrl})}`
       const demoParams = `demo=${this.state.demoUID}&demoUser=${this.state.demoUser}`
-      const demoAPIUrl = (endPoint:string) => {
-        return `https://us-central1-classroom-sharing.cloudfunctions.net/${endPoint}?${demoParams}`
+      const demoAPIUrl = (endPoint:string) => `https://us-central1-classroom-sharing.cloudfunctions.net/${endPoint}?${demoParams}`
+      const email = this.state.demoUser ? demo.users[this.state.demoUser].email : "no-email@example.com"
+      const initInteractiveData:InitInteractiveData = {
+        version: 1,
+        error: null,
+        mode: "runtime",
+        authoredState: demo.authoredState,
+        interactiveState: null,
+        globalInteractiveState: null,
+        hasLinkedInteractive: false,
+        linkedState: null,
+        interactiveStateUrl: demoAPIUrl("demoInteractiveRunState"),
+        collaboratorUrls: null,
+        publicClassHash: this.state.demoUID,
+        classInfoUrl: demoAPIUrl("demoClassInfo"),
+        interactive: {id: 1, name: "demo"},
+        authInfo: {provider: "demo", loggedIn: true, email: email}
       }
       this.setState({
-        src: src,
+        src: this.generateIframeSrc(initInteractiveData),
         irsUrl: demoAPIUrl("demoInteractiveRunState"),
-        initInteractiveData: {
-          version: 1,
-          error: null,
-          mode: "runtime",
-          authoredState: authoredState,
-          interactiveState: null,
-          globalInteractiveState: null,
-          hasLinkedInteractive: false,
-          linkedState: null,
-          interactiveStateUrl: demoAPIUrl("demoInteractiveRunState"),
-          collaboratorUrls: null,
-          publicClassHash: this.state.demoUID,
-          classInfoUrl: demoAPIUrl("demoClassInfo"),
-          interactive: {id: 1, name: "demo"},
-          authInfo: {provider: "demo", loggedIn: true, email: email}
-        },
-        authoredState: authoredState
+        initInteractiveData: initInteractiveData,
+        authoredState: demo.authoredState
       })
       setTimeout(this.getInteractiveState, 10);
     })
@@ -145,26 +166,33 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
 
   setupNormalMode() {
     this.clientPhone = iframePhone.getIFrameEndpoint()
-    this.clientPhone.addListener('initInteractive', (data:InitInteractiveData) => {
-      if (data.mode === "authoring") {
+    this.clientPhone.addListener('initInteractive', (initInteractiveData:InitInteractiveData) => {
+      let authoredState:AuthoredState|null = null
+      if (typeof initInteractiveData.authoredState === "string") {
+        try {
+          authoredState = JSON.parse(initInteractiveData.authoredState as string)
+        }
+        catch (e) {}
+      }
+      else {
+        authoredState = initInteractiveData.authoredState;
+      }
+      if (initInteractiveData.mode === "authoring") {
         this.setState({
           authoring: true,
-          authoredState: data.authoredState
+          authoredState: authoredState
         })
         return
       }
 
-      const authoredState:AuthoredState = data.authoredState
-      const src = `${authoredState.autoLaunchUrl}?${queryString.stringify({server: authoredState.codapUrl})}`
-
       this.setState({
-        src: src,
-        irsUrl: data.interactiveStateUrl,
-        initInteractiveData: data,
-        authoredState: data.authoredState
+        src: this.generateIframeSrc(initInteractiveData),
+        irsUrl: initInteractiveData.interactiveStateUrl,
+        initInteractiveData: initInteractiveData,
+        authoredState: authoredState
       })
 
-      if (data.interactiveStateUrl)  {
+      if (initInteractiveData.interactiveStateUrl)  {
         setTimeout(this.getInteractiveState, 1000)
       }
     })
@@ -192,18 +220,27 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     }
   }
 
+  codapPhoneHandler(command:any, callback:Function) {
+    var success = false;
+    if (command) {
+      console.log('COMMAND!', command)
+      switch (command.message) {
+        case "codap-present":
+          success = true;
+          break;
+      }
+    }
+    callback({success: success});
+  }
+
   componentDidUpdate() {
     if (this.state.authoring) {
       this.refs.laraSharedUrl.focus()
     }
-    else if (this.refs.iframe && !this.serverPhone) {
-      // proxy the result of the initInteractive message from LARA to the docstore
-      this.serverPhone = new iframePhone.ParentEndpoint(this.refs.iframe, () => {
-        this.serverPhone.post("initInteractive", this.state.initInteractiveData)
-      })
+    else if (this.refs.iframe && !this.state.codapPhone) {
+      this.setState({codapPhone: new iframePhone.IframePhoneRpcEndpoint(this.codapPhoneHandler.bind(this), "data-interactive", this.refs.iframe)});
 
-      // setup a generic postmessage CFM listener for the iframed CODAP window that autolaunch loads
-      // we can't use the serverPhone here because it is an iframe embedded in an iframe
+      // setup a generic postmessage CFM listener for the iframed CODAP window
       let keepPollingForCommands = true
       window.onmessage = (e) => {
         switch (e.data.type) {
@@ -281,10 +318,12 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   }
 
   renderIFrame():JSX.Element|null {
-    if (this.state.src) {
-      return <div id="iframe">
-              <iframe ref="iframe" src={this.state.src}></iframe>
-              <IFrameOverlay initInteractiveData={this.state.initInteractiveData} copyUrl={this.state.copyUrl} authoredState={this.state.authoredState} />
+    if (this.state.src && this.state.initInteractiveData) {
+      return <div>
+              <div id="iframe-container">
+                <iframe ref="iframe" src={this.state.src}></iframe>
+              </div>
+              <IFrameSidebar initInteractiveData={this.state.initInteractiveData} copyUrl={this.state.copyUrl} authoredState={this.state.authoredState} codapPhone={this.state.codapPhone} />
             </div>
     }
     return null
@@ -299,9 +338,17 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
 }
 
 export function parseURLIntoAuthoredState(url:string) {
-  let [docStoreUrl, query, ...rest] = url.split("?")
-  const urlMatches = docStoreUrl.match(/^((https?:\/\/[^/]+\/)v2\/documents\/\d+\/(auto)?launch)/)
-  const launchParams = queryString.parse(query || "")
+  const [docStoreUrl, urlQuery, ...restOfUrl] = url.split("?")
+  const urlMatches = docStoreUrl.match(/^(https?:\/\/[^/]+\/)v2\/documents\/(\d+)\/(auto)?launch/)
+  const launchParams = queryString.parse(urlQuery || "")
+
+  if (!urlMatches || !launchParams.server) {
+    throw new Error("This URL does not appear to be a shared URL from the LARA tab in CODAP")
+  }
+
+  const [codapUrl, serverQuery, ...restOfServer] = launchParams.server.split("?")
+  const codapParams = queryString.parse(serverQuery || "")
+
   const matchProtocol = (url:string):string => {
     const a = document.createElement("a")
     a.href = url
@@ -309,25 +356,12 @@ export function parseURLIntoAuthoredState(url:string) {
     return a.href
   }
 
-  if (!urlMatches || !launchParams.server) {
-    throw new Error("This URL does not appear to be a shared URL from the LARA tab in CODAP")
-  }
-
-  docStoreUrl = matchProtocol(urlMatches[2].replace(/\/+$/, "")) // remove trailing slashes
-
-  let codapUrl
-  [codapUrl, query, ...rest] = launchParams.server.split("?")
-  const codapParams = queryString.parse(query || "")
-  codapParams.componentMode = "yes"
-  codapParams.documentServer = docStoreUrl
-  codapParams.saveSecondaryFileViaPostMessage = "yes"
-  codapUrl = matchProtocol(`${codapUrl}?${queryString.stringify(codapParams)}`)
-
   const authoredState:AuthoredState = {
     laraSharedUrl: url,
-    docStoreUrl: codapParams.documentServer,
-    autoLaunchUrl: matchProtocol(urlMatches[1].replace("/launch", "/autolaunch")), // change to autolaunch
-    codapUrl: codapUrl
+    docStoreUrl: matchProtocol(urlMatches[1].replace(/\/+$/, "")), // remove trailing slashes
+    codapUrl: matchProtocol(codapUrl),
+    codapParams: codapParams,
+    documentId: urlMatches[2]
   }
 
   return authoredState

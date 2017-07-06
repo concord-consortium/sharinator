@@ -1,19 +1,19 @@
 import * as React from "react";
-import { Interactive, InteractiveMap, Student, StudentMap, StudentInteractive, Activity} from "./types"
+import { Interactive, InteractiveMap, User, UserMap, UserInteractive, Activity} from "./types"
 import { ClassInfo } from "./class-info"
 import { ago } from "./ago"
 
 export interface ClassroomPageProps {
-  setStudentInteractive:(student:Student, interactive:StudentInteractive) => void
-  getInteractiveHref: (student:Student, studentInteractive:StudentInteractive) => string
+  setUserInteractive:(user:User, interactive:UserInteractive) => void
+  getInteractiveHref: (user:User, userInteractive:UserInteractive) => string
   class: string,
   interactives: Array<Interactive>
-  students: Array<Student>
+  users: Array<User>
   activity: Array<Activity>
   classInfo: ClassInfo
 }
 
-export type Tab = "students" | "interactives" | "activity"
+export type Tab = "users" | "interactives" | "activity"
 
 export interface ClassroomPageState {
   currentTab: Tab
@@ -27,63 +27,63 @@ export class ClassroomPage extends React.Component<ClassroomPageProps, Classroom
     super(props)
 
     this.state = {
-      currentTab: "students"
+      currentTab: "users"
     }
   }
 
-  createOnClick(href: string, student:Student, studentInteractive:StudentInteractive):ClickHandler {
+  createOnClick(href: string, user:User, userInteractive:UserInteractive):ClickHandler {
     return (e:React.MouseEvent<HTMLAnchorElement>) => {
       e.preventDefault()
-      this.props.setStudentInteractive(student, studentInteractive)
+      this.props.setUserInteractive(user, userInteractive)
     }
   }
 
-  renderStudent(student:Student):JSX.Element {
-    const interactives:Array<JSX.Element> = Object.keys(student.interactives).map<JSX.Element>((interactiveId) => {
-      const studentInteractives = student.interactives[interactiveId]
-      const studentInteractive = studentInteractives[0]
-      const key = `${student.id}-${interactiveId}`
-      const href = this.props.getInteractiveHref(student, studentInteractive)
-      const onClick = this.createOnClick(href, student, studentInteractive)
-      return <span key={key}><a href={href} onClick={onClick}>{studentInteractive.name}</a> ({studentInteractives.length})</span>
+  renderUser(user:User):JSX.Element {
+    const interactives:Array<JSX.Element> = Object.keys(user.interactives).map<JSX.Element>((interactiveId) => {
+      const userInteractives = user.interactives[interactiveId]
+      const userInteractive = userInteractives[0]
+      const key = `${user.id}-${interactiveId}`
+      const href = this.props.getInteractiveHref(user, userInteractive)
+      const onClick = this.createOnClick(href, user, userInteractive)
+      return <span key={key}><a href={href} onClick={onClick}>{userInteractive.name}</a> ({userInteractives.length})</span>
     })
 
-    return <tr key={student.id}>
-             <td>{student.name}</td>
+    return <tr key={user.id}>
+             <td>{user.name}</td>
              <td>{interactives}</td>
            </tr>
   }
 
   renderInteractive(interactive:Interactive):JSX.Element {
-    const students:Array<JSX.Element> = Object.keys(interactive.students).map<JSX.Element>((studentId) => {
-      const student = interactive.students[studentId]
-      const studentInteractives = student.interactives[interactive.id]
-      const studentInteractive = studentInteractives[0]
-      const key = `${student.id}-${interactive.id}`
-      const href = this.props.getInteractiveHref(student, studentInteractive)
-      const onClick = this.createOnClick(href, student, studentInteractive)
-      return <span key={key}><a href={href} onClick={onClick}>{student.name}</a> ({studentInteractives.length})</span>
+    const users:Array<JSX.Element> = Object.keys(interactive.users).map<JSX.Element>((userId) => {
+      const user = interactive.users[userId]
+      const userInteractives = user.interactives[interactive.id]
+      const userInteractive = userInteractives[0]
+      const key = `${user.id}-${interactive.id}`
+      const href = this.props.getInteractiveHref(user, userInteractive)
+      const onClick = this.createOnClick(href, user, userInteractive)
+      return <span key={key}><a href={href} onClick={onClick}>{user.name}</a> ({userInteractives.length})</span>
     })
 
     return <tr key={interactive.id}>
              <td>{interactive.name}</td>
-             <td>{students}</td>
+             <td>{users}</td>
            </tr>
   }
 
-  renderStudents():JSX.Element {
-    if (this.props.students.length === 0) {
-      return <div>No students have published any interactives yet</div>
+  renderUsers():JSX.Element {
+    if (this.props.users.length === 0) {
+      return <div>No teachers or students have published any interactives yet</div>
     }
     return <table className="u-full-width">
              <thead>
                <tr>
-                 <th>Student</th>
+                 <th>User</th>
                  <th>Published Interactives</th>
                </tr>
              </thead>
              <tbody>
-               {this.props.students.map(this.renderStudent.bind(this))}
+               {this.props.users.map(this.renderUser.bind(this))}
              </tbody>
            </table>
   }
@@ -96,7 +96,7 @@ export class ClassroomPage extends React.Component<ClassroomPageProps, Classroom
              <thead>
                <tr>
                  <th>Published Interactive</th>
-                 <th>Students</th>
+                 <th>Users</th>
                </tr>
              </thead>
              <tbody>
@@ -106,12 +106,12 @@ export class ClassroomPage extends React.Component<ClassroomPageProps, Classroom
   }
 
   renderActivity(activity:Activity, index:number):JSX.Element {
-    const href = this.props.getInteractiveHref(activity.student, activity.studentInteractive)
-    const onClick = this.createOnClick(href, activity.student, activity.studentInteractive)
-    return <div className="activity" key={`${activity.student.id}-${activity.studentInteractive.id}-${index}`}>
-            {activity.student.name} published
-            <a href={href} onClick={onClick}>{activity.studentInteractive.name}</a>
-            {ago(activity.studentInteractive.createdAt)}
+    const href = this.props.getInteractiveHref(activity.user, activity.userInteractive)
+    const onClick = this.createOnClick(href, activity.user, activity.userInteractive)
+    return <div className="activity" key={`${activity.user.id}-${activity.userInteractive.id}-${index}`}>
+            {activity.user.name} published
+            <a href={href} onClick={onClick}>{activity.userInteractive.name}</a>
+            {ago(activity.userInteractive.createdAt)}
            </div>
   }
 
@@ -129,7 +129,7 @@ export class ClassroomPage extends React.Component<ClassroomPageProps, Classroom
       }
     }
     return <ul className="tab">
-             <li className={this.state.currentTab === "students" ? "active" : ""}><span onClick={selectTab("students")}>Students</span></li>
+             <li className={this.state.currentTab === "users" ? "active" : ""}><span onClick={selectTab("users")}>Users</span></li>
              <li className={this.state.currentTab === "interactives" ? "active" : ""}><span onClick={selectTab("interactives")}>Interactives</span></li>
              <li className={this.state.currentTab === "activity" ? "active" : ""}><span onClick={selectTab("activity")}>Activity</span></li>
            </ul>
@@ -137,8 +137,8 @@ export class ClassroomPage extends React.Component<ClassroomPageProps, Classroom
 
   renderCurrentTab() {
     switch (this.state.currentTab) {
-      case "students":
-        return this.renderStudents()
+      case "users":
+        return this.renderUsers()
       case "interactives":
         return this.renderInteractives()
       case "activity":

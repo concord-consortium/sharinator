@@ -6,15 +6,8 @@
   width: 225px;
   overflow: auto;
   cursor: pointer;
-}
-
-#iframe-overlay #background {
-  position: absolute;
-  height: 100%;
-  width: 100%;
-  background-color: #777;
-  opacity: 0.1;
-  pointer-events: none;
+  border-left: 1px solid #105262;
+  background-color: #ececec;
 }
 
 .buttons {

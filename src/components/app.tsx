@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Interactive, InteractiveMap, Student, StudentMap, StudentInteractive, FirebaseInteractive, FirebaseStudent, FirebaseData, FirebaseStudentInteractive, Activity} from "./types"
-import { StudentPage } from "./student-page"
+import { Interactive, InteractiveMap, User, UserMap, UserInteractive, FirebaseInteractive, FirebaseUser, FirebaseData, FirebaseUserInteractive, Activity} from "./types"
+import { UserPage } from "./user-page"
 import { ClassroomPage } from "./classroom-page"
 import { ClassInfo } from "./class-info"
 
@@ -17,10 +17,10 @@ export interface AppState {
   className: string|null
   loading: boolean
   error: string|null
-  studentInteractive: StudentInteractive|null
-  student: Student|null
+  userInteractive: UserInteractive|null
+  user: User|null
   interactives: Array<Interactive>
-  students: Array<Student>,
+  users: Array<User>,
   activity: Array<Activity>
   firebaseData: any|null
 }
@@ -32,7 +32,7 @@ export class App extends React.Component<AppProps, AppState> {
   constructor(props: AppProps) {
     super(props)
 
-    this.setStudentInteractive = this.setStudentInteractive.bind(this)
+    this.setUserInteractive = this.setUserInteractive.bind(this)
     this.getInteractiveHref = this.getInteractiveHref.bind(this)
 
     this.state = {
@@ -40,10 +40,10 @@ export class App extends React.Component<AppProps, AppState> {
       className: null,
       loading: true,
       error: null,
-      studentInteractive: null,
-      student: null,
+      userInteractive: null,
+      user: null,
       interactives: [],
-      students: [],
+      users: [],
       activity: [],
       firebaseData: null
     }
@@ -74,16 +74,16 @@ export class App extends React.Component<AppProps, AppState> {
       this.classroomRef = firebase.database().ref(`classes/${info.classHash}`)
       this.classroomRef.on("value", (snapshot:any) => {
         const interactives:Array<Interactive> = []
-        const students:Array<Student> = []
+        const users:Array<User> = []
         const activity:Array<Activity> = []
-        const firebaseData = snapshot.val()
-        let student:Student|null = null
-        let studentInteractive:StudentInteractive|null = null
+        const firebaseData:FirebaseData = snapshot.val()
+        let user:User|null = null
+        let userInteractive:UserInteractive|null = null
         let error:string|null = null
         let createdAt:number|null = null
         const interactiveMap:InteractiveMap = {}
-        const studentMap:StudentMap = {}
-        let studentNamesNotFound:boolean = false
+        const userMap:UserMap = {}
+        let userNamesNotFound:boolean = false
 
         if (firebaseData) {
           if (firebaseData.interactives) {
@@ -92,65 +92,65 @@ export class App extends React.Component<AppProps, AppState> {
               const interactive:Interactive = {
                 id: firebaseInteractiveId,
                 name: firebaseInteractive.name,
-                students: {}
+                users: {}
               }
               interactives.push(interactive)
               interactiveMap[firebaseInteractiveId] = interactive
             })
           }
 
-          if (firebaseData.students) {
-            Object.keys(firebaseData.students).forEach((firebaseStudentId) => {
-              const firebaseStudent:FirebaseStudent = firebaseData.students[firebaseStudentId]
-              const studentName = this.classInfo.getStudentName(firebaseStudentId)
-              const student:Student = {
-                id: firebaseStudentId,
-                name: studentName.name,
+          if (firebaseData.users) {
+            Object.keys(firebaseData.users).forEach((firebaseUserId) => {
+              const firebaseUser:FirebaseUser = firebaseData.users[firebaseUserId]
+              const userName = this.classInfo.getUserName(firebaseUserId)
+              const user:User = {
+                id: firebaseUserId,
+                name: userName.name,
                 interactives: {}
               }
-              if (!studentName.found) {
-                studentNamesNotFound = true
+              if (!userName.found) {
+                userNamesNotFound = true
               }
 
-              if (firebaseStudent.interactives) {
-                Object.keys(firebaseStudent.interactives).forEach((firebaseInteractiveId) => {
+              if (firebaseUser.interactives) {
+                Object.keys(firebaseUser.interactives).forEach((firebaseInteractiveId) => {
                   const interactive = interactiveMap[firebaseInteractiveId]
                   if (interactive) {
-                    const studentInteractives = student.interactives[firebaseInteractiveId] = student.interactives[firebaseInteractiveId] || []
-                    const firebaseStudentInteractives = firebaseStudent.interactives[firebaseInteractiveId]
-                    Object.keys(firebaseStudentInteractives).forEach((firebaseStudentInteractiveId) => {
-                      const firebaseStudentInteractive = firebaseStudentInteractives[firebaseStudentInteractiveId]
-                      const studentInteractive:StudentInteractive = {
+                    const userInteractives = user.interactives[firebaseInteractiveId] = user.interactives[firebaseInteractiveId] || []
+                    const firebaseUserInteractives = firebaseUser.interactives[firebaseInteractiveId]
+                    Object.keys(firebaseUserInteractives).forEach((firebaseUserInteractiveId) => {
+                      const firebaseUserInteractive = firebaseUserInteractives[firebaseUserInteractiveId]
+                      const userInteractive:UserInteractive = {
                         id: firebaseInteractiveId,
                         name: interactive.name,
-                        url: firebaseStudentInteractive.url,
-                        createdAt: firebaseStudentInteractive.createdAt
+                        url: firebaseUserInteractive.documentUrl,
+                        createdAt: firebaseUserInteractive.createdAt
                       }
-                      studentInteractives.push(studentInteractive)
+                      userInteractives.push(userInteractive)
 
                       activity.push({
-                        student: student,
-                        studentInteractive: studentInteractive
+                        user: user,
+                        userInteractive: userInteractive
                       })
                     })
-                    studentInteractives.sort((a, b) => {return b.createdAt - a.createdAt })
+                    userInteractives.sort((a, b) => {return b.createdAt - a.createdAt })
                   }
                 })
               }
-              students.push(student)
-              studentMap[firebaseStudentId] = student
+              users.push(user)
+              userMap[firebaseUserId] = user
             })
           }
 
-          students.sort((a, b) => {return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0)})
+          users.sort((a, b) => {return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0)})
           interactives.sort((a, b) => {return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0)})
-          activity.sort((a, b) => {return b.studentInteractive.createdAt - a.studentInteractive.createdAt})
+          activity.sort((a, b) => {return b.userInteractive.createdAt - a.userInteractive.createdAt})
 
-          students.forEach((student) => {
-            Object.keys(student.interactives).forEach((interactiveId) => {
+          users.forEach((user) => {
+            Object.keys(user.interactives).forEach((interactiveId) => {
               const interactive = interactiveMap[interactiveId]
               if (interactive) {
-                interactive.students[student.id] = student
+                interactive.users[user.id] = user
               }
             })
           })
@@ -158,29 +158,29 @@ export class App extends React.Component<AppProps, AppState> {
           if (firstLoad) {
             window.addEventListener("popstate", (e) => {
               const state = e.state || {}
-              const student = state.student || null
+              const user = state.user || null
               const interactive = state.interactive || null
 
-              this.setState({studentInteractive: state.studentInteractive || null, student: state.student || null})
+              this.setState({userInteractive: state.userInteractive || null, user: state.user || null})
             })
 
-            if (query.interactive && query.student) {
-              student = studentMap[query.student]
+            if (query.interactive && query.user) {
+              user = userMap[query.user]
               const interactiveKey = `interactive_${query.interactive}`
               const interactive = interactiveMap[interactiveKey]
-              if (student && interactive) {
-                let studentInteractives = student.interactives[interactive.id]
-                if (studentInteractives) {
+              if (user && interactive) {
+                let userInteractives = user.interactives[interactive.id]
+                if (userInteractives) {
                   if (query.createdAt) {
                     createdAt = parseInt(query.createdAt, 10)
-                    studentInteractives = studentInteractives.filter((studentInteractive) => { return studentInteractive.createdAt === createdAt })
+                    userInteractives = userInteractives.filter((userInteractive) => { return userInteractive.createdAt === createdAt })
                   }
-                  studentInteractive = studentInteractives[0] || null
+                  userInteractive = userInteractives[0] || null
                 }
               }
 
-              if (!student || !studentInteractive) {
-                error = "Sorry, the requested student interactive was not found!"
+              if (!user || !userInteractive) {
+                error = "Sorry, the requested user interactive was not found!"
               }
             }
             firstLoad = false
@@ -194,25 +194,25 @@ export class App extends React.Component<AppProps, AppState> {
           loading: false,
           error: error,
           interactives: interactives,
-          students: students,
+          users: users,
           activity: activity,
-          student: student || this.state.student,
-          studentInteractive: studentInteractive || this.state.studentInteractive,
+          user: user || this.state.user,
+          userInteractive: userInteractive || this.state.userInteractive,
           firebaseData: firebaseData
         })
 
-        if (studentNamesNotFound) {
+        if (userNamesNotFound) {
           this.classInfo.getStudentNames((err, names) => {
             if (err) {
               this.setState({error: err})
               return
             }
             this.setState({
-              students: students.map((student) => {
-                if (names[student.id] !== undefined) {
-                  student.name = names[student.id]
+              users: users.map((user) => {
+                if (names[user.id] !== undefined) {
+                  user.name = names[user.id]
                 }
-                return student
+                return user
               })
             })
           })
@@ -233,12 +233,12 @@ export class App extends React.Component<AppProps, AppState> {
     if (history.pushState && this.state.class) {
       history.pushState({}, "", `${location.pathname}?class=${this.state.class}`)
     }
-    this.setState({studentInteractive: null, student: null})
+    this.setState({userInteractive: null, user: null})
   }
 
   renderNav():JSX.Element|null {
     if (this.state.class !== null) {
-      const showClassroomButton = (this.state.student !== null) && (this.state.studentInteractive !== null)
+      const showClassroomButton = (this.state.user !== null) && (this.state.userInteractive !== null)
       return <div className="nav">
                { this.state.className !== null ? <h3>{this.state.className}</h3> : null }
                {showClassroomButton ? <button key="classroom" className="button button-primary" onClick={this.onClassroomClick.bind(this)}>View All</button> : null}
@@ -247,29 +247,29 @@ export class App extends React.Component<AppProps, AppState> {
     return null
   }
 
-  getInteractiveHref(student:Student, studentInteractive:StudentInteractive):string {
-    return `${location.pathname}?class=${this.state.class}&interactive=${studentInteractive.id.split("_")[1]}&student=${student.id}&createdAt=${studentInteractive.createdAt}`
+  getInteractiveHref(user:User, userInteractive:UserInteractive):string {
+    return `${location.pathname}?class=${this.state.class}&interactive=${userInteractive.id.split("_")[1]}&user=${user.id}&createdAt=${userInteractive.createdAt}`
   }
 
-  setStudentInteractive(student:Student, studentInteractive:StudentInteractive) {
+  setUserInteractive(user:User, userInteractive:UserInteractive) {
     if (history.pushState) {
-      const href = this.getInteractiveHref(student, studentInteractive)
-      history.pushState({student: student, studentInteractive: studentInteractive}, "", href)
+      const href = this.getInteractiveHref(user, userInteractive)
+      history.pushState({user: user, userInteractive: userInteractive}, "", href)
     }
 
     this.setState({
-      student: student,
-      studentInteractive: studentInteractive
+      user: user,
+      userInteractive: userInteractive
     })
   }
 
   renderPage():JSX.Element|null {
     if (this.state.class !== null) {
-      if ((this.state.studentInteractive !== null) && (this.state.student !== null)) {
-        return <StudentPage
-                 studentInteractive={this.state.studentInteractive}
-                 student={this.state.student}
-                 setStudentInteractive={this.setStudentInteractive}
+      if ((this.state.userInteractive !== null) && (this.state.user !== null)) {
+        return <UserPage
+                 userInteractive={this.state.userInteractive}
+                 user={this.state.user}
+                 setUserInteractive={this.setUserInteractive}
                  getInteractiveHref={this.getInteractiveHref}
                  classInfo={this.classInfo}
                  />
@@ -277,9 +277,9 @@ export class App extends React.Component<AppProps, AppState> {
       return <ClassroomPage
                class={this.state.class}
                interactives={this.state.interactives}
-               students={this.state.students}
+               users={this.state.users}
                activity={this.state.activity}
-               setStudentInteractive={this.setStudentInteractive}
+               setUserInteractive={this.setUserInteractive}
                getInteractiveHref={this.getInteractiveHref}
                classInfo={this.classInfo}
                />

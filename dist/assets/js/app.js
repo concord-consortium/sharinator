@@ -1,19 +1,19 @@
 webpackJsonp([0],{
 
-/***/ 204:
+/***/ 202:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 var React = __webpack_require__(7);
 var ReactDOM = __webpack_require__(15);
-var app_1 = __webpack_require__(90);
+var app_1 = __webpack_require__(91);
 ReactDOM.render(React.createElement(app_1.App, null), document.getElementById("app"));
 
 
 /***/ }),
 
-/***/ 61:
+/***/ 63:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43,7 +43,7 @@ exports.ago = ago;
 
 /***/ }),
 
-/***/ 90:
+/***/ 91:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -54,26 +54,26 @@ var __extends = (this && this.__extends) || function (d, b) {
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var React = __webpack_require__(7);
-var student_page_1 = __webpack_require__(94);
+var user_page_1 = __webpack_require__(93);
 var classroom_page_1 = __webpack_require__(92);
-var class_info_1 = __webpack_require__(91);
-var base64url = __webpack_require__(38);
-var queryString = __webpack_require__(19);
+var class_info_1 = __webpack_require__(38);
+var base64url = __webpack_require__(24);
+var queryString = __webpack_require__(16);
 var App = (function (_super) {
     __extends(App, _super);
     function App(props) {
         var _this = _super.call(this, props) || this;
-        _this.setStudentInteractive = _this.setStudentInteractive.bind(_this);
+        _this.setUserInteractive = _this.setUserInteractive.bind(_this);
         _this.getInteractiveHref = _this.getInteractiveHref.bind(_this);
         _this.state = {
             class: null,
             className: null,
             loading: true,
             error: null,
-            studentInteractive: null,
-            student: null,
+            userInteractive: null,
+            user: null,
             interactives: [],
-            students: [],
+            users: [],
             activity: [],
             firebaseData: null
         };
@@ -101,16 +101,16 @@ var App = (function (_super) {
             _this.classroomRef = firebase.database().ref("classes/" + info.classHash);
             _this.classroomRef.on("value", function (snapshot) {
                 var interactives = [];
-                var students = [];
+                var users = [];
                 var activity = [];
                 var firebaseData = snapshot.val();
-                var student = null;
-                var studentInteractive = null;
+                var user = null;
+                var userInteractive = null;
                 var error = null;
                 var createdAt = null;
                 var interactiveMap = {};
-                var studentMap = {};
-                var studentNamesNotFound = false;
+                var userMap = {};
+                var userNamesNotFound = false;
                 if (firebaseData) {
                     if (firebaseData.interactives) {
                         Object.keys(firebaseData.interactives).forEach(function (firebaseInteractiveId) {
@@ -118,86 +118,86 @@ var App = (function (_super) {
                             var interactive = {
                                 id: firebaseInteractiveId,
                                 name: firebaseInteractive.name,
-                                students: {}
+                                users: {}
                             };
                             interactives.push(interactive);
                             interactiveMap[firebaseInteractiveId] = interactive;
                         });
                     }
-                    if (firebaseData.students) {
-                        Object.keys(firebaseData.students).forEach(function (firebaseStudentId) {
-                            var firebaseStudent = firebaseData.students[firebaseStudentId];
-                            var studentName = _this.classInfo.getStudentName(firebaseStudentId);
-                            var student = {
-                                id: firebaseStudentId,
-                                name: studentName.name,
+                    if (firebaseData.users) {
+                        Object.keys(firebaseData.users).forEach(function (firebaseUserId) {
+                            var firebaseUser = firebaseData.users[firebaseUserId];
+                            var userName = _this.classInfo.getUserName(firebaseUserId);
+                            var user = {
+                                id: firebaseUserId,
+                                name: userName.name,
                                 interactives: {}
                             };
-                            if (!studentName.found) {
-                                studentNamesNotFound = true;
+                            if (!userName.found) {
+                                userNamesNotFound = true;
                             }
-                            if (firebaseStudent.interactives) {
-                                Object.keys(firebaseStudent.interactives).forEach(function (firebaseInteractiveId) {
+                            if (firebaseUser.interactives) {
+                                Object.keys(firebaseUser.interactives).forEach(function (firebaseInteractiveId) {
                                     var interactive = interactiveMap[firebaseInteractiveId];
                                     if (interactive) {
-                                        var studentInteractives_1 = student.interactives[firebaseInteractiveId] = student.interactives[firebaseInteractiveId] || [];
-                                        var firebaseStudentInteractives_1 = firebaseStudent.interactives[firebaseInteractiveId];
-                                        Object.keys(firebaseStudentInteractives_1).forEach(function (firebaseStudentInteractiveId) {
-                                            var firebaseStudentInteractive = firebaseStudentInteractives_1[firebaseStudentInteractiveId];
-                                            var studentInteractive = {
+                                        var userInteractives_1 = user.interactives[firebaseInteractiveId] = user.interactives[firebaseInteractiveId] || [];
+                                        var firebaseUserInteractives_1 = firebaseUser.interactives[firebaseInteractiveId];
+                                        Object.keys(firebaseUserInteractives_1).forEach(function (firebaseUserInteractiveId) {
+                                            var firebaseUserInteractive = firebaseUserInteractives_1[firebaseUserInteractiveId];
+                                            var userInteractive = {
                                                 id: firebaseInteractiveId,
                                                 name: interactive.name,
-                                                url: firebaseStudentInteractive.url,
-                                                createdAt: firebaseStudentInteractive.createdAt
+                                                url: firebaseUserInteractive.documentUrl,
+                                                createdAt: firebaseUserInteractive.createdAt
                                             };
-                                            studentInteractives_1.push(studentInteractive);
+                                            userInteractives_1.push(userInteractive);
                                             activity.push({
-                                                student: student,
-                                                studentInteractive: studentInteractive
+                                                user: user,
+                                                userInteractive: userInteractive
                                             });
                                         });
-                                        studentInteractives_1.sort(function (a, b) { return b.createdAt - a.createdAt; });
+                                        userInteractives_1.sort(function (a, b) { return b.createdAt - a.createdAt; });
                                     }
                                 });
                             }
-                            students.push(student);
-                            studentMap[firebaseStudentId] = student;
+                            users.push(user);
+                            userMap[firebaseUserId] = user;
                         });
                     }
-                    students.sort(function (a, b) { return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0); });
+                    users.sort(function (a, b) { return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0); });
                     interactives.sort(function (a, b) { return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0); });
-                    activity.sort(function (a, b) { return b.studentInteractive.createdAt - a.studentInteractive.createdAt; });
-                    students.forEach(function (student) {
-                        Object.keys(student.interactives).forEach(function (interactiveId) {
+                    activity.sort(function (a, b) { return b.userInteractive.createdAt - a.userInteractive.createdAt; });
+                    users.forEach(function (user) {
+                        Object.keys(user.interactives).forEach(function (interactiveId) {
                             var interactive = interactiveMap[interactiveId];
                             if (interactive) {
-                                interactive.students[student.id] = student;
+                                interactive.users[user.id] = user;
                             }
                         });
                     });
                     if (firstLoad) {
                         window.addEventListener("popstate", function (e) {
                             var state = e.state || {};
-                            var student = state.student || null;
+                            var user = state.user || null;
                             var interactive = state.interactive || null;
-                            _this.setState({ studentInteractive: state.studentInteractive || null, student: state.student || null });
+                            _this.setState({ userInteractive: state.userInteractive || null, user: state.user || null });
                         });
-                        if (query.interactive && query.student) {
-                            student = studentMap[query.student];
+                        if (query.interactive && query.user) {
+                            user = userMap[query.user];
                             var interactiveKey = "interactive_" + query.interactive;
                             var interactive = interactiveMap[interactiveKey];
-                            if (student && interactive) {
-                                var studentInteractives = student.interactives[interactive.id];
-                                if (studentInteractives) {
+                            if (user && interactive) {
+                                var userInteractives = user.interactives[interactive.id];
+                                if (userInteractives) {
                                     if (query.createdAt) {
                                         createdAt = parseInt(query.createdAt, 10);
-                                        studentInteractives = studentInteractives.filter(function (studentInteractive) { return studentInteractive.createdAt === createdAt; });
+                                        userInteractives = userInteractives.filter(function (userInteractive) { return userInteractive.createdAt === createdAt; });
                                     }
-                                    studentInteractive = studentInteractives[0] || null;
+                                    userInteractive = userInteractives[0] || null;
                                 }
                             }
-                            if (!student || !studentInteractive) {
-                                error = "Sorry, the requested student interactive was not found!";
+                            if (!user || !userInteractive) {
+                                error = "Sorry, the requested user interactive was not found!";
                             }
                         }
                         firstLoad = false;
@@ -210,24 +210,24 @@ var App = (function (_super) {
                     loading: false,
                     error: error,
                     interactives: interactives,
-                    students: students,
+                    users: users,
                     activity: activity,
-                    student: student || _this.state.student,
-                    studentInteractive: studentInteractive || _this.state.studentInteractive,
+                    user: user || _this.state.user,
+                    userInteractive: userInteractive || _this.state.userInteractive,
                     firebaseData: firebaseData
                 });
-                if (studentNamesNotFound) {
+                if (userNamesNotFound) {
                     _this.classInfo.getStudentNames(function (err, names) {
                         if (err) {
                             _this.setState({ error: err });
                             return;
                         }
                         _this.setState({
-                            students: students.map(function (student) {
-                                if (names[student.id] !== undefined) {
-                                    student.name = names[student.id];
+                            users: users.map(function (user) {
+                                if (names[user.id] !== undefined) {
+                                    user.name = names[user.id];
                                 }
-                                return student;
+                                return user;
                             })
                         });
                     });
@@ -244,36 +244,36 @@ var App = (function (_super) {
         if (history.pushState && this.state.class) {
             history.pushState({}, "", location.pathname + "?class=" + this.state.class);
         }
-        this.setState({ studentInteractive: null, student: null });
+        this.setState({ userInteractive: null, user: null });
     };
     App.prototype.renderNav = function () {
         if (this.state.class !== null) {
-            var showClassroomButton = (this.state.student !== null) && (this.state.studentInteractive !== null);
+            var showClassroomButton = (this.state.user !== null) && (this.state.userInteractive !== null);
             return React.createElement("div", { className: "nav" },
                 this.state.className !== null ? React.createElement("h3", null, this.state.className) : null,
                 showClassroomButton ? React.createElement("button", { key: "classroom", className: "button button-primary", onClick: this.onClassroomClick.bind(this) }, "View All") : null);
         }
         return null;
     };
-    App.prototype.getInteractiveHref = function (student, studentInteractive) {
-        return location.pathname + "?class=" + this.state.class + "&interactive=" + studentInteractive.id.split("_")[1] + "&student=" + student.id + "&createdAt=" + studentInteractive.createdAt;
+    App.prototype.getInteractiveHref = function (user, userInteractive) {
+        return location.pathname + "?class=" + this.state.class + "&interactive=" + userInteractive.id.split("_")[1] + "&user=" + user.id + "&createdAt=" + userInteractive.createdAt;
     };
-    App.prototype.setStudentInteractive = function (student, studentInteractive) {
+    App.prototype.setUserInteractive = function (user, userInteractive) {
         if (history.pushState) {
-            var href = this.getInteractiveHref(student, studentInteractive);
-            history.pushState({ student: student, studentInteractive: studentInteractive }, "", href);
+            var href = this.getInteractiveHref(user, userInteractive);
+            history.pushState({ user: user, userInteractive: userInteractive }, "", href);
         }
         this.setState({
-            student: student,
-            studentInteractive: studentInteractive
+            user: user,
+            userInteractive: userInteractive
         });
     };
     App.prototype.renderPage = function () {
         if (this.state.class !== null) {
-            if ((this.state.studentInteractive !== null) && (this.state.student !== null)) {
-                return React.createElement(student_page_1.StudentPage, { studentInteractive: this.state.studentInteractive, student: this.state.student, setStudentInteractive: this.setStudentInteractive, getInteractiveHref: this.getInteractiveHref, classInfo: this.classInfo });
+            if ((this.state.userInteractive !== null) && (this.state.user !== null)) {
+                return React.createElement(user_page_1.UserPage, { userInteractive: this.state.userInteractive, user: this.state.user, setUserInteractive: this.setUserInteractive, getInteractiveHref: this.getInteractiveHref, classInfo: this.classInfo });
             }
-            return React.createElement(classroom_page_1.ClassroomPage, { class: this.state.class, interactives: this.state.interactives, students: this.state.students, activity: this.state.activity, setStudentInteractive: this.setStudentInteractive, getInteractiveHref: this.getInteractiveHref, classInfo: this.classInfo });
+            return React.createElement(classroom_page_1.ClassroomPage, { class: this.state.class, interactives: this.state.interactives, users: this.state.users, activity: this.state.activity, setUserInteractive: this.setUserInteractive, getInteractiveHref: this.getInteractiveHref, classInfo: this.classInfo });
         }
         return null;
     };
@@ -298,118 +298,6 @@ exports.App = App;
 
 /***/ }),
 
-/***/ 91:
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-var superagent = __webpack_require__(23);
-var escape_firebase_key_1 = __webpack_require__(62);
-var Student = (function () {
-    function Student() {
-    }
-    return Student;
-}());
-exports.Student = Student;
-var Teacher = (function () {
-    function Teacher() {
-    }
-    return Teacher;
-}());
-exports.Teacher = Teacher;
-var ClassInfo = (function () {
-    function ClassInfo(classInfoUrl) {
-        this.classInfoUrl = classInfoUrl;
-        this.name = null;
-        this.studentNames = {};
-        this.anonymousStudentNames = {};
-        this.nextAnonymousId = 1;
-        this.callbacks = [];
-    }
-    ClassInfo.prototype.getClassInfo = function (callback) {
-        if (this.name && this.classHash) {
-            callback(null, {
-                name: this.name,
-                classHash: this.classHash,
-                studentNames: this.studentNames
-            });
-        }
-        else {
-            this.callEndpoint(callback);
-        }
-    };
-    ClassInfo.prototype.getStudentName = function (email) {
-        var key = escape_firebase_key_1.default(email);
-        if (this.studentNames[key] !== undefined) {
-            return {
-                found: true,
-                name: this.studentNames[key]
-            };
-        }
-        if (this.anonymousStudentNames[key] !== undefined) {
-            return {
-                found: true,
-                name: this.anonymousStudentNames[key]
-            };
-        }
-        this.anonymousStudentNames[key] = "Student " + this.nextAnonymousId++;
-        return {
-            found: false,
-            name: this.anonymousStudentNames[key]
-        };
-    };
-    ClassInfo.prototype.getStudentNames = function (callback) {
-        var _this = this;
-        this.callEndpoint(function (err, result) {
-            callback(err, _this.studentNames);
-        });
-    };
-    ClassInfo.prototype.callEndpoint = function (callback) {
-        var _this = this;
-        // only allow one in-flight
-        this.callbacks.push(callback);
-        if (this.callbacks.length > 1) {
-            return;
-        }
-        superagent
-            .get(this.classInfoUrl)
-            .withCredentials()
-            .set('Accept', 'application/json')
-            .end(function (err, res) {
-            try {
-                var result = JSON.parse(res.text);
-                var allInfo_1 = null;
-                var error_1 = null;
-                if (result.response_type !== "ERROR") {
-                    _this.name = result.name;
-                    _this.classHash = result.class_hash;
-                    _this.studentNames = {};
-                    result.students.forEach(function (student) {
-                        _this.studentNames[escape_firebase_key_1.default(student.email)] = student.first_name + " " + student.last_name;
-                    });
-                    allInfo_1 = {
-                        name: result.name,
-                        classHash: result.class_hash,
-                        studentNames: _this.studentNames
-                    };
-                }
-                else if (result.message) {
-                    error_1 = result.message;
-                }
-                _this.callbacks.forEach(function (cb) {
-                    cb(error_1, allInfo_1);
-                });
-            }
-            catch (e) { }
-        });
-    };
-    return ClassInfo;
-}());
-exports.ClassInfo = ClassInfo;
-
-
-/***/ }),
-
 /***/ 92:
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -421,70 +309,70 @@ var __extends = (this && this.__extends) || function (d, b) {
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var React = __webpack_require__(7);
-var ago_1 = __webpack_require__(61);
+var ago_1 = __webpack_require__(63);
 var ClassroomPage = (function (_super) {
     __extends(ClassroomPage, _super);
     function ClassroomPage(props) {
         var _this = _super.call(this, props) || this;
         _this.state = {
-            currentTab: "students"
+            currentTab: "users"
         };
         return _this;
     }
-    ClassroomPage.prototype.createOnClick = function (href, student, studentInteractive) {
+    ClassroomPage.prototype.createOnClick = function (href, user, userInteractive) {
         var _this = this;
         return function (e) {
             e.preventDefault();
-            _this.props.setStudentInteractive(student, studentInteractive);
+            _this.props.setUserInteractive(user, userInteractive);
         };
     };
-    ClassroomPage.prototype.renderStudent = function (student) {
+    ClassroomPage.prototype.renderUser = function (user) {
         var _this = this;
-        var interactives = Object.keys(student.interactives).map(function (interactiveId) {
-            var studentInteractives = student.interactives[interactiveId];
-            var studentInteractive = studentInteractives[0];
-            var key = student.id + "-" + interactiveId;
-            var href = _this.props.getInteractiveHref(student, studentInteractive);
-            var onClick = _this.createOnClick(href, student, studentInteractive);
+        var interactives = Object.keys(user.interactives).map(function (interactiveId) {
+            var userInteractives = user.interactives[interactiveId];
+            var userInteractive = userInteractives[0];
+            var key = user.id + "-" + interactiveId;
+            var href = _this.props.getInteractiveHref(user, userInteractive);
+            var onClick = _this.createOnClick(href, user, userInteractive);
             return React.createElement("span", { key: key },
-                React.createElement("a", { href: href, onClick: onClick }, studentInteractive.name),
+                React.createElement("a", { href: href, onClick: onClick }, userInteractive.name),
                 " (",
-                studentInteractives.length,
+                userInteractives.length,
                 ")");
         });
-        return React.createElement("tr", { key: student.id },
-            React.createElement("td", null, student.name),
+        return React.createElement("tr", { key: user.id },
+            React.createElement("td", null, user.name),
             React.createElement("td", null, interactives));
     };
     ClassroomPage.prototype.renderInteractive = function (interactive) {
         var _this = this;
-        var students = Object.keys(interactive.students).map(function (studentId) {
-            var student = interactive.students[studentId];
-            var studentInteractives = student.interactives[interactive.id];
-            var studentInteractive = studentInteractives[0];
-            var key = student.id + "-" + interactive.id;
-            var href = _this.props.getInteractiveHref(student, studentInteractive);
-            var onClick = _this.createOnClick(href, student, studentInteractive);
+        var users = Object.keys(interactive.users).map(function (userId) {
+            var user = interactive.users[userId];
+            var userInteractives = user.interactives[interactive.id];
+            var userInteractive = userInteractives[0];
+            var key = user.id + "-" + interactive.id;
+            var href = _this.props.getInteractiveHref(user, userInteractive);
+            var onClick = _this.createOnClick(href, user, userInteractive);
             return React.createElement("span", { key: key },
-                React.createElement("a", { href: href, onClick: onClick }, student.name),
+                React.createElement("a", { href: href, onClick: onClick }, user.name),
                 " (",
-                studentInteractives.length,
+                userInteractives.length,
                 ")");
         });
         return React.createElement("tr", { key: interactive.id },
             React.createElement("td", null, interactive.name),
-            React.createElement("td", null, students));
+            React.createElement("td", null, users));
     };
-    ClassroomPage.prototype.renderStudents = function () {
-        if (this.props.students.length === 0) {
-            return React.createElement("div", null, "No students have published any interactives yet");
+    ClassroomPage.prototype.renderUsers = function () {
+        if (this.props.users.length === 0) {
+            return React.createElement("div", null, "No teachers or students have published any interactives yet");
         }
         return React.createElement("table", { className: "u-full-width" },
             React.createElement("thead", null,
                 React.createElement("tr", null,
-                    React.createElement("th", null, "Student"),
+                    React.createElement("th", null, "User"),
                     React.createElement("th", null, "Published Interactives"))),
-            React.createElement("tbody", null, this.props.students.map(this.renderStudent.bind(this))));
+            React.createElement("tbody", null, this.props.users.map(this.renderUser.bind(this))));
     };
     ClassroomPage.prototype.renderInteractives = function () {
         if (this.props.interactives.length === 0) {
@@ -494,17 +382,17 @@ var ClassroomPage = (function (_super) {
             React.createElement("thead", null,
                 React.createElement("tr", null,
                     React.createElement("th", null, "Published Interactive"),
-                    React.createElement("th", null, "Students"))),
+                    React.createElement("th", null, "Users"))),
             React.createElement("tbody", null, this.props.interactives.map(this.renderInteractive.bind(this))));
     };
     ClassroomPage.prototype.renderActivity = function (activity, index) {
-        var href = this.props.getInteractiveHref(activity.student, activity.studentInteractive);
-        var onClick = this.createOnClick(href, activity.student, activity.studentInteractive);
-        return React.createElement("div", { className: "activity", key: activity.student.id + "-" + activity.studentInteractive.id + "-" + index },
-            activity.student.name,
+        var href = this.props.getInteractiveHref(activity.user, activity.userInteractive);
+        var onClick = this.createOnClick(href, activity.user, activity.userInteractive);
+        return React.createElement("div", { className: "activity", key: activity.user.id + "-" + activity.userInteractive.id + "-" + index },
+            activity.user.name,
             " published",
-            React.createElement("a", { href: href, onClick: onClick }, activity.studentInteractive.name),
-            ago_1.ago(activity.studentInteractive.createdAt));
+            React.createElement("a", { href: href, onClick: onClick }, activity.userInteractive.name),
+            ago_1.ago(activity.userInteractive.createdAt));
     };
     ClassroomPage.prototype.renderActivityList = function () {
         if (this.props.activity.length === 0) {
@@ -520,8 +408,8 @@ var ClassroomPage = (function (_super) {
             };
         };
         return React.createElement("ul", { className: "tab" },
-            React.createElement("li", { className: this.state.currentTab === "students" ? "active" : "" },
-                React.createElement("span", { onClick: selectTab("students") }, "Students")),
+            React.createElement("li", { className: this.state.currentTab === "users" ? "active" : "" },
+                React.createElement("span", { onClick: selectTab("users") }, "Users")),
             React.createElement("li", { className: this.state.currentTab === "interactives" ? "active" : "" },
                 React.createElement("span", { onClick: selectTab("interactives") }, "Interactives")),
             React.createElement("li", { className: this.state.currentTab === "activity" ? "active" : "" },
@@ -529,8 +417,8 @@ var ClassroomPage = (function (_super) {
     };
     ClassroomPage.prototype.renderCurrentTab = function () {
         switch (this.state.currentTab) {
-            case "students":
-                return this.renderStudents();
+            case "users":
+                return this.renderUsers();
             case "interactives":
                 return this.renderInteractives();
             case "activity":
@@ -549,7 +437,7 @@ exports.ClassroomPage = ClassroomPage;
 
 /***/ }),
 
-/***/ 94:
+/***/ 93:
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -560,11 +448,10 @@ var __extends = (this && this.__extends) || function (d, b) {
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var React = __webpack_require__(7);
-var ago_1 = __webpack_require__(61);
-var iframe_overlay_1 = __webpack_require__(37);
-var StudentPage = (function (_super) {
-    __extends(StudentPage, _super);
-    function StudentPage(props) {
+var ago_1 = __webpack_require__(63);
+var UserPage = (function (_super) {
+    __extends(UserPage, _super);
+    function UserPage(props) {
         var _this = _super.call(this, props) || this;
         _this.versionSelected = _this.versionSelected.bind(_this);
         _this.state = {
@@ -572,29 +459,29 @@ var StudentPage = (function (_super) {
         };
         return _this;
     }
-    StudentPage.prototype.componentDidMount = function () {
+    UserPage.prototype.componentDidMount = function () {
         // TODO: resize iframe
     };
-    StudentPage.prototype.componentWillReceiveProps = function (nextProps) {
+    UserPage.prototype.componentWillReceiveProps = function (nextProps) {
         // check if the student added a version
-        if (nextProps.student.id === this.props.student.id) {
-            var nextInteractives = nextProps.student.interactives[this.props.studentInteractive.id];
-            var currentInteractives = this.props.student.interactives[this.props.studentInteractive.id];
+        if (nextProps.user.id === this.props.user.id) {
+            var nextInteractives = nextProps.user.interactives[this.props.userInteractive.id];
+            var currentInteractives = this.props.user.interactives[this.props.userInteractive.id];
             if (nextInteractives.length > currentInteractives.length) {
             }
         }
     };
-    StudentPage.prototype.versionSelected = function (e) {
+    UserPage.prototype.versionSelected = function (e) {
         e.preventDefault();
         var value = parseInt(e.currentTarget.value, 10);
-        var interactives = this.props.student.interactives[this.props.studentInteractive.id];
+        var interactives = this.props.user.interactives[this.props.userInteractive.id];
         var interactive = interactives.filter(function (interactive) { return interactive.createdAt === value; })[0];
         if (interactive) {
-            this.props.setStudentInteractive(this.props.student, interactive);
+            this.props.setUserInteractive(this.props.user, interactive);
         }
     };
-    StudentPage.prototype.renderDropdown = function () {
-        var interactives = this.props.student.interactives[this.props.studentInteractive.id];
+    UserPage.prototype.renderDropdown = function () {
+        var interactives = this.props.user.interactives[this.props.userInteractive.id];
         if (interactives.length < 2) {
             return null;
         }
@@ -607,26 +494,25 @@ var StudentPage = (function (_super) {
                 ago_1.ago(interactive.createdAt));
         });
         return React.createElement("div", null,
-            React.createElement("select", { ref: "createdAtSelect", onChange: this.versionSelected, value: this.props.studentInteractive.createdAt }, options));
+            React.createElement("select", { ref: "createdAtSelect", onChange: this.versionSelected, value: this.props.userInteractive.createdAt }, options));
     };
-    StudentPage.prototype.render = function () {
+    UserPage.prototype.render = function () {
         return React.createElement("div", { className: "page" },
             React.createElement("div", { className: "page-header" },
                 React.createElement("h4", null,
-                    this.props.student.name,
+                    this.props.user.name,
                     ": ",
-                    this.props.studentInteractive.name),
+                    this.props.userInteractive.name),
                 this.renderDropdown()),
             React.createElement("div", { id: "iframe", className: "u-full-width" },
-                React.createElement("iframe", { className: "u-full-width", src: this.props.studentInteractive.url }),
-                React.createElement(iframe_overlay_1.IFrameOverlay, { initInteractiveData: null, copyUrl: null, authoredState: null })));
+                React.createElement("iframe", { className: "u-full-width", src: this.props.userInteractive.url })));
     };
-    return StudentPage;
+    return UserPage;
 }(React.Component));
-exports.StudentPage = StudentPage;
+exports.UserPage = UserPage;
 
 
 /***/ })
 
-},[204]);
+},[202]);
 //# sourceMappingURL=app.js.map

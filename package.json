@@ -11,10 +11,12 @@
     "dev-webpack": "cross-env NODE_ENV=development webpack",
     "dev-webpack:watch": "cross-env NODE_ENV=development webpack -w",
     "browse": "live-server dist/",
+    "browse-secure": "live-server --https=./node_modules/live-server-https dist/",
     "build": "npm-run-all --parallel copy-public webpack",
     "dev-build": "npm-run-all --parallel copy-public dev-webpack",
     "start": "npm-run-all --parallel copy-public copy-public:watch webpack:watch browse",
-    "dev-start": "npm-run-all --parallel copy-public copy-public:watch dev-webpack:watch browse"
+    "dev-start": "npm-run-all --parallel copy-public copy-public:watch dev-webpack:watch browse",
+    "dev-start-secure": "npm-run-all --parallel copy-public copy-public:watch dev-webpack:watch browse-secure"
   },
   "author": "",
   "license": "ISC",

@@ -10,11 +10,11 @@ There are two components to Sharinator
 * Dashboard
 
 The IFrame component is used as the endpoint for the interactive iframe in LARA.  No parameters are needed as it supports
-authoring mode in LARA.  The IFrame wraps CODAP and exposes an overlay div that contains buttons to publish the current
-document and view the class dashboard where other student documents from the class can be viewed.  It also contains
+authoring mode in LARA.  The IFrame wraps CODAP and exposes an sidebar div that contains buttons to publish the current
+document and view the class dashboard where other teacher and student documents from the class can be viewed.  It also contains
 an export library manager that listens to exported images and csvs from the CFM.
 
-The Dashboard is accessed via the "View" button the the IFrame overlay.  It is passed a base64 encoded URL to the class
+The Dashboard is accessed via the "View" button the the IFrame sidebar.  It is passed a base64 encoded URL to the class
 info api endpoint on the portal. The class info url is passed to LARA via the portal on each external resource run and
 LARA persists the url in the run table.
 
