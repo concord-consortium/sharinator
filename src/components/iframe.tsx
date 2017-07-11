@@ -1,6 +1,7 @@
 import * as React from "react";
 import { IFrameSidebar } from "./iframe-sidebar"
-import { getParam, getUID, FirebaseDemo } from "./demo"
+import { getParam, getUID, FirebaseDemo, DemoFirebaseSnapshot } from "./demo"
+import {SuperagentError, SuperagentResponse} from "./types"
 
 const queryString = require("query-string")
 const superagent = require("superagent")
@@ -8,6 +9,14 @@ const base64url = require("base64-url")
 
 declare var iframePhone: any
 declare var firebase: any  // @types/firebase is not Firebase 3
+
+export type CODAPPostData = any
+export type CODAPListenerData = any
+export interface CODAPPhone {
+   addListener: (command: string, callback:(data:CODAPListenerData)=>void) => void
+   post: (message: string, data:CODAPPostData) => void
+   initialize: () => void
+}
 
 export interface IFrameProps {
 }
@@ -22,7 +31,7 @@ export interface IFrameState {
   initInteractiveData: InitInteractiveData|null
   demoUID: string|null
   demoUser?: string
-  codapPhone:any
+  codapPhone: CODAPPhone|null
 }
 
 export interface AuthoredState {
@@ -65,9 +74,19 @@ export interface InitInteractiveAuthInfoData {
   email: string
 }
 
+export interface LaunchParams {
+  url: string
+  source: string
+  collaboratorUrls: string|null
+  readOnlyKey?: string
+}
+
+export interface CODAPCommand {
+  message: string
+}
+
 export class IFrame extends React.Component<IFrameProps, IFrameState> {
-  private classroomRef:any
-  private clientPhone:any
+  private clientPhone:CODAPPhone
   private iframeCanAutosave = false
 
   refs: {
@@ -112,7 +131,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
 
   generateIframeSrc(initInteractiveData:InitInteractiveData) {
     const authoredState:AuthoredState = initInteractiveData.authoredState as AuthoredState
-    const launchParams:any = {url: initInteractiveData.interactiveStateUrl, source: authoredState.documentId, collaboratorUrls: initInteractiveData.collaboratorUrls}
+    const launchParams:LaunchParams = {url: initInteractiveData.interactiveStateUrl, source: authoredState.documentId, collaboratorUrls: initInteractiveData.collaboratorUrls}
     const linkedState = initInteractiveData.linkedState || {}
     const interactiveRunState = initInteractiveData.interactiveState || {}
     const codapParams = authoredState.codapParams || {}
@@ -133,7 +152,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
 
   setupDemoMode() {
     const demoRef = firebase.database().ref(`demos/${this.state.demoUID}`)
-    demoRef.once("value", (snapshot:any) => {
+    demoRef.once("value", (snapshot:DemoFirebaseSnapshot) => {
       const demo:FirebaseDemo = snapshot.val()
       const demoParams = `demo=${this.state.demoUID}&demoUser=${this.state.demoUser}`
       const demoAPIUrl = (endPoint:string) => `https://us-central1-classroom-sharing.cloudfunctions.net/${endPoint}?${demoParams}`
@@ -220,7 +239,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     }
   }
 
-  codapPhoneHandler(command:any, callback:Function) {
+  codapPhoneHandler(command:CODAPCommand, callback:Function) {
     var success = false;
     if (command) {
       console.log('COMMAND!', command)
@@ -273,7 +292,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       .get(this.state.irsUrl)
       .withCredentials()
       .set('Accept', 'application/json')
-      .end((err:any, res:any) => {
+      .end((err:SuperagentError, res:SuperagentResponse) => {
         if (!err) {
           try {
             const json = JSON.parse(res.text)

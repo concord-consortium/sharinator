@@ -8,6 +8,9 @@ const superagent = require("superagent")
 const UID_LENGTH = 40
 
 declare var firebase: any  // @types/firebase is not Firebase 3
+export interface DemoFirebaseSnapshot {
+  val: () => FirebaseDemo
+}
 
 export interface DemoProps {
 }
@@ -21,12 +24,16 @@ export interface DemoState {
   demo?: FirebaseDemo
 }
 
+export interface DemoInteractiveState {
+
+}
+
 export interface DemoUser {
   name: string
   type: "student"|"teacher"
   email: string
   index: number
-  interactiveState: any
+  interactiveState: DemoInteractiveState|null
 }
 
 export interface DemoUserMap {
@@ -86,7 +93,7 @@ export class Demo extends React.Component<DemoProps, DemoState> {
 
     if (demoUID) {
       const demo = firebase.database().ref(`demos/${demoUID}`)
-      demo.once("value", (snapshot:any) => {
+      demo.once("value", (snapshot:DemoFirebaseSnapshot) => {
         const firebaseData:FirebaseDemo = snapshot.val()
         this.setState({demo: firebaseData})
       })

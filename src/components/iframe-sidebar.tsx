@@ -3,6 +3,7 @@ import {InitInteractiveData, AuthoredState} from "./iframe"
 import {ExportLibrary} from "./export-library"
 import {FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseData, FirebaseDataContext} from "./types"
 import {ClassInfo, GetUserName} from "./class-info"
+import {SuperagentError, SuperagentResponse} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
 
 const queryString = require("query-string")
@@ -927,7 +928,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     superagent
       .post(this.props.copyUrl)
       .set('Accept', 'application/json')
-      .end((err:any, res:any) => {
+      .end((err:SuperagentError, res:SuperagentResponse) => {
         this.setState({
           publishingError: null,
           publishing: false

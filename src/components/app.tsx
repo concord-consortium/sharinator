@@ -5,6 +5,13 @@ import { ClassroomPage } from "./classroom-page"
 import { ClassInfo } from "./class-info"
 
 declare var firebase: any;  // @types/firebase is not Firebase 3
+interface FirebaseSnapshot {
+  val: () => FirebaseData
+}
+interface FirebaseRef {
+  on: (attr: string, callback: (snapshot:FirebaseSnapshot) => void) => void,
+  off: () => void
+}
 
 const base64url = require("base64-url")
 const queryString = require("query-string")
@@ -22,11 +29,11 @@ export interface AppState {
   interactives: Array<Interactive>
   users: Array<User>,
   activity: Array<Activity>
-  firebaseData: any|null
+  firebaseData: FirebaseData|null
 }
 
 export class App extends React.Component<AppProps, AppState> {
-  private classroomRef:any
+  private classroomRef:FirebaseRef
   private classInfo:ClassInfo
 
   constructor(props: AppProps) {
@@ -72,7 +79,7 @@ export class App extends React.Component<AppProps, AppState> {
 
       // connect to firebase
       this.classroomRef = firebase.database().ref(`classes/${info.classHash}`)
-      this.classroomRef.on("value", (snapshot:any) => {
+      this.classroomRef.on("value", (snapshot:FirebaseSnapshot) => {
         const interactives:Array<Interactive> = []
         const users:Array<User> = []
         const activity:Array<Activity> = []

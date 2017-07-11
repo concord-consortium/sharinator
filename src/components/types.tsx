@@ -78,3 +78,7 @@ export interface FirebaseData {
   interactives: FirebaseInteractiveMap
   users: FirebaseUserMap
 }
+
+export type SuperagentError = any
+export type SuperagentResponse = any
+

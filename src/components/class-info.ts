@@ -1,5 +1,6 @@
 const superagent = require("superagent")
 import escapeFirebaseKey from "./escape-firebase-key"
+import {SuperagentError, SuperagentResponse} from "./types"
 
 export class User {
   first_name: string
@@ -102,7 +103,7 @@ export class ClassInfo {
       .get(this.classInfoUrl)
       .withCredentials()
       .set('Accept', 'application/json')
-      .end((err:any, res:any) => {
+      .end((err:SuperagentError, res:SuperagentResponse) => {
         try {
           const result:ClassInfoResultResponse = JSON.parse(res.text)
           let allInfo:AllClassInfo|null = null
