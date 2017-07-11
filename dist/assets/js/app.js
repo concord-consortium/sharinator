@@ -57,6 +57,7 @@ var React = __webpack_require__(7);
 var user_page_1 = __webpack_require__(93);
 var classroom_page_1 = __webpack_require__(92);
 var class_info_1 = __webpack_require__(38);
+var superagent = __webpack_require__(20);
 var base64url = __webpack_require__(24);
 var queryString = __webpack_require__(16);
 var App = (function (_super) {
@@ -80,14 +81,54 @@ var App = (function (_super) {
         return _this;
     }
     App.prototype.componentWillMount = function () {
-        var _this = this;
         var query = queryString.parse(location.search);
-        var firstLoad = true;
-        if (!query.class) {
-            return this.setState({ error: "Missing class in query string" });
+        if (!query.class && !(query.offering && query.token)) {
+            return this.setState({ error: "Missing class or offering and token in query string" });
         }
-        this.setState({ loading: true, class: query.class });
-        this.classInfo = new class_info_1.ClassInfo(base64url.decode(query.class));
+        this.setState({
+            loading: true,
+            class: query.class
+        });
+        if (query.offering) {
+            this.loadOfferingInfo(query.offering, query.token);
+        }
+        else {
+            this.loadClassInfo(base64url.decode(query.class));
+        }
+    };
+    App.prototype.loadOfferingInfo = function (offeringUrl, token) {
+        var _this = this;
+        var match = offeringUrl.match(/\/(offerings\/(\d+)\/for_class)$/);
+        if (match) {
+            var _ = match[0], apiPath_1 = match[1], offeringId = match[2];
+            superagent
+                .get(offeringUrl)
+                .set({ 'Authorization': "Bearer " + token })
+                .end(function (err, res) {
+                if (res.ok) {
+                    if ((res.body.length > 0) && res.body[0].clazz_id) {
+                        var clazz = offeringUrl.replace(apiPath_1, "classes/" + res.body[0].clazz_id);
+                        _this.setState({ class: base64url.encode(clazz) });
+                        _this.loadClassInfo(clazz);
+                    }
+                    else {
+                        return _this.setState({ error: "No classes found for offering in query string" });
+                    }
+                }
+                else {
+                    _this.setState({ error: "Unable to load offering in query string" });
+                }
+            });
+        }
+        else {
+            this.setState({ error: "Invalid offering url in query string, must be /for_class" });
+        }
+    };
+    App.prototype.loadClassInfo = function (classInfoUrl) {
+        var _this = this;
+        var firstLoad = true;
+        var query = queryString.parse(location.search);
+        this.classInfo = new class_info_1.ClassInfo(classInfoUrl);
         this.classInfo.getClassInfo(function (err, info) {
             if (err) {
                 _this.setState({

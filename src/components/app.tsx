@@ -3,6 +3,9 @@ import { Interactive, InteractiveMap, User, UserMap, UserInteractive, FirebaseIn
 import { UserPage } from "./user-page"
 import { ClassroomPage } from "./classroom-page"
 import { ClassInfo } from "./class-info"
+import {SuperagentError, SuperagentResponse} from "./types"
+
+const superagent = require("superagent")
 
 declare var firebase: any;  // @types/firebase is not Firebase 3
 interface FirebaseSnapshot {
@@ -58,14 +61,57 @@ export class App extends React.Component<AppProps, AppState> {
 
   componentWillMount() {
     const query = queryString.parse(location.search)
-    let firstLoad = true
 
-    if (!query.class) {
-      return this.setState({error: "Missing class in query string"})
+    if (!query.class && !(query.offering && query.token)) {
+      return this.setState({error: "Missing class or offering and token in query string"})
     }
-    this.setState({loading: true, class: query.class})
 
-    this.classInfo = new ClassInfo(base64url.decode(query.class))
+    this.setState({
+      loading: true,
+      class: query.class
+    })
+
+    if (query.offering) {
+      this.loadOfferingInfo(query.offering, query.token)
+    }
+    else {
+      this.loadClassInfo(base64url.decode(query.class))
+    }
+  }
+
+  loadOfferingInfo(offeringUrl:string, token:string) {
+    const match = offeringUrl.match(/\/(offerings\/(\d+)\/for_class)$/)
+    if (match) {
+      const [_, apiPath, offeringId] = match
+      superagent
+        .get(offeringUrl)
+        .set({'Authorization': `Bearer ${token}`})
+        .end((err:SuperagentError, res:SuperagentResponse) => {
+          if (res.ok) {
+            if ((res.body.length > 0) && res.body[0].clazz_id) {
+              const clazz = offeringUrl.replace(apiPath, `classes/${res.body[0].clazz_id}`)
+              this.setState({class: base64url.encode(clazz)})
+              this.loadClassInfo(clazz)
+            }
+            else {
+              return this.setState({error: "No classes found for offering in query string"})
+            }
+          }
+          else {
+            this.setState({error: "Unable to load offering in query string"})
+          }
+        })
+    }
+    else {
+      this.setState({error: "Invalid offering url in query string, must be /for_class"})
+    }
+  }
+
+  loadClassInfo(classInfoUrl:string) {
+    let firstLoad = true
+    const query = queryString.parse(location.search)
+
+    this.classInfo = new ClassInfo(classInfoUrl)
     this.classInfo.getClassInfo((err, info) => {
       if (err) {
         this.setState({
