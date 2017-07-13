@@ -6,7 +6,7 @@ webpackJsonp([1],{
 "use strict";
 
 var React = __webpack_require__(7);
-var ReactDOM = __webpack_require__(15);
+var ReactDOM = __webpack_require__(16);
 var iframe_1 = __webpack_require__(31);
 ReactDOM.render(React.createElement(iframe_1.IFrame, null), document.getElementById("app"));
 
@@ -25,8 +25,8 @@ var __extends = (this && this.__extends) || function (d, b) {
 };
 var React = __webpack_require__(7);
 var iframe_1 = __webpack_require__(31);
-var queryString = __webpack_require__(16);
-var superagent = __webpack_require__(20);
+var queryString = __webpack_require__(17);
+var superagent = __webpack_require__(15);
 var UID_LENGTH = 40;
 function getParam(name) {
     var value = "";
@@ -212,8 +212,8 @@ var __extends = (this && this.__extends) || function (d, b) {
 var React = __webpack_require__(7);
 var iframe_sidebar_1 = __webpack_require__(40);
 var demo_1 = __webpack_require__(30);
-var queryString = __webpack_require__(16);
-var superagent = __webpack_require__(20);
+var queryString = __webpack_require__(17);
+var superagent = __webpack_require__(15);
 var base64url = __webpack_require__(24);
 var IFrame = (function (_super) {
     __extends(IFrame, _super);
@@ -502,9 +502,9 @@ var __extends = (this && this.__extends) || function (d, b) {
 var React = __webpack_require__(7);
 var class_info_1 = __webpack_require__(38);
 var escape_firebase_key_1 = __webpack_require__(39);
-var queryString = __webpack_require__(16);
+var queryString = __webpack_require__(17);
 var base64url = __webpack_require__(24);
-var superagent = __webpack_require__(20);
+var superagent = __webpack_require__(15);
 var mergedDataContextName = "Merged";
 var mergedDataContextTitle = "Merged";
 var mergedUserCollectionName = "Merged";
@@ -611,7 +611,7 @@ var UserInteractiveDocument = (function (_super) {
         if (!this.state.showOptions) {
             return null;
         }
-        var classUrl = base64url.encode(this.props.initInteractiveData.classInfoUrl);
+        var classUrl = this.props.initInteractiveData.classInfoUrl;
         var href = "../dashboard/?class=" + classUrl + "&interactive=" + this.props.interactiveId + "&user=" + this.props.email + "&createdAt=" + this.props.userInteractive.createdAt;
         return (React.createElement("div", { className: "user-interactive-document-options" },
             React.createElement("a", { className: "user-interactive-view-document user-interactive-option", href: href, target: "_blank" }, "View In Dashboard"),
@@ -1289,7 +1289,7 @@ var IFrameSidebar = (function (_super) {
         if (!this.state.classHash || !this.props.codapPhone) {
             return null;
         }
-        // const href = `../dashboard/?class=${base64url.encode(this.props.initInteractiveData.classInfoUrl)}`
+        // const href = `../dashboard/?class=${this.props.initInteractiveData.classInfoUrl}`
         //            <a className="button button-primary" href={href} target="_blank">View</a>
         return React.createElement("div", { id: "iframe-sidebar" },
             this.renderUsernameHeader(),

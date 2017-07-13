@@ -6,7 +6,7 @@ webpackJsonp([0],{
 "use strict";
 
 var React = __webpack_require__(7);
-var ReactDOM = __webpack_require__(15);
+var ReactDOM = __webpack_require__(16);
 var app_1 = __webpack_require__(91);
 ReactDOM.render(React.createElement(app_1.App, null), document.getElementById("app"));
 
@@ -57,9 +57,9 @@ var React = __webpack_require__(7);
 var user_page_1 = __webpack_require__(93);
 var classroom_page_1 = __webpack_require__(92);
 var class_info_1 = __webpack_require__(38);
-var superagent = __webpack_require__(20);
+var superagent = __webpack_require__(15);
 var base64url = __webpack_require__(24);
-var queryString = __webpack_require__(16);
+var queryString = __webpack_require__(17);
 var App = (function (_super) {
     __extends(App, _super);
     function App(props) {
@@ -93,7 +93,7 @@ var App = (function (_super) {
             this.loadOfferingInfo(query.offering, query.token);
         }
         else {
-            this.loadClassInfo(base64url.decode(query.class));
+            this.loadClassInfo(query.class);
         }
     };
     App.prototype.loadOfferingInfo = function (offeringUrl, token) {
@@ -108,7 +108,7 @@ var App = (function (_super) {
                 if (res.ok) {
                     if ((res.body.length > 0) && res.body[0].clazz_id) {
                         var clazz = offeringUrl.replace(apiPath_1, "classes/" + res.body[0].clazz_id);
-                        _this.setState({ class: base64url.encode(clazz) });
+                        _this.setState({ class: clazz });
                         _this.loadClassInfo(clazz);
                     }
                     else {

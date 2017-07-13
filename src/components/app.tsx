@@ -75,7 +75,7 @@ export class App extends React.Component<AppProps, AppState> {
       this.loadOfferingInfo(query.offering, query.token)
     }
     else {
-      this.loadClassInfo(base64url.decode(query.class))
+      this.loadClassInfo(query.class)
     }
   }
 
@@ -90,7 +90,7 @@ export class App extends React.Component<AppProps, AppState> {
           if (res.ok) {
             if ((res.body.length > 0) && res.body[0].clazz_id) {
               const clazz = offeringUrl.replace(apiPath, `classes/${res.body[0].clazz_id}`)
-              this.setState({class: base64url.encode(clazz)})
+              this.setState({class: clazz})
               this.loadClassInfo(clazz)
             }
             else {

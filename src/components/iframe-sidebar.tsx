@@ -249,7 +249,7 @@ export class UserInteractiveDocument extends React.Component<UserInteractiveDocu
     if (!this.state.showOptions) {
       return null
     }
-    const classUrl = base64url.encode(this.props.initInteractiveData.classInfoUrl)
+    const classUrl = this.props.initInteractiveData.classInfoUrl
     const href = `../dashboard/?class=${classUrl}&interactive=${this.props.interactiveId}&user=${this.props.email}&createdAt=${this.props.userInteractive.createdAt}`
 
     return (
@@ -1051,7 +1051,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
       return null;
     }
 
-    // const href = `../dashboard/?class=${base64url.encode(this.props.initInteractiveData.classInfoUrl)}`
+    // const href = `../dashboard/?class=${this.props.initInteractiveData.classInfoUrl}`
     //            <a className="button button-primary" href={href} target="_blank">View</a>
     return <div id="iframe-sidebar">
              { this.renderUsernameHeader() }
