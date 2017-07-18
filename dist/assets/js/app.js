@@ -66,6 +66,7 @@ var App = (function (_super) {
         var _this = _super.call(this, props) || this;
         _this.setUserInteractive = _this.setUserInteractive.bind(_this);
         _this.getInteractiveHref = _this.getInteractiveHref.bind(_this);
+        _this.toggleShowClasses = _this.toggleShowClasses.bind(_this);
         _this.state = {
             class: null,
             className: null,
@@ -76,7 +77,9 @@ var App = (function (_super) {
             interactives: [],
             users: [],
             activity: [],
-            firebaseData: null
+            firebaseData: null,
+            classes: [],
+            showClasses: false
         };
         return _this;
     }
@@ -124,10 +127,28 @@ var App = (function (_super) {
             this.setState({ error: "Invalid offering url in query string, must be /for_class" });
         }
     };
+    App.prototype.loadClassList = function (classInfoUrl) {
+        var _this = this;
+        var classListUrl = classInfoUrl.replace(/(\d+)$/, "mine");
+        superagent
+            .get(classListUrl)
+            .withCredentials()
+            .set('Accept', 'application/json')
+            .end(function (err, res) {
+            try {
+                var result = JSON.parse(res.text);
+                if (result && result.classes) {
+                    _this.setState({ classes: result.classes });
+                }
+            }
+            catch (e) { }
+        });
+    };
     App.prototype.loadClassInfo = function (classInfoUrl) {
         var _this = this;
         var firstLoad = true;
         var query = queryString.parse(location.search);
+        this.loadClassList(classInfoUrl);
         this.classInfo = new class_info_1.ClassInfo(classInfoUrl);
         this.classInfo.getClassInfo(function (err, info) {
             if (err) {
@@ -287,10 +308,18 @@ var App = (function (_super) {
         }
         this.setState({ userInteractive: null, user: null });
     };
+    App.prototype.toggleShowClasses = function () {
+        this.setState({ showClasses: !this.state.showClasses });
+    };
     App.prototype.renderNav = function () {
         if (this.state.class !== null) {
             var showClassroomButton = (this.state.user !== null) && (this.state.userInteractive !== null);
+            if (this.state.showClasses) {
+                return React.createElement("div", { className: "nav" },
+                    React.createElement("div", { className: "my-classes-link", onClick: this.toggleShowClasses }, "\u2039 My Classes"));
+            }
             return React.createElement("div", { className: "nav" },
+                this.state.classes.length > 0 ? React.createElement("div", { className: "my-classes-link", onClick: this.toggleShowClasses }, "\u2039 My Classes") : null,
                 this.state.className !== null ? React.createElement("h3", null, this.state.className) : null,
                 showClassroomButton ? React.createElement("button", { key: "classroom", className: "button button-primary", onClick: this.onClassroomClick.bind(this) }, "View All") : null);
         }
@@ -310,6 +339,10 @@ var App = (function (_super) {
         });
     };
     App.prototype.renderPage = function () {
+        if (this.state.showClasses) {
+            return React.createElement("div", null, this.state.classes.map(function (clazz) { return React.createElement("div", { key: clazz.uri },
+                React.createElement("a", { href: "?class=" + clazz.uri }, clazz.name)); }));
+        }
         if (this.state.class !== null) {
             if ((this.state.userInteractive !== null) && (this.state.user !== null)) {
                 return React.createElement(user_page_1.UserPage, { userInteractive: this.state.userInteractive, user: this.state.user, setUserInteractive: this.setUserInteractive, getInteractiveHref: this.getInteractiveHref, classInfo: this.classInfo });
@@ -330,7 +363,7 @@ var App = (function (_super) {
                         React.createElement("img", { src: "../assets/img/loading.gif" }),
                         " Loading...") : null,
                     this.state.error ? React.createElement("div", { className: "section error" }, this.state.error) : null,
-                    this.state.firebaseData ? this.renderPage() : null)));
+                    this.state.firebaseData || this.state.showClasses ? this.renderPage() : null)));
     };
     return App;
 }(React.Component));

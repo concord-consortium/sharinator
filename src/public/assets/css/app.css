@@ -111,3 +111,8 @@ ul.tab li span:focus, .active {background-color: #ccc;}
 .activity a {
   margin: 0 5px;
 }
+
+.my-classes-link:hover {
+  text-decoration: underline;
+  cursor: pointer;
+}

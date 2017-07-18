@@ -9,6 +9,15 @@ const superagent = require("superagent")
 
 declare var firebase: Firebase
 
+interface MyClassListResponse {
+  classes: ClassListItem[]
+}
+interface ClassListItem {
+  uri: string
+  name: string
+  class_hash: string
+}
+
 const base64url = require("base64-url")
 const queryString = require("query-string")
 
@@ -26,6 +35,8 @@ export interface AppState {
   users: Array<User>,
   activity: Array<Activity>
   firebaseData: FirebaseData|null
+  classes: ClassListItem[]
+  showClasses: boolean
 }
 
 export class App extends React.Component<AppProps, AppState> {
@@ -37,6 +48,7 @@ export class App extends React.Component<AppProps, AppState> {
 
     this.setUserInteractive = this.setUserInteractive.bind(this)
     this.getInteractiveHref = this.getInteractiveHref.bind(this)
+    this.toggleShowClasses = this.toggleShowClasses.bind(this)
 
     this.state = {
       class: null,
@@ -48,7 +60,9 @@ export class App extends React.Component<AppProps, AppState> {
       interactives: [],
       users: [],
       activity: [],
-      firebaseData: null
+      firebaseData: null,
+      classes: [],
+      showClasses: false
     }
   }
 
@@ -100,9 +114,28 @@ export class App extends React.Component<AppProps, AppState> {
     }
   }
 
+  loadClassList(classInfoUrl:string) {
+    const classListUrl = classInfoUrl.replace(/(\d+)$/, "mine")
+    superagent
+      .get(classListUrl)
+      .withCredentials()
+      .set('Accept', 'application/json')
+      .end((err:SuperagentError, res:SuperagentResponse) => {
+        try {
+          const result:MyClassListResponse = JSON.parse(res.text)
+          if (result && result.classes) {
+            this.setState({classes: result.classes})
+          }
+        }
+        catch (e) {}
+      })
+  }
+
   loadClassInfo(classInfoUrl:string) {
     let firstLoad = true
     const query = queryString.parse(location.search)
+
+    this.loadClassList(classInfoUrl)
 
     this.classInfo = new ClassInfo(classInfoUrl)
     this.classInfo.getClassInfo((err, info) => {
@@ -265,8 +298,6 @@ export class App extends React.Component<AppProps, AppState> {
         }
       })
     })
-
-
   }
 
   componentWillUnmount() {
@@ -282,10 +313,20 @@ export class App extends React.Component<AppProps, AppState> {
     this.setState({userInteractive: null, user: null})
   }
 
+  toggleShowClasses() {
+    this.setState({showClasses: !this.state.showClasses})
+  }
+
   renderNav():JSX.Element|null {
     if (this.state.class !== null) {
       const showClassroomButton = (this.state.user !== null) && (this.state.userInteractive !== null)
+      if (this.state.showClasses) {
+        return <div className="nav">
+                 <div className="my-classes-link" onClick={this.toggleShowClasses}>‹ My Classes</div>
+               </div>
+      }
       return <div className="nav">
+               { this.state.classes.length > 0 ? <div className="my-classes-link" onClick={this.toggleShowClasses}>‹ My Classes</div> : null}
                { this.state.className !== null ? <h3>{this.state.className}</h3> : null }
                {showClassroomButton ? <button key="classroom" className="button button-primary" onClick={this.onClassroomClick.bind(this)}>View All</button> : null}
              </div>
@@ -310,6 +351,10 @@ export class App extends React.Component<AppProps, AppState> {
   }
 
   renderPage():JSX.Element|null {
+    if (this.state.showClasses) {
+      return <div>{this.state.classes.map((clazz) => <div key={clazz.uri}><a href={`?class=${clazz.uri}`}>{clazz.name}</a></div>)}</div>
+    }
+
     if (this.state.class !== null) {
       if ((this.state.userInteractive !== null) && (this.state.user !== null)) {
         return <UserPage
@@ -343,7 +388,7 @@ export class App extends React.Component<AppProps, AppState> {
           { this.renderNav() }
           { !this.state.error && this.state.loading ? <div className="section loading"><img src="../assets/img/loading.gif" /> Loading...</div> : null }
           { this.state.error ? <div className="section error">{this.state.error}</div> : null }
-          { this.state.firebaseData ? this.renderPage() : null }
+          { this.state.firebaseData || this.state.showClasses ? this.renderPage() : null }
         </div>
       </div>
     </div>
