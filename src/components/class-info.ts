@@ -1,6 +1,6 @@
 const superagent = require("superagent")
 import escapeFirebaseKey from "./escape-firebase-key"
-import {SuperagentError, SuperagentResponse} from "./types"
+import {SuperagentError, SuperagentResponse, UserName} from "./types"
 
 export class User {
   first_name: string
@@ -23,13 +23,15 @@ export interface AllClassInfo {
   userNames: UserNameCache
 }
 
-interface UserNameCache {
-  [key: string]: string
+
+
+export interface UserNameCache {
+  [key: string]: UserName
 }
 
 export interface GetUserName {
   found: boolean
-  name: string
+  name: UserName
 }
 
 type EndpointCallback = (err: string|null, results:AllClassInfo|null) => void
@@ -79,7 +81,10 @@ export class ClassInfo {
         name: this.anonymousUserNames[key]
       }
     }
-    this.anonymousUserNames[key] = `Student ${this.nextAnonymousId++}`
+    this.anonymousUserNames[key] = {
+      firstName: "Student",
+      lastName: String(this.nextAnonymousId++)
+    }
     return {
       found: false,
       name: this.anonymousUserNames[key]
@@ -115,7 +120,10 @@ export class ClassInfo {
 
             this.userNames = {}
             result.students.forEach((student) => {
-              this.userNames[escapeFirebaseKey(student.email)] = `${student.first_name} ${student.last_name}`
+              this.userNames[escapeFirebaseKey(student.email)] = {
+                firstName: student.first_name,
+                lastName: student.last_name
+              }
             })
             allInfo = {
               name: result.name,

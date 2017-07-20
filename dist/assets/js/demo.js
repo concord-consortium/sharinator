@@ -541,9 +541,10 @@ var UserInteractives = (function (_super) {
     };
     UserInteractives.prototype.render = function () {
         var userInteractives = this.props.userInteractives;
+        var name = userInteractives.name;
         var hasMoreThanOne = userInteractives.userInteractives.length > 1;
         return (React.createElement("div", { className: "user-interactives" },
-            React.createElement("div", { className: "user-interactives-name", onClick: this.toggleShowAll }, userInteractives.name),
+            React.createElement("div", { className: "user-interactives-name", onClick: this.toggleShowAll }, name ? name.firstName + " " + name.lastName : null),
             React.createElement(UserInteractive, { userInteractive: userInteractives.userInteractives[0], version: this.getVersion(0), classHash: this.props.classHash, interactiveId: this.props.interactiveId, email: this.props.email, codapPhone: this.props.codapPhone, first: true, initInteractiveData: this.props.initInteractiveData, myEmail: this.props.myEmail, classInfo: this.props.classInfo }),
             this.renderAll()));
     };
@@ -1028,6 +1029,24 @@ var IFrameSidebar = (function (_super) {
                 var sortUserInteractives = function (a, b) {
                     return b.createdAt - a.createdAt;
                 };
+                var sortPublishedUserInteractives = function (a, b) {
+                    if (!a.name || !b.name) {
+                        return 0;
+                    }
+                    if (a.name.firstName < b.name.firstName) {
+                        return -1;
+                    }
+                    if (a.name.firstName > b.name.firstName) {
+                        return 1;
+                    }
+                    if (a.name.lastName < b.name.lastName) {
+                        return -1;
+                    }
+                    if (a.name.lastName > b.name.lastName) {
+                        return 1;
+                    }
+                    return 0;
+                };
                 if (firebaseData) {
                     var usernameNotFound_1 = false;
                     Object.keys(firebaseData.users || {}).forEach(function (email) {
@@ -1060,7 +1079,7 @@ var IFrameSidebar = (function (_super) {
                         });
                     }
                 }
-                _this.setState({ userInteractives: publishedUserInteractives });
+                _this.setState({ userInteractives: publishedUserInteractives.sort(sortPublishedUserInteractives) });
             });
         });
     };
@@ -1280,7 +1299,10 @@ var IFrameSidebar = (function (_super) {
         if (!username) {
             return null;
         }
-        return React.createElement("div", { className: "username-header" }, username);
+        return React.createElement("div", { className: "username-header" },
+            username.firstName,
+            " ",
+            username.lastName);
     };
     IFrameSidebar.prototype.render = function () {
         if (this.state.error) {

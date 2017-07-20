@@ -13,9 +13,14 @@ export interface Activity {
   userInteractive: UserInteractive
 }
 
+export interface UserName {
+  firstName: string
+  lastName: string
+}
+
 export interface User {
   id: string
-  name: string
+  name: UserName
   interactives: UserInteractivesMap
 }
 

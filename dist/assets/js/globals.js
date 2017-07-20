@@ -5887,7 +5887,10 @@ var ClassInfo = (function () {
                 name: this.anonymousUserNames[key]
             };
         }
-        this.anonymousUserNames[key] = "Student " + this.nextAnonymousId++;
+        this.anonymousUserNames[key] = {
+            firstName: "Student",
+            lastName: String(this.nextAnonymousId++)
+        };
         return {
             found: false,
             name: this.anonymousUserNames[key]
@@ -5920,7 +5923,10 @@ var ClassInfo = (function () {
                     _this.classHash = result.class_hash;
                     _this.userNames = {};
                     result.students.forEach(function (student) {
-                        _this.userNames[escape_firebase_key_1.default(student.email)] = student.first_name + " " + student.last_name;
+                        _this.userNames[escape_firebase_key_1.default(student.email)] = {
+                            firstName: student.first_name,
+                            lastName: student.last_name
+                        };
                     });
                     allInfo_1 = {
                         name: result.name,

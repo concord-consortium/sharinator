@@ -1,7 +1,7 @@
 import * as React from "react";
 import {InitInteractiveData, AuthoredState} from "./iframe"
 import {ExportLibrary} from "./export-library"
-import {FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseData, FirebaseDataContext} from "./types"
+import {FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseData, FirebaseDataContext, UserName} from "./types"
 import {ClassInfo, GetUserName} from "./class-info"
 import {SuperagentError, SuperagentResponse} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
@@ -48,7 +48,7 @@ interface CopyResults {
 
 export interface PublishedUserInteractives {
   email: string
-  name: string|null
+  name: UserName|null
   type: "teacher" | "student"
   userInteractives: FirebaseUserInteractive[]
 }
@@ -111,11 +111,12 @@ export class UserInteractives extends React.Component<UserInteractivesProps, Use
 
   render() {
     const {userInteractives} = this.props
+    const {name} = userInteractives
     const hasMoreThanOne = userInteractives.userInteractives.length > 1
     return (
       <div className="user-interactives">
         <div className="user-interactives-name" onClick={this.toggleShowAll}>
-          {userInteractives.name}
+          {name ? `${name.firstName} ${name.lastName}` : null}
         </div>
         <UserInteractive
           userInteractive={userInteractives.userInteractives[0]}
@@ -738,6 +739,14 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
         const sortUserInteractives = (a: FirebaseUserInteractive, b: FirebaseUserInteractive):number => {
           return b.createdAt - a.createdAt
         }
+        const sortPublishedUserInteractives = (a: PublishedUserInteractives, b: PublishedUserInteractives):number => {
+          if (!a.name || !b.name) { return 0 }
+          if (a.name.firstName < b.name.firstName) { return -1 }
+          if (a.name.firstName > b.name.firstName) { return 1 }
+          if (a.name.lastName < b.name.lastName) { return -1 }
+          if (a.name.lastName > b.name.lastName) { return 1 }
+          return 0;
+        }
 
         if (firebaseData) {
 
@@ -775,7 +784,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
           }
         }
 
-        this.setState({userInteractives: publishedUserInteractives})
+        this.setState({userInteractives: publishedUserInteractives.sort(sortPublishedUserInteractives)})
       })
     })
   }
@@ -1039,7 +1048,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     if (!username) {
       return null;
     }
-    return <div className="username-header">{username}</div>
+    return <div className="username-header">{username.firstName} {username.lastName}</div>
   }
 
   render() {
