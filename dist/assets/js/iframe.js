@@ -731,7 +731,7 @@ var UserInteractiveDataContext = (function (_super) {
             var mergedDataContext = mergedDataContextInfo();
             var values = {};
             var them = _this.props.classInfo.getUserName(_this.props.email);
-            values[mergedUserAttributeName] = (them.found ? them.name : _this.props.email) + " #" + _this.props.version;
+            values[mergedUserAttributeName] = (them.found ? them.name.firstName + " " + them.name.lastName : _this.props.email) + " #" + _this.props.version;
             values[mergedEmailAndVersionAttributeName] = _this.props.email + ":" + _this.props.version;
             _this.props.codapPhone.call({
                 action: 'create',
@@ -805,24 +805,27 @@ var UserInteractiveDataContext = (function (_super) {
                 action: 'get',
                 resource: "dataContext[" + mergedDataContext.name + "]"
             }, function (result) {
+                var collections = [];
+                // add all the collections
+                var dataContext = _this.state.dataContext;
+                Object.keys(dataContext.collections).forEach(function (id) {
+                    var collection = dataContext.collections[id];
+                    collections.push({
+                        name: collection.name,
+                        title: collection.title,
+                        parent: collection.parent ? collection.parent : mergedUserCollectionName,
+                        attrs: collection.attrs
+                    });
+                });
                 if (!result.success) {
-                    var collections_1 = [{
-                            name: mergedUserCollectionName,
-                            title: mergedUserCollectionTitle,
-                            attrs: [
-                                { name: mergedUserAttributeName, title: mergedUserAttributeTitle },
-                                { name: mergedEmailAndVersionAttributeName, title: mergedEmailAndVersionAttributeTitle, hidden: true }
-                            ]
-                        }];
-                    var dataContext_2 = _this.state.dataContext;
-                    Object.keys(dataContext_2.collections).forEach(function (id) {
-                        var collection = dataContext_2.collections[id];
-                        collections_1.push({
-                            name: collection.name,
-                            title: collection.title,
-                            parent: collection.parent ? collection.parent : mergedUserCollectionName,
-                            attrs: collection.attrs
-                        });
+                    // if merged data context does not exist create the merged collection
+                    collections.unshift({
+                        name: mergedUserCollectionName,
+                        title: mergedUserCollectionTitle,
+                        attrs: [
+                            { name: mergedUserAttributeName, title: mergedUserAttributeTitle },
+                            { name: mergedEmailAndVersionAttributeName, title: mergedEmailAndVersionAttributeTitle, hidden: true }
+                        ]
                     });
                     _this.props.codapPhone.call({
                         action: 'create',
@@ -830,14 +833,22 @@ var UserInteractiveDataContext = (function (_super) {
                         values: {
                             name: mergedDataContext.name,
                             title: mergedDataContext.title,
-                            collections: collections_1
+                            collections: collections
                         }
                     }, function (result) {
                         callback();
                     });
                 }
                 else {
-                    callback();
+                    // otherwise ensure that all the collections exist on each merge
+                    // (this is in case the DI does not add the collections until after startup like the Dataflow DI)
+                    _this.props.codapPhone.call({
+                        action: 'create',
+                        resource: 'collection',
+                        values: collections
+                    }, function (result) {
+                        callback();
+                    });
                 }
             });
         };

@@ -404,7 +404,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
       const mergedDataContext = mergedDataContextInfo()
       const values:any = {}
       const them = this.props.classInfo.getUserName(this.props.email)
-      values[mergedUserAttributeName] = `${them.found ? them.name : this.props.email} #${this.props.version}`
+      values[mergedUserAttributeName] = `${them.found ? `${them.name.firstName} ${them.name.lastName}` : this.props.email} #${this.props.version}`
       values[mergedEmailAndVersionAttributeName] = `${this.props.email}:${this.props.version}`
 
       this.props.codapPhone.call({
@@ -486,25 +486,31 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
         action: 'get',
         resource: `dataContext[${mergedDataContext.name}]`
       }, (result:any) => {
+        const collections:any[] = []
+
+        // add all the collections
+        const {dataContext} = this.state
+        Object.keys(dataContext.collections).forEach((id) => {
+          const collection = dataContext.collections[id]
+          collections.push({
+            name: collection.name,
+            title: collection.title,
+            parent: collection.parent ? collection.parent : mergedUserCollectionName,
+            attrs: collection.attrs
+          })
+        })
+
         if (!result.success) {
-          const collections:any[] = [{
+          // if merged data context does not exist create the merged collection
+          collections.unshift({
             name: mergedUserCollectionName,
             title: mergedUserCollectionTitle,
             attrs: [
               {name: mergedUserAttributeName, title: mergedUserAttributeTitle},
               {name: mergedEmailAndVersionAttributeName, title: mergedEmailAndVersionAttributeTitle, hidden: true}
             ]
-          }]
-          const {dataContext} = this.state
-          Object.keys(dataContext.collections).forEach((id) => {
-            const collection = dataContext.collections[id]
-            collections.push({
-              name: collection.name,
-              title: collection.title,
-              parent: collection.parent ? collection.parent : mergedUserCollectionName,
-              attrs: collection.attrs
-            })
           })
+
           this.props.codapPhone.call({
             action: 'create',
             resource: 'dataContext',
@@ -518,7 +524,15 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
           })
         }
         else {
-          callback()
+          // otherwise ensure that all the collections exist on each merge
+          // (this is in case the DI does not add the collections until after startup like the Dataflow DI)
+          this.props.codapPhone.call({
+            action: 'create',
+            resource: 'collection',
+            values: collections
+          }, (result:any) => {
+            callback()
+          })
         }
       });
     }
