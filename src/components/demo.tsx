@@ -2,12 +2,14 @@ import * as React from "react";
 import { IFrameSidebar } from "./iframe-sidebar"
 import { parseURLIntoAuthoredState, AuthoredState } from "./iframe"
 import { ClassInfoResultResponse, User } from "./class-info"
+import { Firebase } from "./types"
 const queryString = require("query-string")
 const superagent = require("superagent")
 
 const UID_LENGTH = 40
 
-declare var firebase: any  // @types/firebase is not Firebase 3
+declare var firebase: Firebase
+
 export interface DemoFirebaseSnapshot {
   val: () => FirebaseDemo
 }

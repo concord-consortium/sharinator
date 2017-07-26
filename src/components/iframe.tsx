@@ -1,22 +1,14 @@
 import * as React from "react";
 import { IFrameSidebar } from "./iframe-sidebar"
 import { getParam, getUID, FirebaseDemo, DemoFirebaseSnapshot } from "./demo"
-import {SuperagentError, SuperagentResponse} from "./types"
+import {SuperagentError, SuperagentResponse, IFramePhone, Firebase, CODAPPhone, CODAPParams, InteractiveState, GlobalInteractiveState, LinkedState} from "./types"
 
 const queryString = require("query-string")
 const superagent = require("superagent")
 const base64url = require("base64-url")
 
-declare var iframePhone: any
-declare var firebase: any  // @types/firebase is not Firebase 3
-
-export type CODAPPostData = any
-export type CODAPListenerData = any
-export interface CODAPPhone {
-   addListener: (command: string, callback:(data:CODAPListenerData)=>void) => void
-   post: (message: string, data:CODAPPostData) => void
-   initialize: () => void
-}
+declare var iframePhone: IFramePhone
+declare var firebase: Firebase
 
 export interface IFrameProps {
 }
@@ -38,7 +30,7 @@ export interface AuthoredState {
   laraSharedUrl: string
   docStoreUrl: string
   codapUrl: string
-  codapParams: any
+  codapParams: CODAPParams
   documentId: string
 }
 
@@ -52,10 +44,10 @@ export interface InitInteractiveData {
   error: string|null
   mode: "authoring"|"runtime"
   authoredState: AuthoredState|string
-  interactiveState: any|null
-  globalInteractiveState: any|null
+  interactiveState: InteractiveState|null
+  globalInteractiveState: GlobalInteractiveState|null
   hasLinkedInteractive: boolean
-  linkedState: any|null
+  linkedState: LinkedState|null
   interactiveStateUrl: string
   collaboratorUrls: string|null
   publicClassHash: string|null
@@ -90,7 +82,6 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   private iframeCanAutosave = false
 
   refs: {
-    [string: string]: any;
     iframe: HTMLIFrameElement;
     laraSharedUrl: HTMLInputElement;
   }
@@ -124,7 +115,6 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       this.setupDemoMode()
     }
     else {
-      // TODO: figure out why iframe phone needs the delay
       setTimeout(this.setupNormalMode, 1000)
     }
   }

@@ -84,6 +84,36 @@ export interface FirebaseData {
   users: FirebaseUserMap
 }
 
-export type SuperagentError = any
-export type SuperagentResponse = any
+export type SuperagentError = any  // TODO
+export type SuperagentResponse = any  // TODO
 
+export type Firebase = any // TODO
+export type IFramePhone = any // TODO
+
+export interface FirebaseSnapshot {
+  val: () => FirebaseData
+}
+export interface FirebaseRef {
+  on: (attr: string, callback: (snapshot:FirebaseSnapshot) => void) => void,
+  off: () => void
+}
+
+
+export type CODAPPostData = any   // TODO
+export type CODAPListenerData = any // TODO
+
+export interface CODAPPhone {
+   addListener: (command: string, callback:(data:CODAPListenerData)=>void) => void
+   post: (message: string, data:CODAPPostData) => void
+   initialize: () => void
+   call: (requests:any, callback?: (results:any) => void) => void // TODO
+}
+
+export type CODAPParams = any  // TODO
+export type InteractiveState = any // TODO
+export type GlobalInteractiveState = any // TODO
+export type LinkedState = any // TODO
+
+
+
+export type Window = any

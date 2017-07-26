@@ -3,18 +3,11 @@ import { Interactive, InteractiveMap, User, UserMap, UserInteractive, FirebaseIn
 import { UserPage } from "./user-page"
 import { ClassroomPage } from "./classroom-page"
 import { ClassInfo } from "./class-info"
-import {SuperagentError, SuperagentResponse} from "./types"
+import {SuperagentError, SuperagentResponse, Firebase, FirebaseSnapshot, FirebaseRef} from "./types"
 
 const superagent = require("superagent")
 
-declare var firebase: any;  // @types/firebase is not Firebase 3
-interface FirebaseSnapshot {
-  val: () => FirebaseData
-}
-interface FirebaseRef {
-  on: (attr: string, callback: (snapshot:FirebaseSnapshot) => void) => void,
-  off: () => void
-}
+declare var firebase: Firebase
 
 const base64url = require("base64-url")
 const queryString = require("query-string")

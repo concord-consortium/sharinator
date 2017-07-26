@@ -244,7 +244,6 @@ var IFrame = (function (_super) {
             this.setupDemoMode();
         }
         else {
-            // TODO: figure out why iframe phone needs the delay
             setTimeout(this.setupNormalMode, 1000);
         }
     };
@@ -633,7 +632,7 @@ var UserInteractiveDataContext = (function (_super) {
     function UserInteractiveDataContext(props) {
         var _this = _super.call(this, props) || this;
         _this.loading = false;
-        _this.tree = null;
+        _this.tree = null; // TODO
         _this.state = {
             showOptions: false,
             copyState: null,
@@ -645,6 +644,11 @@ var UserInteractiveDataContext = (function (_super) {
         _this.handleMerge = _this.handleMerge.bind(_this);
         return _this;
     }
+    UserInteractiveDataContext.prototype.callCODAP = function (request, callback) {
+        if (this.props.codapPhone) {
+            this.props.codapPhone.call(request, callback);
+        }
+    };
     UserInteractiveDataContext.prototype.loadDataContext = function () {
         var _this = this;
         if (!this.loading && (this.state.dataContext === null)) {
@@ -653,11 +657,11 @@ var UserInteractiveDataContext = (function (_super) {
             dataContextRef.once("value", function (snapshot) {
                 try {
                     // convert to a tree
-                    var tree_1 = {};
-                    var leaves_1 = {};
-                    var dataContext_1 = JSON.parse(snapshot.val());
+                    var tree_1 = {}; // TODO
+                    var leaves_1 = {}; // TODO
+                    var dataContext_1 = JSON.parse(snapshot.val()); // TODO
                     Object.keys(dataContext_1.cases).forEach(function (id) {
-                        var _case = dataContext_1.cases[id];
+                        var _case = dataContext_1.cases[id]; // TODO
                         var parent = _case.parent ? leaves_1[_case.parent] : null;
                         var leaf = {
                             values: _case.values,
@@ -720,7 +724,7 @@ var UserInteractiveDataContext = (function (_super) {
         };
         var checkIfAlreadyMerged = function (callback) {
             var mergedDataContext = mergedDataContextInfo();
-            _this.props.codapPhone.call({
+            _this.callCODAP({
                 action: 'get',
                 resource: "dataContext[" + mergedDataContext.name + "].collection[" + mergedUserCollectionName + "].caseSearch[" + mergedEmailAndVersionAttributeName + "==" + _this.props.email + ":" + _this.props.version + "]"
             }, function (result) {
@@ -729,11 +733,11 @@ var UserInteractiveDataContext = (function (_super) {
         };
         var createNewMergeCase = function (callback) {
             var mergedDataContext = mergedDataContextInfo();
-            var values = {};
+            var values = {}; // TODO
             var them = _this.props.classInfo.getUserName(_this.props.email);
             values[mergedUserAttributeName] = (them.found ? them.name.firstName + " " + them.name.lastName : _this.props.email) + " #" + _this.props.version;
             values[mergedEmailAndVersionAttributeName] = _this.props.email + ":" + _this.props.version;
-            _this.props.codapPhone.call({
+            _this.callCODAP({
                 action: 'create',
                 resource: "dataContext[" + mergedDataContext.name + "].collection[" + mergedUserCollectionName + "].case",
                 values: [{
@@ -759,7 +763,7 @@ var UserInteractiveDataContext = (function (_super) {
                 }
                 else {
                     var _case_1 = cases.shift();
-                    _this.props.codapPhone.call({
+                    _this.callCODAP({
                         action: 'create',
                         resource: "dataContext[" + mergedDataContext.name + "].collection[" + _case_1.collection + "].case",
                         values: {
@@ -774,7 +778,7 @@ var UserInteractiveDataContext = (function (_super) {
             };
             var addAllCases = function () {
                 var values = cases.map(function (_case) { return { parent: parentId, values: _case.values }; });
-                _this.props.codapPhone.call({
+                _this.callCODAP({
                     action: 'create',
                     resource: "dataContext[" + mergedDataContext.name + "].collection[" + cases[0].collection + "].case",
                     values: values
@@ -801,11 +805,11 @@ var UserInteractiveDataContext = (function (_super) {
         };
         var ensureMergedDataContextExists = function (callback) {
             var mergedDataContext = mergedDataContextInfo();
-            _this.props.codapPhone.call({
+            _this.callCODAP({
                 action: 'get',
                 resource: "dataContext[" + mergedDataContext.name + "]"
             }, function (result) {
-                var collections = [];
+                var collections = []; // TODO
                 // add all the collections
                 var dataContext = _this.state.dataContext;
                 Object.keys(dataContext.collections).forEach(function (id) {
@@ -827,7 +831,7 @@ var UserInteractiveDataContext = (function (_super) {
                             { name: mergedEmailAndVersionAttributeName, title: mergedEmailAndVersionAttributeTitle, hidden: true }
                         ]
                     });
-                    _this.props.codapPhone.call({
+                    _this.callCODAP({
                         action: 'create',
                         resource: 'dataContext',
                         values: {
@@ -842,7 +846,7 @@ var UserInteractiveDataContext = (function (_super) {
                 else {
                     // otherwise ensure that all the collections exist on each merge
                     // (this is in case the DI does not add the collections until after startup like the Dataflow DI)
-                    _this.props.codapPhone.call({
+                    _this.callCODAP({
                         action: 'create',
                         resource: 'collection',
                         values: collections
@@ -854,12 +858,12 @@ var UserInteractiveDataContext = (function (_super) {
         };
         var showCaseTable = function (callback) {
             var mergedDataContext = mergedDataContextInfo();
-            _this.props.codapPhone.call({
+            _this.callCODAP({
                 action: 'get',
                 resource: "component[" + mergedDataContext.name + "]"
             }, function (result) {
                 if (!result.success) {
-                    _this.props.codapPhone.call({
+                    _this.callCODAP({
                         action: 'create',
                         resource: 'component',
                         values: {
@@ -879,7 +883,7 @@ var UserInteractiveDataContext = (function (_super) {
         };
         var selectMergedCase = function (caseId) {
             var mergedDataContext = mergedDataContextInfo();
-            _this.props.codapPhone.call({
+            _this.callCODAP({
                 action: 'create',
                 resource: "dataContext[" + mergedDataContext.name + "].selectionList",
                 values: [caseId]
@@ -914,7 +918,7 @@ var UserInteractiveDataContext = (function (_super) {
                 });
             }
             else {
-                var row = {};
+                var row = {}; // TODO
                 addParentValues(item, row);
                 addItemValues(item, row);
                 rows.push(row);
@@ -923,7 +927,7 @@ var UserInteractiveDataContext = (function (_super) {
         // create tables for each top level collection
         var tables = [];
         Object.keys(this.tree).forEach(function (id) {
-            var rows = [];
+            var rows = []; // TODO
             addToRows(_this.tree[id], rows);
             if (rows.length > 0) {
                 var tableHeader = Object.keys(rows[0]).map(function (col) {
@@ -1095,8 +1099,11 @@ var IFrameSidebar = (function (_super) {
         });
     };
     IFrameSidebar.prototype.saveDataContexts = function (userDataContextsKey, callback) {
-        var _this = this;
-        this.props.codapPhone.call({
+        var codapPhone = this.props.codapPhone;
+        if (!codapPhone) {
+            return;
+        }
+        codapPhone.call({
             action: 'get',
             resource: 'dataContextList'
         }, function (result) {
@@ -1104,9 +1111,9 @@ var IFrameSidebar = (function (_super) {
             if (!result.success) {
                 return callback(result.values.error);
             }
-            var dataContexts = [];
+            var dataContexts = []; // TODO
             var uniqueDataContextNames = [];
-            var collectionRequests = [];
+            var collectionRequests = []; // TODO
             result.values.forEach(function (value) {
                 // ignore duplicate context names (generated from ill behaving DIs) and merged data contexts
                 if ((uniqueDataContextNames.indexOf(value.name) !== -1) || (value.name.substr(0, mergedDataContextName.length) === mergedDataContextName)) {
@@ -1124,12 +1131,12 @@ var IFrameSidebar = (function (_super) {
                     resource: "dataContext[" + value.name + "].collectionList"
                 });
             });
-            _this.props.codapPhone.call(collectionRequests, function (results) {
+            codapPhone.call(collectionRequests, function (results) {
                 results = results || [{ success: false, values: { error: "Unable to get list of collections!" } }];
                 var error = null;
-                var dataContextForRequest = [];
-                var collectionInfoRequests = [];
-                var caseRequests = [];
+                var dataContextForRequest = []; // TODO
+                var collectionInfoRequests = []; // TODO
+                var caseRequests = []; // TODO
                 results.forEach(function (result, dataContextIndex) {
                     if (error || !result.success) {
                         error = error || result.values.error;
@@ -1155,7 +1162,7 @@ var IFrameSidebar = (function (_super) {
                 if (error) {
                     return callback(error);
                 }
-                _this.props.codapPhone.call(collectionInfoRequests, function (results) {
+                codapPhone.call(collectionInfoRequests, function (results) {
                     results = results || [{ success: false, values: { error: "Unable to get collection data!" } }];
                     var error = null;
                     results.forEach(function (result, requestIndex) {
@@ -1174,7 +1181,7 @@ var IFrameSidebar = (function (_super) {
                             };
                         });
                     });
-                    _this.props.codapPhone.call(caseRequests, function (results) {
+                    codapPhone.call(caseRequests, function (results) {
                         results = results || [{ success: false, values: { error: "Unable to get case data!" } }];
                         var error = null;
                         results.forEach(function (result, requestIndex) {

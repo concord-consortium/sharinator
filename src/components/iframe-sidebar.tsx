@@ -1,16 +1,16 @@
 import * as React from "react";
 import {InitInteractiveData, AuthoredState} from "./iframe"
 import {ExportLibrary} from "./export-library"
-import {FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseData, FirebaseDataContext, UserName} from "./types"
+import {FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseData, FirebaseDataContext, UserName, Window, CODAPPhone} from "./types"
 import {ClassInfo, GetUserName} from "./class-info"
-import {SuperagentError, SuperagentResponse} from "./types"
+import {SuperagentError, SuperagentResponse, Firebase} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
 
 const queryString = require("query-string")
 const base64url = require("base64-url")
 const superagent = require("superagent")
 
-declare var firebase: any;  // @types/firebase is not Firebase 3
+declare var firebase: Firebase
 
 const mergedDataContextName = "Merged"
 const mergedDataContextTitle = "Merged"
@@ -25,7 +25,7 @@ export interface IFrameSidebarProps {
   initInteractiveData: InitInteractiveData
   authoredState: AuthoredState|null
   copyUrl: string|null
-  codapPhone: any|null
+  codapPhone: CODAPPhone|null
 }
 
 export interface IFrameSidebarState {
@@ -58,8 +58,8 @@ export interface UserInteractivesProps {
   classHash: string
   interactiveId: number
   email: string
-  codapPhone: any
-  initInteractiveData: any
+  codapPhone: CODAPPhone|null
+  initInteractiveData: InitInteractiveData
   myEmail: string
   classInfo: ClassInfo
 }
@@ -142,9 +142,9 @@ export interface UserInteractiveProps {
   classHash: string
   interactiveId: number
   email: string
-  codapPhone: any
+  codapPhone: CODAPPhone|null
   first: boolean
-  initInteractiveData: any
+  initInteractiveData: InitInteractiveData
   myEmail: string
   classInfo: ClassInfo
 }
@@ -220,7 +220,7 @@ export interface UserInteractiveDocumentProps {
   version: number
   classHash: string
   interactiveId: number
-  initInteractiveData: any
+  initInteractiveData: InitInteractiveData
   email: string
 }
 
@@ -278,7 +278,7 @@ export interface UserInteractiveDataContextProps {
   classHash: string
   interactiveId: number
   email: string
-  codapPhone: any
+  codapPhone: CODAPPhone|null
   myEmail: string
   classInfo: ClassInfo
 }
@@ -290,12 +290,12 @@ export interface UserInteractiveDataContextState {
   showOptions: boolean
   copyState: CopyState
   mergeState: MergeState
-  dataContext: any
+  dataContext: any  // TODO
 }
 
 export class UserInteractiveDataContext extends React.Component<UserInteractiveDataContextProps, UserInteractiveDataContextState> {
   private loading = false
-  private tree:any = null
+  private tree:any = null  // TODO
 
   constructor(props: UserInteractiveDataContextProps) {
     super(props)
@@ -310,18 +310,24 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
     this.handleMerge = this.handleMerge.bind(this)
   }
 
+  callCODAP(request:any, callback?: (results:any) => void) {
+    if (this.props.codapPhone) {
+      this.props.codapPhone.call(request, callback)
+    }
+  }
+
   loadDataContext() {
     if (!this.loading && (this.state.dataContext === null)) {
       this.loading = true
       const dataContextRef = firebase.database().ref(`dataContexts/${this.props.classHash}/${this.props.email}/interactive_${this.props.interactiveId}/${this.props.dataContextId}`)
-      dataContextRef.once("value", (snapshot:any) => {
+      dataContextRef.once("value", (snapshot:any) => {  // TODO
         try {
           // convert to a tree
-          const tree:any = {}
-          const leaves:any = {}
-          const dataContext:any = JSON.parse(snapshot.val())
+          const tree:any = {}  // TODO
+          const leaves:any = {}  // TODO
+          const dataContext:any = JSON.parse(snapshot.val())  // TODO
           Object.keys(dataContext.cases).forEach((id) => {
-            const _case:any = dataContext.cases[id]
+            const _case:any = dataContext.cases[id]  // TODO
             const parent = _case.parent ? leaves[_case.parent] : null
             const leaf = {
               values: _case.values,
@@ -392,34 +398,34 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
 
     const checkIfAlreadyMerged = (callback: (caseId:number) => void) => {
       const mergedDataContext = mergedDataContextInfo()
-      this.props.codapPhone.call({
+      this.callCODAP({
         action: 'get',
         resource: `dataContext[${mergedDataContext.name}].collection[${mergedUserCollectionName}].caseSearch[${mergedEmailAndVersionAttributeName}==${this.props.email}:${this.props.version}]`
-      }, (result:any) => {
+      }, (result:any) => {  // TODO
         callback(result.success && (result.values.length > 0) ? result.values[0].id : 0)
       })
     }
 
     const createNewMergeCase = (callback: (caseId:number) => void) => {
       const mergedDataContext = mergedDataContextInfo()
-      const values:any = {}
+      const values:any = {} // TODO
       const them = this.props.classInfo.getUserName(this.props.email)
       values[mergedUserAttributeName] = `${them.found ? `${them.name.firstName} ${them.name.lastName}` : this.props.email} #${this.props.version}`
       values[mergedEmailAndVersionAttributeName] = `${this.props.email}:${this.props.version}`
 
-      this.props.codapPhone.call({
+      this.callCODAP({
         action: 'create',
         resource: `dataContext[${mergedDataContext.name}].collection[${mergedUserCollectionName}].case`,
         values: [{
           parent: null,
           values: values
         }]
-      }, (result:any) => {
+      }, (result:any) => { // TODO
         callback(result.values[0].id)
       })
     }
 
-    const addCases = (branch:any, parentId:number, callback:Function) => {
+    const addCases = (branch:any, parentId:number, callback:Function) => {  // TODO
       const mergedDataContext = mergedDataContextInfo()
       const atRoot = branch === this.tree
       const cases = Object.keys(branch).map((id) => branch[id])
@@ -436,14 +442,14 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
         }
         else {
           const _case = cases.shift()
-          this.props.codapPhone.call({
+          this.callCODAP({
             action: 'create',
             resource: `dataContext[${mergedDataContext.name}].collection[${_case.collection}].case`,
             values: {
               parent: parentId,
               values: _case.values
             }
-          }, (result:any) => {
+          }, (result:any) => { // TODO
             addCases(_case.children, result.values[0].id, callback)
             addEachCase()
           })
@@ -452,11 +458,11 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
 
       const addAllCases = () => {
         const values = cases.map((_case) => { return { parent: parentId, values: _case.values }})
-        this.props.codapPhone.call({
+        this.callCODAP({
           action: 'create',
           resource: `dataContext[${mergedDataContext.name}].collection[${cases[0].collection}].case`,
           values: values
-        }, (result:any) => {
+        }, (result:any) => { // TODO
           checkIfDone()
         })
       }
@@ -482,11 +488,11 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
 
     const ensureMergedDataContextExists = (callback:() => void) => {
       const mergedDataContext = mergedDataContextInfo()
-      this.props.codapPhone.call({
+      this.callCODAP({
         action: 'get',
         resource: `dataContext[${mergedDataContext.name}]`
-      }, (result:any) => {
-        const collections:any[] = []
+      }, (result:any) => {  // TODO
+        const collections:any[] = [] // TODO
 
         // add all the collections
         const {dataContext} = this.state
@@ -511,7 +517,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
             ]
           })
 
-          this.props.codapPhone.call({
+          this.callCODAP({
             action: 'create',
             resource: 'dataContext',
             values: {
@@ -519,18 +525,18 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
               title: mergedDataContext.title,
               collections: collections
             }
-          }, (result:any) => {
+          }, (result:any) => {  // TODO
             callback()
           })
         }
         else {
           // otherwise ensure that all the collections exist on each merge
           // (this is in case the DI does not add the collections until after startup like the Dataflow DI)
-          this.props.codapPhone.call({
+          this.callCODAP({
             action: 'create',
             resource: 'collection',
             values: collections
-          }, (result:any) => {
+          }, (result:any) => {  // TODO
             callback()
           })
         }
@@ -539,12 +545,12 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
 
     const showCaseTable = (callback: () => void) => {
       const mergedDataContext = mergedDataContextInfo()
-      this.props.codapPhone.call({
+      this.callCODAP({
         action: 'get',
         resource: `component[${mergedDataContext.name}]`
-      }, (result:any) => {
+      }, (result:any) => {  // TODO
         if (!result.success) {
-          this.props.codapPhone.call({
+          this.callCODAP({
             action: 'create',
             resource: 'component',
             values: {
@@ -553,7 +559,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
               title: mergedDataContext.title,
               dataContext: mergedDataContext.name
             }
-          }, (result:any) => {
+          }, (result:any) => {  // TODO
             callback()
           });
         }
@@ -565,7 +571,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
 
     const selectMergedCase = (caseId:number) => {
       const mergedDataContext = mergedDataContextInfo()
-      this.props.codapPhone.call({
+      this.callCODAP({
         action: 'create',
         resource: `dataContext[${mergedDataContext.name}].selectionList`,
         values: [caseId]
@@ -584,27 +590,27 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
   handleCopy() {
     this.setState({copyState: "Copying..."})
 
-    const addItemValues = (item:any, row:any) => {
+    const addItemValues = (item:any, row:any) => { // TODO
       Object.keys(item.values).forEach((key) => {
         row[key] = item.values[key]
       })
     }
 
-    const addParentValues = (item:any, row:any) => {
+    const addParentValues = (item:any, row:any) => { // TODO
       if (item.parent) {
         addParentValues(item.parent, row)
         addItemValues(item.parent, row)
       }
     }
 
-    const addToRows = (item:any, rows:any[]) => {
+    const addToRows = (item:any, rows:any[]) => { // TODO
       if (Object.keys(item.children).length !== 0) {
         Object.keys(item.children).forEach((id) => {
           addToRows(item.children[id], rows)
         })
       }
       else {
-        const row:any = {}
+        const row:any = {} // TODO
         addParentValues(item, row)
         addItemValues(item, row)
         rows.push(row)
@@ -614,15 +620,15 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
     // create tables for each top level collection
     const tables:string[] = []
     Object.keys(this.tree).forEach((id) => {
-      const rows:any[] = []
+      const rows:any[] = [] // TODO
       addToRows(this.tree[id], rows)
 
       if (rows.length > 0) {
-        const tableHeader = Object.keys(rows[0]).map((col:any) => {
+        const tableHeader = Object.keys(rows[0]).map((col:any) => { // TODO
           return `<th>${col}</th>`
         }).join("")
-        const tableRows = rows.map((row:any) => {
-          const tds = Object.keys(row).map((col:any) => {
+        const tableRows = rows.map((row:any) => { // TODO
+          const tds = Object.keys(row).map((col:any) => { // TODO
             return `<td>${row[col]}</td>`
           }).join("")
           return `<tr>${tds}</tr>`
@@ -650,7 +656,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
       }
       catch (e) {
         try {
-          (window as any).clipboardData.setData("text", content)
+          (window as Window).clipboardData.setData("text", content)
           copied = true
         }
         catch (e) {
@@ -710,10 +716,10 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
 }
 
 export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSidebarState> {
-  private interactiveRef:any
-  private userInteractivesRef:any
+  private interactiveRef:any // TODO
+  private userInteractivesRef:any // TODO
   private classInfo:ClassInfo
-  private classroomRef:any
+  private classroomRef:any // TODO
 
   constructor(props: IFrameSidebarProps) {
     super(props)
@@ -745,7 +751,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
 
       const refName = `classes/${info.classHash}`
       this.classroomRef = firebase.database().ref(refName)
-      this.classroomRef.on("value", (snapshot:any) => {
+      this.classroomRef.on("value", (snapshot:any) => { // TODO
         const firebaseData:FirebaseData = snapshot.val()
         const publishedUserInteractives:PublishedUserInteractives[] = []
         const interactiveKey = `interactive_${this.props.initInteractiveData.interactive.id}`
@@ -804,19 +810,24 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
   }
 
   saveDataContexts(userDataContextsKey: string, callback: (err:string|null, dataContextMap?: FirebaseDataContextRefMap) => void) {
-    this.props.codapPhone.call({
+    const {codapPhone} = this.props
+    if (!codapPhone) {
+      return
+    }
+
+    codapPhone.call({
       action: 'get',
       resource: 'dataContextList'
-    }, (result:any) => {
+    }, (result:any) => { // TODO
       result = result || {success: false, values: {error: "Unable to get list of data contexts!"}}
       if (!result.success) {
         return callback(result.values.error)
       }
 
-      const dataContexts:any[] = []
+      const dataContexts:any[] = [] // TODO
       const uniqueDataContextNames:string[] = []
-      const collectionRequests:any[] = []
-      result.values.forEach((value:any) => {
+      const collectionRequests:any[] = [] // TODO
+      result.values.forEach((value:any) => { // TODO
         // ignore duplicate context names (generated from ill behaving DIs) and merged data contexts
         if ((uniqueDataContextNames.indexOf(value.name) !== -1) || (value.name.substr(0, mergedDataContextName.length) === mergedDataContextName)) {
           return
@@ -835,20 +846,20 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
         })
       })
 
-      this.props.codapPhone.call(collectionRequests, (results:any) => {
+      codapPhone.call(collectionRequests, (results:any) => { // TODO
         results = results || [{success: false, values: {error: "Unable to get list of collections!"}}]
         let error:string|null = null
 
-        const dataContextForRequest:any[] = []
-        const collectionInfoRequests:any[] = []
-        const caseRequests:any[] = []
-        results.forEach((result:any, dataContextIndex:number) => {
+        const dataContextForRequest:any[] = [] // TODO
+        const collectionInfoRequests:any[] = [] // TODO
+        const caseRequests:any[] = [] // TODO
+        results.forEach((result:any, dataContextIndex:number) => { // TODO
           if (error || !result.success) {
             error = error || result.values.error
             return
           }
           const dataContext = dataContexts[dataContextIndex]
-          result.values.forEach((value:any, requestIndex:number) => {
+          result.values.forEach((value:any, requestIndex:number) => { // TODO
             dataContext.collections[value.id] = {
               name: value.name,
               title: value.title
@@ -869,11 +880,11 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
           return callback(error)
         }
 
-        this.props.codapPhone.call(collectionInfoRequests, (results:any) => {
+        codapPhone.call(collectionInfoRequests, (results:any) => { // TODO
           results = results || [{success: false, values: {error: "Unable to get collection data!"}}]
           let error:string|null = null
 
-          results.forEach((result:any, requestIndex:number) => {
+          results.forEach((result:any, requestIndex:number) => { // TODO
             if (error || !result.success) {
               error = error || result.values.error
               return
@@ -881,7 +892,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
             const dataContext = dataContextForRequest[requestIndex]
             const collection = result.values
             dataContext.collections[collection.id].parent = collection.parent ?  dataContext.collections[collection.parent].name : null
-            dataContext.collections[collection.id].attrs = collection.attrs.map((attr:any) => {
+            dataContext.collections[collection.id].attrs = collection.attrs.map((attr:any) => { // TODO
               return {
                 name: attr.name,
                 title: attr.title,
@@ -890,11 +901,11 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
             })
           })
 
-          this.props.codapPhone.call(caseRequests, (results:any) => {
+          codapPhone.call(caseRequests, (results:any) => { // TODO
             results = results || [{success: false, values: {error: "Unable to get case data!"}}]
             let error:string|null = null
 
-            results.forEach((result:any, requestIndex:number) => {
+            results.forEach((result:any, requestIndex:number) => { // TODO
               if (error || !result.success) {
                 error = error || result.values.error
                 return
@@ -902,7 +913,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
 
               const dataContext = dataContextForRequest[requestIndex]
               const collectionId = result.values.collection.id
-              result.values.cases.forEach((_case:any) => {
+              result.values.cases.forEach((_case:any) => { // TODO
                 if (_case.hasOwnProperty('caseIndex')) {
                   dataContext.cases[_case.case.id] = {
                     parent: _case.case.parent || null,

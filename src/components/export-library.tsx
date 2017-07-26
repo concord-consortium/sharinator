@@ -1,5 +1,6 @@
 import * as React from "react"
 import * as Papa from "papaparse"
+import { Window } from "./types"
 
 const base64url = require("base64-url")
 
@@ -35,8 +36,8 @@ export class ExportLibrary extends React.Component<ExportLibraryProps, ExportLib
     if (window.addEventListener) {
       window.addEventListener("message", this.handleMessage, false)
     }
-    else if ((window as any).attachEvent) {
-      (window as any).attachEvent("onmessage", this.handleMessage)
+    else if ((window as Window).attachEvent) {
+      (window as Window).attachEvent("onmessage", this.handleMessage)
     }
     else {
       this.setState({error: "ERROR: unable to setup snapshot event listeners"})
@@ -111,7 +112,7 @@ export class ExportLibrary extends React.Component<ExportLibraryProps, ExportLib
             }
             catch (e) {
               try {
-                (window as any).clipboardData.setData("text", content)
+                (window as Window).clipboardData.setData("text", content)
                 copied = true
               }
               catch (e) {
