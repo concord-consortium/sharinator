@@ -14,8 +14,9 @@ export interface Activity {
 }
 
 export interface UserName {
-  firstName: string
-  lastName: string
+  _firstName: string
+  _lastName: string
+  fullname: string
 }
 
 export interface User {

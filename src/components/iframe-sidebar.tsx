@@ -116,7 +116,7 @@ export class UserInteractives extends React.Component<UserInteractivesProps, Use
     return (
       <div className="user-interactives">
         <div className="user-interactives-name" onClick={this.toggleShowAll}>
-          {name ? `${name.firstName} ${name.lastName}` : null}
+          {name ? name.fullname : null}
         </div>
         <UserInteractive
           userInteractive={userInteractives.userInteractives[0]}
@@ -410,7 +410,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
       const mergedDataContext = mergedDataContextInfo()
       const values:any = {} // TODO
       const them = this.props.classInfo.getUserName(this.props.email)
-      values[mergedUserAttributeName] = `${them.found ? `${them.name.firstName} ${them.name.lastName}` : this.props.email} #${this.props.version}`
+      values[mergedUserAttributeName] = `${them.found ? them.name.fullname : this.props.email} #${this.props.version}`
       values[mergedEmailAndVersionAttributeName] = `${this.props.email}:${this.props.version}`
 
       this.callCODAP({
@@ -761,10 +761,10 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
         }
         const sortPublishedUserInteractives = (a: PublishedUserInteractives, b: PublishedUserInteractives):number => {
           if (!a.name || !b.name) { return 0 }
-          if (a.name.firstName < b.name.firstName) { return -1 }
-          if (a.name.firstName > b.name.firstName) { return 1 }
-          if (a.name.lastName < b.name.lastName) { return -1 }
-          if (a.name.lastName > b.name.lastName) { return 1 }
+          if (a.name._firstName < b.name._firstName) { return -1 }
+          if (a.name._firstName > b.name._firstName) { return 1 }
+          if (a.name._lastName < b.name._lastName) { return -1 }
+          if (a.name._lastName > b.name._lastName) { return 1 }
           return 0;
         }
 
@@ -1073,7 +1073,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     if (!username) {
       return null;
     }
-    return <div className="username-header">{username.firstName} {username.lastName}</div>
+    return <div className="username-header">{username.fullname}</div>
   }
 
   render() {

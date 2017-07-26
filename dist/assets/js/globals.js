@@ -5887,9 +5887,11 @@ var ClassInfo = (function () {
                 name: this.anonymousUserNames[key]
             };
         }
+        var lastName = String(this.nextAnonymousId++);
         this.anonymousUserNames[key] = {
-            firstName: "Student",
-            lastName: String(this.nextAnonymousId++)
+            _firstName: "Student",
+            _lastName: lastName,
+            fullname: "Student " + lastName
         };
         return {
             found: false,
@@ -5924,8 +5926,9 @@ var ClassInfo = (function () {
                     _this.userNames = {};
                     result.students.forEach(function (student) {
                         _this.userNames[escape_firebase_key_1.default(student.email)] = {
-                            firstName: student.first_name,
-                            lastName: student.last_name
+                            _firstName: student.first_name,
+                            _lastName: student.last_name,
+                            fullname: student.first_name + " " + student.last_name
                         };
                     });
                     allInfo_1 = {

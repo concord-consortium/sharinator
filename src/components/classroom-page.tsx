@@ -49,7 +49,7 @@ export class ClassroomPage extends React.Component<ClassroomPageProps, Classroom
     })
 
     return <tr key={user.id}>
-             <td>{user.name.firstName} {user.name.lastName}</td>
+             <td>{user.name.fullname}</td>
              <td>{interactives}</td>
            </tr>
   }
@@ -62,7 +62,7 @@ export class ClassroomPage extends React.Component<ClassroomPageProps, Classroom
       const key = `${user.id}-${interactive.id}`
       const href = this.props.getInteractiveHref(user, userInteractive)
       const onClick = this.createOnClick(href, user, userInteractive)
-      return <span key={key}><a href={href} onClick={onClick}>{user.name.firstName} {user.name.lastName}</a> ({userInteractives.length})</span>
+      return <span key={key}><a href={href} onClick={onClick}>{user.name.fullname}</a> ({userInteractives.length})</span>
     })
 
     return <tr key={interactive.id}>
@@ -109,7 +109,7 @@ export class ClassroomPage extends React.Component<ClassroomPageProps, Classroom
     const href = this.props.getInteractiveHref(activity.user, activity.userInteractive)
     const onClick = this.createOnClick(href, activity.user, activity.userInteractive)
     return <div className="activity" key={`${activity.user.id}-${activity.userInteractive.id}-${index}`}>
-            {activity.user.name.firstName} {activity.user.name.lastName} published
+            {activity.user.name.fullname} published
             <a href={href} onClick={onClick}>{activity.userInteractive.name}</a>
             {ago(activity.userInteractive.createdAt)}
            </div>

@@ -543,7 +543,7 @@ var UserInteractives = (function (_super) {
         var name = userInteractives.name;
         var hasMoreThanOne = userInteractives.userInteractives.length > 1;
         return (React.createElement("div", { className: "user-interactives" },
-            React.createElement("div", { className: "user-interactives-name", onClick: this.toggleShowAll }, name ? name.firstName + " " + name.lastName : null),
+            React.createElement("div", { className: "user-interactives-name", onClick: this.toggleShowAll }, name ? name.fullname : null),
             React.createElement(UserInteractive, { userInteractive: userInteractives.userInteractives[0], version: this.getVersion(0), classHash: this.props.classHash, interactiveId: this.props.interactiveId, email: this.props.email, codapPhone: this.props.codapPhone, first: true, initInteractiveData: this.props.initInteractiveData, myEmail: this.props.myEmail, classInfo: this.props.classInfo }),
             this.renderAll()));
     };
@@ -735,7 +735,7 @@ var UserInteractiveDataContext = (function (_super) {
             var mergedDataContext = mergedDataContextInfo();
             var values = {}; // TODO
             var them = _this.props.classInfo.getUserName(_this.props.email);
-            values[mergedUserAttributeName] = (them.found ? them.name.firstName + " " + them.name.lastName : _this.props.email) + " #" + _this.props.version;
+            values[mergedUserAttributeName] = (them.found ? them.name.fullname : _this.props.email) + " #" + _this.props.version;
             values[mergedEmailAndVersionAttributeName] = _this.props.email + ":" + _this.props.version;
             _this.callCODAP({
                 action: 'create',
@@ -1048,16 +1048,16 @@ var IFrameSidebar = (function (_super) {
                     if (!a.name || !b.name) {
                         return 0;
                     }
-                    if (a.name.firstName < b.name.firstName) {
+                    if (a.name._firstName < b.name._firstName) {
                         return -1;
                     }
-                    if (a.name.firstName > b.name.firstName) {
+                    if (a.name._firstName > b.name._firstName) {
                         return 1;
                     }
-                    if (a.name.lastName < b.name.lastName) {
+                    if (a.name._lastName < b.name._lastName) {
                         return -1;
                     }
-                    if (a.name.lastName > b.name.lastName) {
+                    if (a.name._lastName > b.name._lastName) {
                         return 1;
                     }
                     return 0;
@@ -1317,10 +1317,7 @@ var IFrameSidebar = (function (_super) {
         if (!username) {
             return null;
         }
-        return React.createElement("div", { className: "username-header" },
-            username.firstName,
-            " ",
-            username.lastName);
+        return React.createElement("div", { className: "username-header" }, username.fullname);
     };
     IFrameSidebar.prototype.render = function () {
         if (this.state.error) {

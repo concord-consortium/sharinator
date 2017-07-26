@@ -81,9 +81,11 @@ export class ClassInfo {
         name: this.anonymousUserNames[key]
       }
     }
+    const lastName = String(this.nextAnonymousId++)
     this.anonymousUserNames[key] = {
-      firstName: "Student",
-      lastName: String(this.nextAnonymousId++)
+      _firstName: "Student",
+      _lastName: lastName,
+      fullname: `Student ${lastName}`
     }
     return {
       found: false,
@@ -121,8 +123,9 @@ export class ClassInfo {
             this.userNames = {}
             result.students.forEach((student) => {
               this.userNames[escapeFirebaseKey(student.email)] = {
-                firstName: student.first_name,
-                lastName: student.last_name
+                _firstName: student.first_name,
+                _lastName: student.last_name,
+                fullname: `${student.first_name} ${student.last_name}`
               }
             })
             allInfo = {
