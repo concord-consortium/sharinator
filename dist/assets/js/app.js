@@ -382,7 +382,10 @@ var ClassroomPage = (function (_super) {
                 ")");
         });
         return React.createElement("tr", { key: user.id },
-            React.createElement("td", null, user.name),
+            React.createElement("td", null,
+                user.name.firstName,
+                " ",
+                user.name.lastName),
             React.createElement("td", null, interactives));
     };
     ClassroomPage.prototype.renderInteractive = function (interactive) {
@@ -395,7 +398,10 @@ var ClassroomPage = (function (_super) {
             var href = _this.props.getInteractiveHref(user, userInteractive);
             var onClick = _this.createOnClick(href, user, userInteractive);
             return React.createElement("span", { key: key },
-                React.createElement("a", { href: href, onClick: onClick }, user.name),
+                React.createElement("a", { href: href, onClick: onClick },
+                    user.name.firstName,
+                    " ",
+                    user.name.lastName),
                 " (",
                 userInteractives.length,
                 ")");
@@ -430,7 +436,9 @@ var ClassroomPage = (function (_super) {
         var href = this.props.getInteractiveHref(activity.user, activity.userInteractive);
         var onClick = this.createOnClick(href, activity.user, activity.userInteractive);
         return React.createElement("div", { className: "activity", key: activity.user.id + "-" + activity.userInteractive.id + "-" + index },
-            activity.user.name,
+            activity.user.name.firstName,
+            " ",
+            activity.user.name.lastName,
             " published",
             React.createElement("a", { href: href, onClick: onClick }, activity.userInteractive.name),
             ago_1.ago(activity.userInteractive.createdAt));
@@ -541,7 +549,9 @@ var UserPage = (function (_super) {
         return React.createElement("div", { className: "page" },
             React.createElement("div", { className: "page-header" },
                 React.createElement("h4", null,
-                    this.props.user.name,
+                    this.props.user.name.firstName,
+                    " ",
+                    this.props.user.name.lastName,
                     ": ",
                     this.props.userInteractive.name),
                 this.renderDropdown()),

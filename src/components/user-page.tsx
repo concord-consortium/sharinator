@@ -67,7 +67,7 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
   render() {
     return <div className="page">
       <div className="page-header">
-        <h4>{this.props.user.name}: {this.props.userInteractive.name}</h4>
+        <h4>{this.props.user.name.firstName} {this.props.user.name.lastName}: {this.props.userInteractive.name}</h4>
         { this.renderDropdown() }
       </div>
       <div id="iframe" className="u-full-width">
