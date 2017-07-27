@@ -115,7 +115,7 @@ export class App extends React.Component<AppProps, AppState> {
   }
 
   loadClassList(classInfoUrl:string) {
-    const classListUrl = classInfoUrl.replace(/(\d+)$/, "mine")
+    const classListUrl = classInfoUrl.indexOf("demoClassInfo") !== -1 ? classInfoUrl.replace(/demoClassInfo.*/, "demoMyClasses") : classInfoUrl.replace(/(\d+)$/, "mine")
     superagent
       .get(classListUrl)
       .withCredentials()
