@@ -29,6 +29,7 @@ export interface DashboardPageState {
 interface DashboardRow {
   id: number,
   user: User
+  className: string
   interactive: UserInteractive
   version: number
   rowDate: RowDate
@@ -86,73 +87,77 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
     const rowDates:RowDate[] = []
     let index = 1
 
-    props.users.forEach((user) => {
-      users.push(user)
+    this.props.classInfo.getClassInfo((err, info) => {
+      props.users.forEach((user) => {
+        users.push(user)
 
-      Object.keys(user.interactives).forEach((id) => {
-        const interactives = user.interactives[id]
-        const interactive = interactives[0]
-        //interactives.forEach((interactive, interactiveIndex) => {
-          const created = new Date(interactive.createdAt)
-          const date = created.toDateString()
-          const rowDate = {
-            createdAt: interactive.createdAt,
-            date: date,
-            time: `${date} ${created.toTimeString().split(' ')[0]}`,
-            start: (new Date(date + " 00:00:00")).getTime(),
-            end: (new Date(date + " 23:59:59")).getTime()
-          }
+        Object.keys(user.interactives).forEach((id) => {
+          const interactives = user.interactives[id]
+          const interactive = interactives[0]
+          //interactives.forEach((interactive, interactiveIndex) => {
+            const created = new Date(interactive.createdAt)
+            const date = created.toDateString()
+            const rowDate = {
+              createdAt: interactive.createdAt,
+              date: date,
+              time: `${date} ${created.toTimeString().split(' ')[0]}`,
+              start: (new Date(date + " 00:00:00")).getTime(),
+              end: (new Date(date + " 23:59:59")).getTime()
+            }
 
-          rows.push({
-            id: index++,
-            user: user,
-            interactive: interactive,
-            version: interactives.length,
-            rowDate: rowDate
-          })
+            rows.push({
+              id: index++,
+              user: user,
+              className: info.name,
+              interactive: interactive,
+              version: interactives.length,
+              rowDate: rowDate
+            })
 
-          if (!dates[date]) {
-            dates[date] = rowDate
-          }
-        //})
+            if (!dates[date]) {
+              dates[date] = rowDate
+            }
+          //})
+        })
+      })
+      rows.sort((a, b) => {
+        if (a.interactive.createdAt < b.interactive.createdAt) return 1
+        if (a.interactive.createdAt > b.interactive.createdAt) return -1
+        return 0
+      })
+
+      users.sort((a, b) => {
+        if (a.name.fullname < b.name.fullname) return -1
+        if (a.name.fullname > b.name.fullname) return 1
+        return 0
+      })
+
+      Object.keys(dates).forEach((date) => {
+        rowDates.push(dates[date])
+      })
+      rowDates.sort((a, b) => {
+        if (a.createdAt < b.createdAt) return -1
+        if (a.createdAt > b.createdAt) return 1
+        return 0
+      })
+
+      props.interactives.forEach((interactive) => {
+        interactives.push(interactive)
+      })
+      interactives.sort((a, b) => {
+        if (a.name < b.name) return -1
+        if (a.name > b.name) return 1
+        return 0
+      })
+
+      this.setState({
+        rows: rows,
+        users: users,
+        interactives: interactives,
+        rowDates: rowDates
       })
     })
-    rows.sort((a, b) => {
-      if (a.interactive.createdAt < b.interactive.createdAt) return 1
-      if (a.interactive.createdAt > b.interactive.createdAt) return -1
-      return 0
-    })
 
-    users.sort((a, b) => {
-      if (a.name.fullname < b.name.fullname) return -1
-      if (a.name.fullname > b.name.fullname) return 1
-      return 0
-    })
-
-    Object.keys(dates).forEach((date) => {
-      rowDates.push(dates[date])
-    })
-    rowDates.sort((a, b) => {
-      if (a.createdAt < b.createdAt) return -1
-      if (a.createdAt > b.createdAt) return 1
-      return 0
-    })
-
-    props.interactives.forEach((interactive) => {
-      interactives.push(interactive)
-    })
-    interactives.sort((a, b) => {
-      if (a.name < b.name) return -1
-      if (a.name > b.name) return 1
-      return 0
-    })
-
-    this.setState({
-      rows: rows,
-      users: users,
-      interactives: interactives,
-      rowDates: rowDates
-    })
   }
 
   createOnClick(href: string, user:User, userInteractive:UserInteractive):ClickHandler {
@@ -261,7 +266,7 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
     this.setState({selectedDate: rowDates.length > 0 ? rowDates[0] : null})
   }
 
-  createSort(col:"user"|"interactive"|"date", dir:"asc"|"desc") {
+  createSort(col:"user"|"class"|"interactive"|"date", dir:"asc"|"desc") {
     var negative = dir === "asc" ? -1 : 1
     return (e:React.MouseEvent<HTMLSpanElement>) => {
       const rows = this.state.rows.slice().sort((a, b) => {
@@ -269,6 +274,10 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
           case "user":
             if (a.user.name.fullname < b.user.name.fullname) return negative
             if (a.user.name.fullname > b.user.name.fullname) return -negative
+            return 0
+          case "class":
+            if (a.className < b.className) return negative
+            if (a.className > b.className) return -negative
             return 0
           case "interactive":
             if (a.interactive.name < b.interactive.name) return negative
@@ -293,7 +302,7 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
         </td>
         <td>
           <select><option>All Classes</option><option>Martha and Daphne’s Shared Class</option></select>
-          <span className="sort"><span onClick={this.createSort("interactive", "asc")}>▲</span> <span onClick={this.createSort("interactive", "desc")}>▼</span></span>
+          <span className="sort"><span onClick={this.createSort("class", "asc")}>▲</span> <span onClick={this.createSort("class", "desc")}>▼</span></span>
         </td>
         <td>
           <select onChange={this.selectInteractive} value={this.state.selectedInteractive ? this.state.selectedInteractive.id : 0}><option>All Interactives</option>{ this.state.interactives.map((interactive) => <option key={interactive.id} value={interactive.id}>{interactive.name}</option>)}</select>
@@ -330,7 +339,7 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
             return (
               <tr key={row.id}>
                 <td>{row.user.name.fullname}</td>
-                <td>Martha and Daphne’s Shared Class</td>
+                <td>{row.className}</td>
                 <td>{this.renderUserInteractive(row.user, row.interactive, row.version)}</td>
                 <td className="rowDate">{row.rowDate.time}</td>
               </tr>

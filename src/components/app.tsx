@@ -30,7 +30,6 @@ export interface AppState {
   activity: Array<Activity>
   firebaseData: FirebaseData|null
   classes: ClassListItem[]
-  showClasses: boolean
 }
 
 export class App extends React.Component<AppProps, AppState> {
@@ -42,7 +41,6 @@ export class App extends React.Component<AppProps, AppState> {
 
     this.setUserInteractive = this.setUserInteractive.bind(this)
     this.getInteractiveHref = this.getInteractiveHref.bind(this)
-    this.toggleShowClasses = this.toggleShowClasses.bind(this)
 
     this.state = {
       class: null,
@@ -55,8 +53,7 @@ export class App extends React.Component<AppProps, AppState> {
       users: [],
       activity: [],
       firebaseData: null,
-      classes: [],
-      showClasses: false
+      classes: []
     }
   }
 
@@ -307,20 +304,10 @@ export class App extends React.Component<AppProps, AppState> {
     this.setState({userInteractive: null, user: null})
   }
 
-  toggleShowClasses() {
-    this.setState({showClasses: !this.state.showClasses})
-  }
-
   renderNav():JSX.Element|null {
     if (this.state.class !== null) {
       const showingUserInteractive = (this.state.user !== null) && (this.state.userInteractive !== null)
-      if (this.state.showClasses) {
-        return <div className="nav">
-                 <div className="my-classes-link" onClick={this.toggleShowClasses}>‹ My Classes</div>
-               </div>
-      }
       return <div className="nav">
-               { this.state.classes.length > 0 ? <div className="my-classes-link" onClick={this.toggleShowClasses}>‹ My Classes</div> : null}
                { showingUserInteractive && this.state.className !== null ? <h3>{this.state.className}</h3> : null }
                { showingUserInteractive ? <button key="classroom" className="button button-primary" onClick={this.onClassroomClick.bind(this)}>View All</button> : null }
              </div>
@@ -345,10 +332,6 @@ export class App extends React.Component<AppProps, AppState> {
   }
 
   renderPage():JSX.Element|null {
-    if (this.state.showClasses) {
-      return <div>{this.state.classes.map((clazz) => <div key={clazz.uri}><a href={`?class=${clazz.uri}`}>{clazz.name}</a></div>)}</div>
-    }
-
     if (this.state.class !== null) {
       if ((this.state.userInteractive !== null) && (this.state.user !== null)) {
         return <UserPage
@@ -394,7 +377,7 @@ export class App extends React.Component<AppProps, AppState> {
           { this.renderNav() }
           { !this.state.error && this.state.loading ? <div className="section loading"><img src="../assets/img/loading.gif" /> Loading...</div> : null }
           { this.state.error ? <div className="section error">{this.state.error}</div> : null }
-          { this.state.firebaseData || this.state.showClasses ? this.renderPage() : null }
+          { this.state.firebaseData ? this.renderPage() : null }
         </div>
       </div>
     </div>
