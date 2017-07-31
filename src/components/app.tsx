@@ -2,21 +2,15 @@ import * as React from "react";
 import { Interactive, InteractiveMap, User, UserMap, UserInteractive, FirebaseInteractive, FirebaseUser, FirebaseData, FirebaseUserInteractive, Activity} from "./types"
 import { UserPage } from "./user-page"
 import { ClassroomPage } from "./classroom-page"
+import { DashboardPage } from "./dashboard-page"
 import { ClassInfo } from "./class-info"
-import {SuperagentError, SuperagentResponse, Firebase, FirebaseSnapshot, FirebaseRef} from "./types"
+import {SuperagentError, SuperagentResponse, Firebase, FirebaseSnapshot, FirebaseRef, ClassListItem, MyClassListResponse} from "./types"
 
 const superagent = require("superagent")
 
 declare var firebase: Firebase
 
-interface MyClassListResponse {
-  classes: ClassListItem[]
-}
-interface ClassListItem {
-  uri: string
-  name: string
-  class_hash: string
-}
+
 
 const base64url = require("base64-url")
 const queryString = require("query-string")
@@ -319,7 +313,7 @@ export class App extends React.Component<AppProps, AppState> {
 
   renderNav():JSX.Element|null {
     if (this.state.class !== null) {
-      const showClassroomButton = (this.state.user !== null) && (this.state.userInteractive !== null)
+      const showingUserInteractive = (this.state.user !== null) && (this.state.userInteractive !== null)
       if (this.state.showClasses) {
         return <div className="nav">
                  <div className="my-classes-link" onClick={this.toggleShowClasses}>‹ My Classes</div>
@@ -327,8 +321,8 @@ export class App extends React.Component<AppProps, AppState> {
       }
       return <div className="nav">
                { this.state.classes.length > 0 ? <div className="my-classes-link" onClick={this.toggleShowClasses}>‹ My Classes</div> : null}
-               { this.state.className !== null ? <h3>{this.state.className}</h3> : null }
-               {showClassroomButton ? <button key="classroom" className="button button-primary" onClick={this.onClassroomClick.bind(this)}>View All</button> : null}
+               { showingUserInteractive && this.state.className !== null ? <h3>{this.state.className}</h3> : null }
+               { showingUserInteractive ? <button key="classroom" className="button button-primary" onClick={this.onClassroomClick.bind(this)}>View All</button> : null }
              </div>
     }
     return null
@@ -365,6 +359,7 @@ export class App extends React.Component<AppProps, AppState> {
                  classInfo={this.classInfo}
                  />
       }
+      /*
       return <ClassroomPage
                class={this.state.class}
                interactives={this.state.interactives}
@@ -373,6 +368,17 @@ export class App extends React.Component<AppProps, AppState> {
                setUserInteractive={this.setUserInteractive}
                getInteractiveHref={this.getInteractiveHref}
                classInfo={this.classInfo}
+               />
+      */
+      return <DashboardPage
+               class={this.state.class}
+               interactives={this.state.interactives}
+               users={this.state.users}
+               activity={this.state.activity}
+               setUserInteractive={this.setUserInteractive}
+               getInteractiveHref={this.getInteractiveHref}
+               classInfo={this.classInfo}
+               classes={this.state.classes}
                />
     }
     return null
@@ -383,7 +389,7 @@ export class App extends React.Component<AppProps, AppState> {
       <div className="row">
         <div className="twelve columns">
           <div className="header">
-            <img src="../assets/img/concord.png" /> Classroom Sharing
+            <img src="../assets/img/concord.png" /> Dashboard
           </div>
           { this.renderNav() }
           { !this.state.error && this.state.loading ? <div className="section loading"><img src="../assets/img/loading.gif" /> Loading...</div> : null }

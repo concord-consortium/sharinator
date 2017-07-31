@@ -116,3 +116,28 @@ ul.tab li span:focus, .active {background-color: #ccc;}
   text-decoration: underline;
   cursor: pointer;
 }
+
+table.dashboard {
+  width: 100%;
+}
+table.dashboard td {
+  vertical-align: top;
+}
+table.dashboard select {
+  display: block;
+}
+table.dashboard a {
+  text-decoration: none;
+}
+table.dashboard td.rowDate {
+  text-align: right;
+}
+
+.sort {
+  margin-left: 10px;
+}
+.sort span {
+  margin-right: 0;
+  padding: 3px;
+  cursor: pointer;
+}

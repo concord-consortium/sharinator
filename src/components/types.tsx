@@ -85,6 +85,15 @@ export interface FirebaseData {
   users: FirebaseUserMap
 }
 
+export interface MyClassListResponse {
+  classes: ClassListItem[]
+}
+export interface ClassListItem {
+  uri: string
+  name: string
+  class_hash: string
+}
+
 export type SuperagentError = any  // TODO
 export type SuperagentResponse = any  // TODO
 
