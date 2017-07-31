@@ -141,3 +141,6 @@ table.dashboard td.rowDate {
   padding: 3px;
   cursor: pointer;
 }
+.sort-active {
+  color: darkgreen;
+}

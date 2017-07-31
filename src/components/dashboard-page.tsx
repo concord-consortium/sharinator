@@ -24,6 +24,7 @@ export interface DashboardPageState {
   users: User[]
   interactives: Interactive[]
   rowDates: RowDate[]
+  sorts: SortSelection[]
 }
 
 interface DashboardRow {
@@ -47,6 +48,13 @@ export interface RowDateHash {
   [s: string]: RowDate
 }
 
+type SortCol = "user"|"class"|"interactive"|"date"
+type SortDir = "asc"|"desc"
+interface SortSelection {
+  col: SortCol
+  dir: SortDir
+}
+
 export type ClickHandler = (e:React.MouseEvent<HTMLAnchorElement>) => void
 
 export class DashboardPage extends React.Component<DashboardPageProps, DashboardPageState> {
@@ -57,7 +65,7 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
     this.selectUser = this.selectUser.bind(this)
     this.selectInteractive = this.selectInteractive.bind(this)
     this.selectDate = this.selectDate.bind(this)
-    this.createSort = this.createSort.bind(this)
+    this.appendSort = this.appendSort.bind(this)
 
     this.state = {
       rows: [],
@@ -66,7 +74,8 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
       rowDates: [],
       selectedUser: null,
       selectedInteractive: null,
-      selectedDate: null
+      selectedDate: null,
+      sorts: []
     }
 
   }
@@ -120,11 +129,6 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
           //})
         })
       })
-      rows.sort((a, b) => {
-        if (a.interactive.createdAt < b.interactive.createdAt) return 1
-        if (a.interactive.createdAt > b.interactive.createdAt) return -1
-        return 0
-      })
 
       users.sort((a, b) => {
         if (a.name.fullname < b.name.fullname) return -1
@@ -149,6 +153,8 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
         if (a.name > b.name) return 1
         return 0
       })
+
+      this.sortRows(this.state.sorts)
 
       this.setState({
         rows: rows,
@@ -266,30 +272,59 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
     this.setState({selectedDate: rowDates.length > 0 ? rowDates[0] : null})
   }
 
-  createSort(col:"user"|"class"|"interactive"|"date", dir:"asc"|"desc") {
-    var negative = dir === "asc" ? -1 : 1
+  appendSort(col: SortCol, dir: SortDir) {
     return (e:React.MouseEvent<HTMLSpanElement>) => {
-      const rows = this.state.rows.slice().sort((a, b) => {
-        switch (col) {
-          case "user":
-            if (a.user.name.fullname < b.user.name.fullname) return negative
-            if (a.user.name.fullname > b.user.name.fullname) return -negative
-            return 0
-          case "class":
-            if (a.className < b.className) return negative
-            if (a.className > b.className) return -negative
-            return 0
-          case "interactive":
-            if (a.interactive.name < b.interactive.name) return negative
-            if (a.interactive.name > b.interactive.name) return -negative
-            return 0
-          case "date":
-            if (a.rowDate.createdAt < b.rowDate.createdAt) return negative
-            if (a.rowDate.createdAt > b.rowDate.createdAt) return -negative
-            return 0
-        }
+      // remove existing sorts on the column
+      const sorts = this.state.sorts.filter((sort) => sort.col !== col)
+      sorts.push({col, dir})
+      this.setState({sorts})
+      this.sortRows(sorts)
+    }
+  }
+
+  sortClass(col: SortCol, dir: SortDir) {
+    const sorts = this.state.sorts.filter((sort) => sort.col === col && sort.dir === dir)
+    return sorts.length > 0 ? "sort-active" : ""
+  }
+
+  sortRows(sorts:SortSelection[]) {
+    if (sorts.length > 0) {
+      const rows = this.state.rows.slice()
+      const lastSortIndex = sorts.length - 1
+      rows.sort((a, b) => {
+        return this.sortRow(sorts, lastSortIndex, a, b)
       })
       this.setState({rows: rows})
+    }
+  }
+
+  sortRow(sorts: SortSelection[], sortIndex: number, a: DashboardRow, b: DashboardRow): number {
+    const sortByCreatedAt = ():number => {
+      if (a.interactive.createdAt < b.interactive.createdAt) return 1
+      if (a.interactive.createdAt > b.interactive.createdAt) return -1
+      return 0
+    }
+    const prevSort = ():number => sortIndex > 0 ? this.sortRow(sorts, sortIndex - 1, a, b) : sortByCreatedAt()
+    const sort = sorts[sortIndex]
+    var negative = sort.dir === "asc" ? -1 : 1
+    var positive = -negative
+    switch (sort.col) {
+      case "user":
+        if (a.user.name.fullname < b.user.name.fullname) return negative
+        if (a.user.name.fullname > b.user.name.fullname) return positive
+        return prevSort()
+      case "class":
+        if (a.className < b.className) return negative
+        if (a.className > b.className) return positive
+        return prevSort()
+      case "interactive":
+        if (a.interactive.name < b.interactive.name) return negative
+        if (a.interactive.name > b.interactive.name) return positive
+        return prevSort()
+      case "date":
+        if (a.rowDate.createdAt < b.rowDate.createdAt) return negative
+        if (a.rowDate.createdAt > b.rowDate.createdAt) return positive
+        return prevSort()
     }
   }
 
@@ -298,19 +333,31 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
       <tr>
         <td>
           <select onChange={this.selectUser} value={this.state.selectedUser ? this.state.selectedUser.id : 0}><option value="0">All Students</option>{ this.state.users.map((user) => <option key={user.id} value={user.id}>{user.name.fullname}</option>)}</select>
-          <span className="sort"><span onClick={this.createSort("user", "asc")}>▲</span> <span onClick={this.createSort("user", "desc")}>▼</span></span>
+          <span className="sort">
+            <span onClick={this.appendSort("user", "asc")} className={this.sortClass("user", "asc")}>▲</span>
+            <span onClick={this.appendSort("user", "desc")} className={this.sortClass("user", "desc")}>▼</span>
+          </span>
         </td>
         <td>
           <select><option>All Classes</option><option>Martha and Daphne’s Shared Class</option></select>
-          <span className="sort"><span onClick={this.createSort("class", "asc")}>▲</span> <span onClick={this.createSort("class", "desc")}>▼</span></span>
+          <span className="sort">
+            <span onClick={this.appendSort("class", "asc")} className={this.sortClass("class", "asc")}>▲</span>
+            <span onClick={this.appendSort("class", "desc")} className={this.sortClass("class", "desc")}>▼</span>
+          </span>
         </td>
         <td>
           <select onChange={this.selectInteractive} value={this.state.selectedInteractive ? this.state.selectedInteractive.id : 0}><option>All Interactives</option>{ this.state.interactives.map((interactive) => <option key={interactive.id} value={interactive.id}>{interactive.name}</option>)}</select>
-          <span className="sort"><span onClick={this.createSort("interactive", "asc")}>▲</span> <span onClick={this.createSort("interactive", "desc")}>▼</span></span>
+          <span className="sort">
+            <span onClick={this.appendSort("interactive", "asc")} className={this.sortClass("interactive", "asc")}>▲</span>
+            <span onClick={this.appendSort("interactive", "desc")} className={this.sortClass("interactive", "desc")}>▼</span>
+          </span>
         </td>
         <td>
           <select onChange={this.selectDate} value={this.state.selectedDate ? this.state.selectedDate.date : 0}><option>All Dates</option>{ this.state.rowDates.map((rowDate) => <option key={rowDate.date} value={rowDate.date}>{rowDate.date}</option>)}</select>
-          <span className="sort"><span onClick={this.createSort("date", "asc")}>▲</span> <span onClick={this.createSort("date", "desc")}>▼</span></span>
+          <span className="sort">
+            <span onClick={this.appendSort("date", "asc")} className={this.sortClass("date", "asc")}>▲</span>
+            <span onClick={this.appendSort("date", "desc")} className={this.sortClass("date", "desc")}>▼</span>
+          </span>
         </td>
       </tr>
     )
