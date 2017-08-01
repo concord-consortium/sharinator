@@ -1,7 +1,9 @@
 import * as React from "react";
-import { Interactive, InteractiveMap, User, UserMap, UserInteractive, Activity, ClassListItem} from "./types"
+import { Interactive, InteractiveMap, User, UserMap, UserInteractive, Activity, ClassListItem, FirebaseRef, Firebase, FirebaseSnapshot, FirebaseInteractive, FirebaseUser, FirebaseData, FirebaseUserInteractive} from "./types"
 import { ClassInfo } from "./class-info"
 import { ago } from "./ago"
+
+declare var firebase: Firebase
 
 export interface DashboardPageProps {
   setUserInteractive:(user:User, interactive:UserInteractive) => void
@@ -21,10 +23,12 @@ export interface DashboardPageState {
   selectedUser: User|null
   selectedInteractive: Interactive|null
   selectedDate: RowDate|null
+  selectedClass: string|null
   users: User[]
   interactives: Interactive[]
   rowDates: RowDate[]
   sorts: SortSelection[]
+  classes: ExtendedClassInfo[]
 }
 
 interface DashboardRow {
@@ -34,6 +38,7 @@ interface DashboardRow {
   interactive: UserInteractive
   version: number
   rowDate: RowDate
+  _class: ExtendedClassInfo
 }
 
 export interface RowDate {
@@ -55,9 +60,23 @@ interface SortSelection {
   dir: SortDir
 }
 
+interface ExtendedClassInfo {
+  url: string
+  info: ClassInfo
+  classroomRef: FirebaseRef|null
+  interactives: Interactive[]
+  users: User[]
+  name: string
+}
+interface ClassInfoMap {
+  [url: string]: ExtendedClassInfo
+}
+
 export type ClickHandler = (e:React.MouseEvent<HTMLAnchorElement>) => void
 
 export class DashboardPage extends React.Component<DashboardPageProps, DashboardPageState> {
+
+  private classInfoMap:ClassInfoMap
 
   constructor(props: DashboardPageProps) {
     super(props)
@@ -65,6 +84,7 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
     this.selectUser = this.selectUser.bind(this)
     this.selectInteractive = this.selectInteractive.bind(this)
     this.selectDate = this.selectDate.bind(this)
+    this.selectClass = this.selectClass.bind(this)
     this.appendSort = this.appendSort.bind(this)
 
     this.state = {
@@ -75,95 +95,226 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
       selectedUser: null,
       selectedInteractive: null,
       selectedDate: null,
-      sorts: []
+      selectedClass: null,
+      sorts: [],
+      classes: []
     }
 
+    this.classInfoMap = {}
   }
 
   componentWillMount() {
-    this.generateRows(this.props)
+    this.setState({selectedClass: this.props.class})
+    this.loadClasses()
   }
 
   componentWillReceiveProps(nextProps: DashboardPageProps) {
-    this.generateRows(nextProps)
+    this.loadClasses()
   }
 
-  generateRows(props: DashboardPageProps) {
+  loadClasses() {
+    let classes = this.props.classes.slice().map((classListItem) => classListItem.uri)
+    if (this.props.class && this.props.classInfo) {
+      // ensure that class in url is processed first
+      classes = classes.filter((_class) => _class !== this.props.class)
+      classes.push(this.props.class)
+      if (!this.classInfoMap[this.props.class]) {
+        this.classInfoMap[this.props.class] = {
+          url: this.props.class,
+          classroomRef: null,
+          info: this.props.classInfo,
+          users: [],
+          interactives: [],
+          name: ""
+        }
+      }
+    }
+
+    this._loadClasses(classes)
+  }
+
+  _loadClasses(classInfoUrls:string[]) {
+    const classInfoUrl = classInfoUrls.pop()
+    if (classInfoUrl) {
+      let extendedClassInfo = this.classInfoMap[classInfoUrl]
+      let classInfo = extendedClassInfo ? extendedClassInfo.info : new ClassInfo(classInfoUrl)
+      if (!extendedClassInfo) {
+        extendedClassInfo = this.classInfoMap[classInfoUrl] = {
+          url: classInfoUrl,
+          classroomRef: null,
+          info: classInfo,
+          users: [],
+          interactives: [],
+          name: ""
+        }
+      }
+
+      classInfo.getClassInfo((err, info) => {
+        if (!err) {
+          extendedClassInfo.name = info.name
+
+          if (!extendedClassInfo.classroomRef) {
+            extendedClassInfo.classroomRef = firebase.database().ref(`classes/${info.classHash}`)
+            if (extendedClassInfo.classroomRef) {
+              extendedClassInfo.classroomRef.on("value", (snapshot:FirebaseSnapshot) => {
+                const activity:Array<Activity> = []
+                const firebaseData:FirebaseData = snapshot.val()
+                let user:User|null = null
+                let userInteractive:UserInteractive|null = null
+                let error:string|null = null
+                let createdAt:number|null = null
+                const interactiveMap:InteractiveMap = {}
+
+                if (firebaseData) {
+                  if (firebaseData.interactives) {
+                    Object.keys(firebaseData.interactives).forEach((firebaseInteractiveId) => {
+                      const firebaseInteractive:FirebaseInteractive = firebaseData.interactives[firebaseInteractiveId]
+                      const interactive:Interactive = {
+                        id: firebaseInteractiveId,
+                        name: firebaseInteractive.name,
+                        users: {}
+                      }
+                      extendedClassInfo.interactives.push(interactive)
+                      interactiveMap[firebaseInteractiveId] = interactive
+                    })
+                  }
+
+                  if (firebaseData.users) {
+                    Object.keys(firebaseData.users).forEach((firebaseUserId) => {
+                      const firebaseUser:FirebaseUser = firebaseData.users[firebaseUserId]
+                      const userName = extendedClassInfo.info.getUserName(firebaseUserId)
+                      const user:User = {
+                        id: firebaseUserId,
+                        name: userName.name,
+                        interactives: {}
+                      }
+
+                      if (firebaseUser.interactives) {
+                        Object.keys(firebaseUser.interactives).forEach((firebaseInteractiveId) => {
+                          const interactive = interactiveMap[firebaseInteractiveId]
+                          if (interactive) {
+                            const userInteractives = user.interactives[firebaseInteractiveId] = user.interactives[firebaseInteractiveId] || []
+                            const firebaseUserInteractives = firebaseUser.interactives[firebaseInteractiveId]
+                            Object.keys(firebaseUserInteractives).forEach((firebaseUserInteractiveId) => {
+                              const firebaseUserInteractive = firebaseUserInteractives[firebaseUserInteractiveId]
+                              const userInteractive:UserInteractive = {
+                                id: firebaseInteractiveId,
+                                name: interactive.name,
+                                url: firebaseUserInteractive.documentUrl,
+                                createdAt: firebaseUserInteractive.createdAt
+                              }
+                              userInteractives.push(userInteractive)
+
+                              activity.push({
+                                user: user,
+                                userInteractive: userInteractive
+                              })
+                            })
+                            userInteractives.sort((a, b) => {return b.createdAt - a.createdAt })
+                          }
+                        })
+                      }
+                      extendedClassInfo.users.push(user)
+                    })
+                  }
+
+                  this.generateRows()
+                }
+              })
+            }
+          }
+        }
+        this._loadClasses(classInfoUrls)
+      })
+    }
+  }
+
+  generateRows() {
     const rows:DashboardRow[] = []
     const users:User[] = []
     const interactives:Interactive[] = []
     const dates:RowDateHash = {}
     const rowDates:RowDate[] = []
+    const classes:ExtendedClassInfo[] = []
     let index = 1
 
-    this.props.classInfo.getClassInfo((err, info) => {
-      props.users.forEach((user) => {
-        users.push(user)
+    Object.keys(this.classInfoMap).forEach((classInfoUrl) => {
+      const extendedClassInfo = this.classInfoMap[classInfoUrl]
+      classes.push(extendedClassInfo)
+
+      extendedClassInfo.users.forEach((user) => {
+        const existingUsers = users.filter((_user) => _user.id === user.id)
+        if (existingUsers.length === 0) {
+          users.push(user)
+        }
 
         Object.keys(user.interactives).forEach((id) => {
           const interactives = user.interactives[id]
           const interactive = interactives[0]
-          //interactives.forEach((interactive, interactiveIndex) => {
-            const created = new Date(interactive.createdAt)
-            const date = created.toDateString()
-            const rowDate = {
-              createdAt: interactive.createdAt,
-              date: date,
-              time: `${date} ${created.toTimeString().split(' ')[0]}`,
-              start: (new Date(date + " 00:00:00")).getTime(),
-              end: (new Date(date + " 23:59:59")).getTime()
-            }
+          const created = new Date(interactive.createdAt)
+          const date = created.toDateString()
+          const rowDate = {
+            createdAt: interactive.createdAt,
+            date: date,
+            time: `${date} ${created.toTimeString().split(' ')[0]}`,
+            start: (new Date(date + " 00:00:00")).getTime(),
+            end: (new Date(date + " 23:59:59")).getTime()
+          }
 
-            rows.push({
-              id: index++,
-              user: user,
-              className: info.name,
-              interactive: interactive,
-              version: interactives.length,
-              rowDate: rowDate
-            })
+          rows.push({
+            id: index++,
+            user: user,
+            className: extendedClassInfo.name || "",
+            interactive: interactive,
+            version: interactives.length,
+            rowDate: rowDate,
+            _class: extendedClassInfo
+          })
 
-            if (!dates[date]) {
-              dates[date] = rowDate
-            }
-          //})
+          if (!dates[date]) {
+            dates[date] = rowDate
+          }
         })
       })
 
-      users.sort((a, b) => {
-        if (a.name.fullname < b.name.fullname) return -1
-        if (a.name.fullname > b.name.fullname) return 1
-        return 0
-      })
-
-      Object.keys(dates).forEach((date) => {
-        rowDates.push(dates[date])
-      })
-      rowDates.sort((a, b) => {
-        if (a.createdAt < b.createdAt) return -1
-        if (a.createdAt > b.createdAt) return 1
-        return 0
-      })
-
-      props.interactives.forEach((interactive) => {
-        interactives.push(interactive)
-      })
-      interactives.sort((a, b) => {
-        if (a.name < b.name) return -1
-        if (a.name > b.name) return 1
-        return 0
-      })
-
-      this.sortRows(this.state.sorts)
-
-      this.setState({
-        rows: rows,
-        users: users,
-        interactives: interactives,
-        rowDates: rowDates
+      extendedClassInfo.interactives.forEach((interactive) => {
+        const existingInteractives = interactives.filter((_interactive) => _interactive.id === interactive.id)
+        if (existingInteractives.length === 0) {
+          interactives.push(interactive)
+        }
       })
     })
 
+    users.sort((a, b) => {
+      if (a.name.fullname < b.name.fullname) return -1
+      if (a.name.fullname > b.name.fullname) return 1
+      return 0
+    })
+
+    Object.keys(dates).forEach((date) => {
+      rowDates.push(dates[date])
+    })
+    rowDates.sort((a, b) => {
+      if (a.createdAt < b.createdAt) return -1
+      if (a.createdAt > b.createdAt) return 1
+      return 0
+    })
+
+    interactives.sort((a, b) => {
+      if (a.name < b.name) return -1
+      if (a.name > b.name) return 1
+      return 0
+    })
+
+    this.sortRows(rows, this.state.sorts)
+
+    this.setState({
+      rows: rows,
+      users: users,
+      interactives: interactives,
+      rowDates: rowDates,
+      classes: classes
+    })
   }
 
   createOnClick(href: string, user:User, userInteractive:UserInteractive):ClickHandler {
@@ -272,13 +423,18 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
     this.setState({selectedDate: rowDates.length > 0 ? rowDates[0] : null})
   }
 
+  selectClass(e:React.ChangeEvent<HTMLSelectElement>) {
+    const classes = this.state.classes.filter((_class) => _class.url === e.target.value)
+    this.setState({selectedClass: classes.length > 0 ? classes[0].url : null})
+  }
+
   appendSort(col: SortCol, dir: SortDir) {
     return (e:React.MouseEvent<HTMLSpanElement>) => {
       // remove existing sorts on the column
       const sorts = this.state.sorts.filter((sort) => sort.col !== col)
       sorts.push({col, dir})
       this.setState({sorts})
-      this.sortRows(sorts)
+      this.sortRows(this.state.rows, sorts)
     }
   }
 
@@ -287,14 +443,14 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
     return sorts.length > 0 ? "sort-active" : ""
   }
 
-  sortRows(sorts:SortSelection[]) {
+  sortRows(rows: DashboardRow[], sorts:SortSelection[]) {
     if (sorts.length > 0) {
-      const rows = this.state.rows.slice()
+      const sortedRows = rows.slice()
       const lastSortIndex = sorts.length - 1
-      rows.sort((a, b) => {
+      sortedRows.sort((a, b) => {
         return this.sortRow(sorts, lastSortIndex, a, b)
       })
-      this.setState({rows: rows})
+      this.setState({rows: sortedRows})
     }
   }
 
@@ -339,7 +495,7 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
           </span>
         </td>
         <td>
-          <select><option>All Classes</option><option>Martha and Daphne’s Shared Class</option></select>
+          <select onChange={this.selectClass} value={this.state.selectedClass ? this.state.selectedClass : 0}><option>All Classes</option>{ this.state.classes.map((_class) => <option key={_class.url} value={_class.url}>{_class.name}</option>)}</select>
           <span className="sort">
             <span onClick={this.appendSort("class", "asc")} className={this.sortClass("class", "asc")}>▲</span>
             <span onClick={this.appendSort("class", "desc")} className={this.sortClass("class", "desc")}>▼</span>
@@ -368,10 +524,11 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
       .filter((row) => this.state.selectedUser ? row.user.id === this.state.selectedUser.id : true)
       .filter((row) => this.state.selectedInteractive ? row.interactive.id === this.state.selectedInteractive.id : true)
       .filter((row) => this.state.selectedDate ? row.rowDate.date === this.state.selectedDate.date : true)
+      .filter((row) => this.state.selectedClass ? row._class.url === this.state.selectedClass : true)
   }
 
-  renderUserInteractive(user:User, userInteractive:UserInteractive, version: number) {
-    const key = `${user.id}-${userInteractive.id}`
+  renderUserInteractive(rowId: number, user:User, userInteractive:UserInteractive, version: number) {
+    const key = `${rowId}-${user.id}-${userInteractive.id}`
     const href = this.props.getInteractiveHref(user, userInteractive)
     const onClick = this.createOnClick(href, user, userInteractive)
     return <a href={href} onClick={onClick}>{userInteractive.name} <span>#{version}</span></a>
@@ -387,7 +544,7 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
               <tr key={row.id}>
                 <td>{row.user.name.fullname}</td>
                 <td>{row.className}</td>
-                <td>{this.renderUserInteractive(row.user, row.interactive, row.version)}</td>
+                <td>{this.renderUserInteractive(row.id, row.user, row.interactive, row.version)}</td>
                 <td className="rowDate">{row.rowDate.time}</td>
               </tr>
             )

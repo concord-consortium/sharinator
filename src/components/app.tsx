@@ -10,8 +10,6 @@ const superagent = require("superagent")
 
 declare var firebase: Firebase
 
-
-
 const base64url = require("base64-url")
 const queryString = require("query-string")
 
