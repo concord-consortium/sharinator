@@ -36,6 +36,7 @@ export interface IFrameSidebarState {
   publishingStatus: string|null
   userInteractives: PublishedUserInteractives[]
   myEmail: string
+  initTimedout: boolean
 }
 
 interface CopyResults {
@@ -732,10 +733,15 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
       publishingError: null,
       publishingStatus: null,
       userInteractives: [],
-      myEmail: this.props.initInteractiveData.authInfo.email
+      myEmail: this.props.initInteractiveData.authInfo.email,
+      initTimedout: false
     }
 
     this.classInfo = new ClassInfo(this.props.initInteractiveData.classInfoUrl || "")
+
+    setTimeout(() => {
+      this.setState({initTimedout: !this.state.classHash || !this.props.codapPhone})
+    }, 5000)
   }
 
   componentWillMount() {
@@ -1082,7 +1088,12 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     }
 
     if (!this.state.classHash || !this.props.codapPhone) {
-      return null;
+      return <div id="iframe-sidebar">
+               <div className="sidebar-loading">
+                Waiting for user info...
+               </div>
+               {this.state.initTimedout ? <div className="sidebar-loading-note">NOTE: This sidebar will not be active when run in preview mode.</div> : null}
+             </div>
     }
 
     // const href = `../dashboard/?class=${this.props.initInteractiveData.classInfoUrl}`
