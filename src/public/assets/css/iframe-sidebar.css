@@ -132,3 +132,11 @@ button {
   color: #fff;
   background-color: #33C3F0;
 }
+
+.sidebar-loading {
+  margin: 10px;
+}
+.sidebar-loading-note {
+  margin: 10px;
+  font-style: italic;
+}
