@@ -1,8 +1,13 @@
 import * as React from "react"
-import { Interactive, UserInteractive, InteractiveMap, User} from "./types"
+import { Interactive, UserInteractive, InteractiveMap, User, CODAPPhone, CODAPCommand, IFramePhone} from "./types"
 import { ClassInfo } from "./class-info"
 import { ago } from "./ago"
+import { InitInteractiveData, InitInteractiveInteractiveData } from "./iframe"
 import { IFrameSidebar } from "./iframe-sidebar"
+
+const queryString = require("query-string")
+
+declare var iframePhone: IFramePhone
 
 export interface UserPageProps {
   setUserInteractive:(user:User, interactive:UserInteractive) => void
@@ -14,6 +19,9 @@ export interface UserPageProps {
 
 export interface UserPageState {
   currentInteractiveCount: number
+  initInteractiveData: InitInteractiveData
+  codapPhone: CODAPPhone|null
+  iframeUrl: string
 }
 
 export class UserPage extends React.Component<UserPageProps, UserPageState> {
@@ -21,8 +29,57 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
   constructor(props: UserPageProps) {
     super(props)
     this.versionSelected = this.versionSelected.bind(this)
+    this.iframeLoaded = this.iframeLoaded.bind(this)
+
+    const query = queryString.parse(location.search)
+
+    const initInteractiveData:InitInteractiveData = {
+      version: 1,
+      error: null,
+      mode: "runtime",
+      authoredState: "",
+      interactiveState: null,
+      globalInteractiveState: null,
+      hasLinkedInteractive: false,
+      linkedState: null,
+      interactiveStateUrl: "",
+      collaboratorUrls: null,
+      publicClassHash: null,
+      classInfoUrl: query.class,
+      interactive: {
+        id: parseInt(this.props.userInteractive.id.split("_")[1], 10),
+        name: this.props.userInteractive.name
+      },
+      authInfo: {
+        provider: "",
+        loggedIn: true,
+        email: ""
+      }
+    }
     this.state = {
-      currentInteractiveCount: 0
+      currentInteractiveCount: 0,
+      initInteractiveData: initInteractiveData,
+      codapPhone: null,
+      iframeUrl: this.props.userInteractive.url.replace("?", "?embeddedServer=yes")
+    }
+  }
+
+  codapPhoneHandler(command:CODAPCommand, callback:Function) {
+    var success = false;
+    if (command) {
+      console.log('COMMAND!', command)
+      switch (command.message) {
+        case "codap-present":
+          success = true;
+          break;
+      }
+    }
+    callback({success: success});
+  }
+
+  iframeLoaded() {
+    if (this.refs.iframe && !this.state.codapPhone) {
+      this.setState({codapPhone: new iframePhone.IframePhoneRpcEndpoint(this.codapPhoneHandler.bind(this), "data-interactive", this.refs.iframe)});
     }
   }
 
@@ -71,7 +128,8 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
         { this.renderDropdown() }
       </div>
       <div id="iframe" className="u-full-width">
-        <iframe className="u-full-width" src={this.props.userInteractive.url}></iframe>
+        <iframe className="user-page-iframe" ref="iframe" src={this.state.iframeUrl} onLoad={this.iframeLoaded}></iframe>
+        <IFrameSidebar initInteractiveData={this.state.initInteractiveData} copyUrl={null} authoredState={null} codapPhone={this.state.codapPhone} viewOnlyMode={false} />
       </div>
     </div>
   }

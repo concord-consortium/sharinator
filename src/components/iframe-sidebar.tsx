@@ -26,6 +26,7 @@ export interface IFrameSidebarProps {
   authoredState: AuthoredState|null
   copyUrl: string|null
   codapPhone: CODAPPhone|null
+  viewOnlyMode: boolean
 }
 
 export interface IFrameSidebarState {
@@ -151,13 +152,35 @@ export interface UserInteractiveProps {
 }
 
 export interface UserInteractiveState {
+  lastCreatedAt: number
+  highlightChange: boolean
 }
 
 export class UserInteractive extends React.Component<UserInteractiveProps, UserInteractiveState> {
+  private highlightTimeout: number
+
   constructor(props: UserInteractiveProps) {
     super(props)
+    this.clearHighlight = this.clearHighlight.bind(this)
     this.state = {
+      lastCreatedAt: props.userInteractive.createdAt,
+      highlightChange: false
     }
+  }
+
+  componentWillReceiveProps(nextProps:UserInteractiveProps) {
+    if (nextProps.userInteractive.createdAt !== this.state.lastCreatedAt) {
+      clearTimeout(this.highlightTimeout)
+      this.highlightTimeout = window.setTimeout(this.clearHighlight, 1000)
+      this.setState({
+        highlightChange: true,
+        lastCreatedAt: nextProps.userInteractive.createdAt
+      })
+    }
+  }
+
+  clearHighlight() {
+    this.setState({highlightChange: false})
   }
 
   renderCreatedAt() {
@@ -184,8 +207,15 @@ export class UserInteractive extends React.Component<UserInteractiveProps, UserI
 
   render() {
     const {userInteractive} = this.props
+    const classes = ["user-interactive"]
+    if (!this.props.first) {
+      classes.push("user-interactive-with-border")
+    }
+    if (this.state.highlightChange) {
+      classes.push("user-interactive-highlight-change")
+    }
     return (
-      <div className={`user-interactive ${!this.props.first ? 'user-interactive-with-border' : ''}`}>
+      <div className={classes.join(" ")}>
         <UserInteractiveDocument
           userInteractive={userInteractive}
           version={this.props.version}
@@ -1074,12 +1104,26 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
   }
 
   renderUsernameHeader() {
+    if (!this.props.viewOnlyMode) {
+      return null
+    }
     var me = this.classInfo.getUserName(this.state.myEmail)
     var username = me.found ? me.name : null;
     if (!username) {
       return null;
     }
     return <div className="username-header">{username.fullname}</div>
+  }
+
+  renderButtons() {
+    if (!this.props.viewOnlyMode) {
+      return null
+    }
+    return (
+      <div className="buttons">
+        <button className="button button-primary" onClick={this.onPublish} disabled={this.state.publishing}>Publish</button>
+      </div>
+    )
   }
 
   render() {
@@ -1100,9 +1144,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     //            <a className="button button-primary" href={href} target="_blank">View</a>
     return <div id="iframe-sidebar">
              { this.renderUsernameHeader() }
-             <div className="buttons">
-               <button className="button button-primary" onClick={this.onPublish} disabled={this.state.publishing}>Publish</button>
-             </div>
+             { this.renderButtons() }
              { this.renderPublishingError() }
              { this.renderPublishingStatus() }
              { this.renderUserInteractives() }

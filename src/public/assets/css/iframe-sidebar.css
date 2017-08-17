@@ -90,7 +90,7 @@ button {
   text-decoration: underline;
 }
 .user-interactive {
-  margin: 5px 0 5px 10px;
+  padding: 5px 0 5px 10px;
   font-size: 0.9em;
 }
 .user-interactive-with-border {
@@ -99,6 +99,10 @@ button {
 }
 .user-interactive-created-at {
   font-size: 0.8em;
+  display: inline-block;
+}
+.user-interactive-highlight-change {
+  background-color: #FFFBCC;
 }
 
 .user-interactive-list {
@@ -139,4 +143,8 @@ button {
 .sidebar-loading-note {
   margin: 10px;
   font-style: italic;
+
+.user-page-iframe {
+  height: 700px;
+  width: 715px;
 }

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { IFrameSidebar } from "./iframe-sidebar"
 import { getParam, getUID, FirebaseDemo, DemoFirebaseSnapshot } from "./demo"
-import {SuperagentError, SuperagentResponse, IFramePhone, Firebase, CODAPPhone, CODAPParams, InteractiveState, GlobalInteractiveState, LinkedState} from "./types"
+import {SuperagentError, SuperagentResponse, IFramePhone, Firebase, CODAPPhone, CODAPParams, InteractiveState, GlobalInteractiveState, LinkedState, CODAPCommand} from "./types"
 
 const queryString = require("query-string")
 const superagent = require("superagent")
@@ -71,10 +71,6 @@ export interface LaunchParams {
   source: string
   collaboratorUrls: string|null
   readOnlyKey?: string
-}
-
-export interface CODAPCommand {
-  message: string
 }
 
 export class IFrame extends React.Component<IFrameProps, IFrameState> {
@@ -332,7 +328,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
               <div id="iframe-container">
                 <iframe ref="iframe" src={this.state.src}></iframe>
               </div>
-              <IFrameSidebar initInteractiveData={this.state.initInteractiveData} copyUrl={this.state.copyUrl} authoredState={this.state.authoredState} codapPhone={this.state.codapPhone} />
+              <IFrameSidebar initInteractiveData={this.state.initInteractiveData} copyUrl={this.state.copyUrl} authoredState={this.state.authoredState} codapPhone={this.state.codapPhone} viewOnlyMode={true} />
             </div>
     }
     return null
