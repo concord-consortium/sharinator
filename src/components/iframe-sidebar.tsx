@@ -1,5 +1,5 @@
 import * as React from "react";
-import {InitInteractiveData, AuthoredState} from "./iframe"
+import {InitInteractiveData, AuthoredState, CODAPAuthoredState, CollabSpaceAuthoredState} from "./iframe"
 import {ExportLibrary} from "./export-library"
 import {FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseData, FirebaseDataContext, UserName, Window, CODAPPhone} from "./types"
 import {ClassInfo, GetUserName} from "./class-info"
@@ -27,6 +27,8 @@ export interface IFrameSidebarProps {
   copyUrl: string|null
   codapPhone: CODAPPhone|null
   viewOnlyMode: boolean
+  group: number
+  changeGroup?: () => void
 }
 
 export interface IFrameSidebarState {
@@ -979,7 +981,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
   onPublish(e:React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault()
 
-    if (!this.props.initInteractiveData) {
+    if (!this.props.initInteractiveData || !this.props.authoredState) {
       return
     }
 
@@ -995,71 +997,80 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     const userInteractivesKey = `${classroomKey}/users/${safeUserKey}/interactives/interactive_${data.interactive.id}`
     const userDataContextsKey = `dataContexts/${this.state.classHash}/${safeUserKey}/interactive_${data.interactive.id}`
 
-    superagent
-      .post(this.props.copyUrl)
-      .set('Accept', 'application/json')
-      .end((err:SuperagentError, res:SuperagentResponse) => {
-        this.setState({
-          publishingError: null,
-          publishing: false
-        })
+    if (this.props.authoredState.type === "collabSpace") {
+      this.setState({
+        publishing: false,
+        publishingStatus: "Published (NOT REALLY)!"
+      })
+    }
+    else if (this.props.authoredState.type === "codap") {
+      const codapAuthoredState = this.props.authoredState
+      superagent
+        .post(this.props.copyUrl)
+        .set('Accept', 'application/json')
+        .end((err:SuperagentError, res:SuperagentResponse) => {
+          this.setState({
+            publishingError: null,
+            publishing: false
+          })
 
-        if (!err && this.props.authoredState) {
-          try {
-            const copyResults:CopyResults = JSON.parse(res.text)
-            if (copyResults && copyResults.id && copyResults.readAccessKey) {
-              const laraParams = {
-                recordid: copyResults.id,
-                accessKeys: {
-                  readOnly: copyResults.readAccessKey
+          if (!err) {
+            try {
+              const copyResults:CopyResults = JSON.parse(res.text)
+              if (copyResults && copyResults.id && copyResults.readAccessKey) {
+                const laraParams = {
+                  recordid: copyResults.id,
+                  accessKeys: {
+                    readOnly: copyResults.readAccessKey
+                  }
                 }
-              }
-              const documentUrl = `${this.props.authoredState.codapUrl}?#file=lara:${base64url.encode(JSON.stringify(laraParams))}`
+                const documentUrl = `${codapAuthoredState.codapUrl}?#file=lara:${base64url.encode(JSON.stringify(laraParams))}`
 
-              this.saveDataContexts(userDataContextsKey, (err, dataContexts) => {
-                if (err) {
-                  throw err
-                }
+                this.saveDataContexts(userDataContextsKey, (err, dataContexts) => {
+                  if (err) {
+                    throw err
+                  }
 
-                // save the interactive name (noop after it is first set)
-                const firebaseInteractive:FirebaseInteractive = {name: data.interactive.name}
-                this.interactiveRef = this.interactiveRef || firebase.database().ref(interactiveKey)
-                this.interactiveRef.set(firebaseInteractive)
+                  // save the interactive name (noop after it is first set)
+                  const firebaseInteractive:FirebaseInteractive = {name: data.interactive.name}
+                  this.interactiveRef = this.interactiveRef || firebase.database().ref(interactiveKey)
+                  this.interactiveRef.set(firebaseInteractive)
 
-                // push the copy
-                this.userInteractivesRef = this.userInteractivesRef || firebase.database().ref(userInteractivesKey)
-                const userInteractive:FirebaseUserInteractive = {
-                  createdAt: firebase.database.ServerValue.TIMESTAMP,
-                  documentUrl: documentUrl,
-                  dataContexts: dataContexts || {}
-                }
-                this.userInteractivesRef.push().set(userInteractive)
+                  // push the copy
+                  this.userInteractivesRef = this.userInteractivesRef || firebase.database().ref(userInteractivesKey)
+                  const userInteractive:FirebaseUserInteractive = {
+                    createdAt: firebase.database.ServerValue.TIMESTAMP,
+                    documentUrl: documentUrl,
+                    dataContexts: dataContexts || {}
+                  }
+                  this.userInteractivesRef.push().set(userInteractive)
 
-                this.setState({
-                  publishing: false,
-                  publishingStatus: "Published!"
-                })
-                const clearPublishingStatus = () => {
                   this.setState({
-                    publishingStatus: null
+                    publishing: false,
+                    publishingStatus: "Published!"
                   })
-                }
-                setTimeout(clearPublishingStatus, 2000)
-              })
+                  const clearPublishingStatus = () => {
+                    this.setState({
+                      publishingStatus: null
+                    })
+                  }
+                  setTimeout(clearPublishingStatus, 2000)
+                })
+              }
+              else {
+                err = "Invalid response from copy document call"
+              }
             }
-            else {
-              err = "Invalid response from copy document call"
+            catch (e) {
+              err = e
             }
           }
-          catch (e) {
-            err = e
-          }
-        }
 
-        if (err) {
-          this.setState({publishingError: err})
-        }
-      });
+          if (err) {
+            this.setState({publishingError: err})
+          }
+        });
+    }
   }
 
   renderPublishingError() {
@@ -1104,7 +1115,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
   }
 
   renderUsernameHeader() {
-    if (!this.props.viewOnlyMode) {
+    if (this.props.viewOnlyMode) {
       return null
     }
     var me = this.classInfo.getUserName(this.state.myEmail)
@@ -1112,11 +1123,14 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     if (!username) {
       return null;
     }
-    return <div className="username-header">{username.fullname}</div>
+    return <div className="username-header">
+             {username.fullname}
+             {this.props.group ? <div className="groupname-header" title="Click to change group" onClick={this.props.changeGroup}>Group {this.props.group}</div> : null}
+           </div>
   }
 
   renderButtons() {
-    if (!this.props.viewOnlyMode) {
+    if (this.props.viewOnlyMode) {
       return null
     }
     return (

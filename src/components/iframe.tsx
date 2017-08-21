@@ -17,6 +17,9 @@ export interface IFrameState {
   src: string|null
   irsUrl: string|null
   copyUrl: string|null
+  needGroup: boolean,
+  selectedGroup: boolean,
+  group: number,
   authoring: boolean,
   authoredState: AuthoredState|null,
   authoringError: string|null
@@ -26,12 +29,23 @@ export interface IFrameState {
   codapPhone: CODAPPhone|null
 }
 
-export interface AuthoredState {
+export type AuthoredState = CODAPAuthoredState | CollabSpaceAuthoredState
+
+export interface CODAPAuthoredState {
+  type: "codap"
+  grouped: boolean
   laraSharedUrl: string
   docStoreUrl: string
   codapUrl: string
   codapParams: CODAPParams
   documentId: string
+}
+
+export interface CollabSpaceAuthoredState {
+  type: "collabSpace"
+  grouped: boolean
+  collabSpaceUrl: string
+  session: string
 }
 
 export interface InteractiveRunStateData {
@@ -76,10 +90,12 @@ export interface LaunchParams {
 export class IFrame extends React.Component<IFrameProps, IFrameState> {
   private clientPhone:CODAPPhone
   private iframeCanAutosave = false
+  private groupArray:number[]
 
   refs: {
-    iframe: HTMLIFrameElement;
-    laraSharedUrl: HTMLInputElement;
+    iframe: HTMLIFrameElement
+    laraSharedUrl: HTMLInputElement
+    group: HTMLSelectElement
   }
 
   constructor(props: IFrameProps) {
@@ -88,9 +104,16 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     this.submitAuthoringInfo = this.submitAuthoringInfo.bind(this)
     this.getInteractiveState = this.getInteractiveState.bind(this)
     this.setupNormalMode = this.setupNormalMode.bind(this)
+    this.submitSelectGroup = this.submitSelectGroup.bind(this)
+    this.changeGroup = this.changeGroup.bind(this)
 
     const demoUID = getUID("demo")
     const demoUser = getParam("demoUser")
+
+    this.groupArray = []
+    for (let i = 1; i <= 99; i++) {
+      this.groupArray.push(i)
+    }
 
     this.state = {
       irsUrl: null,
@@ -102,7 +125,10 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       copyUrl: null,
       demoUID: demoUID,
       demoUser: demoUser,
-      codapPhone: null
+      codapPhone: null,
+      needGroup: false,
+      selectedGroup: false,
+      group: 0
     }
   }
 
@@ -117,6 +143,10 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
 
   generateIframeSrc(initInteractiveData:InitInteractiveData) {
     const authoredState:AuthoredState = initInteractiveData.authoredState as AuthoredState
+    return authoredState.type === "codap" ? this.generateCODAPIframeSrc(initInteractiveData, authoredState) : this.generateCollabSpaceIframeSrc(initInteractiveData, authoredState)
+  }
+
+  generateCODAPIframeSrc(initInteractiveData:InitInteractiveData, authoredState:CODAPAuthoredState) {
     const launchParams:LaunchParams = {url: initInteractiveData.interactiveStateUrl, source: authoredState.documentId, collaboratorUrls: initInteractiveData.collaboratorUrls}
     const linkedState = initInteractiveData.linkedState || {}
     const interactiveRunState = initInteractiveData.interactiveState || {}
@@ -134,6 +164,12 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     codapParams.launchFromLara = base64url.encode(JSON.stringify(launchParams))
 
     return `${authoredState.codapUrl}?${queryString.stringify(codapParams)}`
+  }
+
+  generateCollabSpaceIframeSrc(initInteractiveData:InitInteractiveData, authoredState:CollabSpaceAuthoredState) {
+    const optionalGroup = this.state.group ? `_${this.state.group}` : ""
+    const session = `${initInteractiveData.publicClassHash}${optionalGroup}`
+    return `${authoredState.collabSpaceUrl}#sessionTemplate=${authoredState.session}&session=${session}`
   }
 
   setupDemoMode() {
@@ -163,7 +199,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         src: this.generateIframeSrc(initInteractiveData),
         irsUrl: demoAPIUrl("demoInteractiveRunState"),
         initInteractiveData: initInteractiveData,
-        authoredState: demo.authoredState
+        authoredState: demo.authoredState,
+        needGroup: demo.authoredState.grouped
       })
       setTimeout(this.getInteractiveState, 10);
     })
@@ -194,7 +231,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         src: this.generateIframeSrc(initInteractiveData),
         irsUrl: initInteractiveData.interactiveStateUrl,
         initInteractiveData: initInteractiveData,
-        authoredState: authoredState
+        authoredState: authoredState,
+        needGroup: authoredState ? authoredState.grouped : false
       })
 
       if (initInteractiveData.interactiveStateUrl)  {
@@ -285,9 +323,11 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
             if (json && json.raw_data) {
               const rawData = JSON.parse(json.raw_data)
               if (rawData && rawData.docStore && rawData.docStore.accessKeys && rawData.docStore.accessKeys.readOnly && this.state.authoredState) {
-                iframe.setState({
-                  copyUrl: `${this.state.authoredState.docStoreUrl}/v2/documents?source=${rawData.docStore.recordid}&accessKey=RO::${rawData.docStore.accessKeys.readOnly}`,
-                })
+                if (this.state.authoredState.type === "codap") {
+                  iframe.setState({
+                    copyUrl: `${this.state.authoredState.docStoreUrl}/v2/documents?source=${rawData.docStore.recordid}&accessKey=RO::${rawData.docStore.accessKeys.readOnly}`,
+                  })
+                }
               }
               return
             }
@@ -301,7 +341,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   submitAuthoringInfo(e:React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     try {
-      const authoredState = parseURLIntoAuthoredState(this.refs.laraSharedUrl.value)
+      const authoredState = parseCODAPUrlIntoAuthoredState(this.refs.laraSharedUrl.value, false) // TODO: add grouped form element
       this.setState({authoringError: null})
       this.clientPhone.post('authoredState', authoredState)
     }
@@ -313,7 +353,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   renderAuthoring():JSX.Element {
     const inputStyle = {width: "100%"}
     const errorStyle = {color: "#f00", marginTop: 10, marginBottom: 10}
-    const url = (this.state.authoredState ? this.state.authoredState.laraSharedUrl : "") || ""
+    const {authoredState} = this.state
+    const url = (authoredState ? (authoredState.type === "codap" ? authoredState.laraSharedUrl : authoredState.collabSpaceUrl) : "") || ""
     return <form onSubmit={this.submitAuthoringInfo}>
              {this.state.authoringError ? <div style={errorStyle}>{this.state.authoringError}</div> : null}
              <label htmlFor="laraSharedUrl">Shared URL from LARA tab in CODAP</label>
@@ -328,21 +369,69 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
               <div id="iframe-container">
                 <iframe ref="iframe" src={this.state.src}></iframe>
               </div>
-              <IFrameSidebar initInteractiveData={this.state.initInteractiveData} copyUrl={this.state.copyUrl} authoredState={this.state.authoredState} codapPhone={this.state.codapPhone} viewOnlyMode={true} />
+              <IFrameSidebar
+                initInteractiveData={this.state.initInteractiveData}
+                copyUrl={this.state.copyUrl}
+                authoredState={this.state.authoredState}
+                codapPhone={this.state.codapPhone}
+                viewOnlyMode={false}
+                group={this.state.group}
+                changeGroup={this.changeGroup}
+              />
             </div>
     }
     return null
+  }
+
+  changeGroup() {
+    if (confirm("Are you sure you want to change your group?")) {
+      this.setState({
+        selectedGroup: false
+      })
+    }
+  }
+
+  submitSelectGroup(e:React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const group = parseInt(this.refs.group.value, 10)
+    this.setState({
+      group: group,
+    }, () => {
+      // generateIframeSrc depends on this.state.group being set...
+      this.setState({
+        selectedGroup: true,
+        src: this.state.initInteractiveData ? this.generateIframeSrc(this.state.initInteractiveData) : this.state.src
+      })
+    })
+  }
+
+  renderSelectGroup():JSX.Element {
+    const options = this.groupArray.map((group) => <option value={group} key={group}>Group {group}</option>)
+    return <div>
+      <div id="select-group">
+        <form onSubmit={this.submitSelectGroup}>
+          <select ref="group">{options}</select>
+          <input type="submit" value="Select Group" />
+        </form>
+      </div>
+    </div>
   }
 
   render() {
     if (this.state.authoring) {
       return this.renderAuthoring()
     }
-    return this.renderIFrame()
+    if (this.state.authoredState) {
+      if (this.state.needGroup && !this.state.selectedGroup) {
+        return this.renderSelectGroup()
+      }
+      return this.renderIFrame()
+    }
+    return null
   }
 }
 
-export function parseURLIntoAuthoredState(url:string) {
+export function parseCODAPUrlIntoAuthoredState(url:string, grouped:boolean) {
   const [docStoreUrl, urlQuery, ...restOfUrl] = url.split("?")
   const urlMatches = docStoreUrl.match(/^(https?:\/\/[^/]+\/)v2\/documents\/(\d+)\/(auto)?launch/)
   const launchParams = queryString.parse(urlQuery || "")
@@ -362,6 +451,8 @@ export function parseURLIntoAuthoredState(url:string) {
   }
 
   const authoredState:AuthoredState = {
+    type: "codap",
+    grouped: grouped,
     laraSharedUrl: url,
     docStoreUrl: matchProtocol(urlMatches[1].replace(/\/+$/, "")), // remove trailing slashes
     codapUrl: matchProtocol(codapUrl),
@@ -372,3 +463,13 @@ export function parseURLIntoAuthoredState(url:string) {
   return authoredState
 }
 
+export function parseCollaborationSpaceUrlIntoAuthoredState(url:string, grouped:boolean):AuthoredState {
+  const [baseUrl, hash, ...rest] = url.split("#")
+  const params = queryString.parse(hash || "")
+  return {
+    type: "collabSpace",
+    grouped: grouped,
+    collabSpaceUrl: baseUrl,
+    session: params.session
+  }
+}

@@ -64,6 +64,10 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
     }
   }
 
+  refs: {
+    iframe: HTMLIFrameElement
+  }
+
   codapPhoneHandler(command:CODAPCommand, callback:Function) {
     var success = false;
     if (command) {
@@ -129,7 +133,14 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
       </div>
       <div id="iframe" className="u-full-width">
         <iframe className="user-page-iframe" ref="iframe" src={this.state.iframeUrl} onLoad={this.iframeLoaded}></iframe>
-        <IFrameSidebar initInteractiveData={this.state.initInteractiveData} copyUrl={null} authoredState={null} codapPhone={this.state.codapPhone} viewOnlyMode={false} />
+        <IFrameSidebar
+          initInteractiveData={this.state.initInteractiveData}
+          copyUrl={null}
+          authoredState={null}
+          codapPhone={this.state.codapPhone}
+          viewOnlyMode={true}
+          group={0}
+        />
       </div>
     </div>
   }

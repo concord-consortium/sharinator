@@ -1,6 +1,6 @@
 import * as React from "react";
 import { IFrameSidebar } from "./iframe-sidebar"
-import { parseURLIntoAuthoredState, AuthoredState } from "./iframe"
+import { parseCODAPUrlIntoAuthoredState, parseCollaborationSpaceUrlIntoAuthoredState, AuthoredState } from "./iframe"
 import { ClassInfoResultResponse, User } from "./class-info"
 import { Firebase } from "./types"
 const queryString = require("query-string")
@@ -17,9 +17,12 @@ export interface DemoFirebaseSnapshot {
 export interface DemoProps {
 }
 
+export type AppType = "CODAP" | "CollabSpace"
+
 export interface DemoState {
   error: string|null
-  codapURL: string
+  appType: AppType
+  appURL: string
   numTeachers: number
   numStudents: number
   demoUID: string|null
@@ -77,9 +80,11 @@ export function getUID(name:string):string|null {
 export class Demo extends React.Component<DemoProps, DemoState> {
 
   refs: {
-    codapURL: HTMLInputElement
+    urlType: HTMLSelectElement
+    appURL: HTMLInputElement
     numTeachers: HTMLInputElement
     numStudents: HTMLInputElement
+    grouped: HTMLInputElement
   }
 
   constructor(props: DemoProps) {
@@ -87,7 +92,8 @@ export class Demo extends React.Component<DemoProps, DemoState> {
     const demoUID = getUID("demo")
     this.state = {
       error: null,
-      codapURL: "",
+      appType: "CODAP",
+      appURL: "",
       numTeachers: 1,
       numStudents: 10,
       demoUID: demoUID,
@@ -115,10 +121,13 @@ export class Demo extends React.Component<DemoProps, DemoState> {
   }
 
   formSubmitted(e:React.FormEvent<HTMLFormElement>) {
+    debugger
     e.preventDefault()
-    const codapURL = this.refs.codapURL.value
+    const appURL = this.refs.appURL.value
+    const urlType = this.refs.urlType.value
+    const grouped = this.refs.grouped.checked
     try {
-      const authoredState = parseURLIntoAuthoredState(codapURL)
+      const authoredState = urlType === "CODAP" ? parseCODAPUrlIntoAuthoredState(appURL, grouped) : parseCollaborationSpaceUrlIntoAuthoredState(appURL, grouped)
       const demoUID = generateUID()
       const users:DemoUserMap = {}
       const teachers:User[] = []
@@ -215,12 +224,19 @@ export class Demo extends React.Component<DemoProps, DemoState> {
       <form onSubmit={this.formSubmitted.bind(this)}>
         <h1>Demo Creator</h1>
         {this.state.error ? <div className="error">{this.state.error}</div> : null}
-        <label htmlFor="codapURL">CODAP Lara Sharing URL</label>
-        <input type="text" ref="codapURL" placeholder="url here..." defaultValue={this.state.codapURL} />
+        <label htmlFor="urlType">App URL Type</label>
+        <select ref="urlType" defaultValue={this.state.appType}>
+          <option value="CODAP">CODAP Lara Sharing URL</option>
+          <option value="CollabSpace">Collaboration Space URL</option>
+        </select>
+        <label htmlFor="appURL">App URL</label>
+        <input type="text" ref="appURL" placeholder="URL here..." defaultValue={this.state.appURL} />
         <label htmlFor="numTeachers">Number of Teachers</label>
         <input type="text" ref="numTeachers" value={this.state.numTeachers > 0 ? this.state.numTeachers : ""} onChange={(e) => this.numberChanged(e, this.refs.numTeachers)} />
         <label htmlFor="numStudents">Number of Students</label>
         <input type="text" ref="numStudents" value={this.state.numStudents > 0 ? this.state.numStudents : ""} onChange={(e) => this.numberChanged(e, this.refs.numStudents)} />
+        <label>Options</label>
+        <input type="checkbox" ref="grouped" value="1" /> Grouped Activity
         <div>
           <input type="submit" value="Create Demo" />
         </div>
