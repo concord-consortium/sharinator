@@ -3,7 +3,7 @@ import {InitInteractiveData, AuthoredState, CODAPAuthoredState, CollabSpaceAutho
 import {ExportLibrary} from "./export-library"
 import {FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseData, FirebaseDataContext, UserName, Window, CODAPPhone} from "./types"
 import {ClassInfo, GetUserName} from "./class-info"
-import {SuperagentError, SuperagentResponse, Firebase} from "./types"
+import {SuperagentError, SuperagentResponse, Firebase, FirebaseGroupMap} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
 
 const queryString = require("query-string")
@@ -29,6 +29,7 @@ export interface IFrameSidebarProps {
   viewOnlyMode: boolean
   group: number
   changeGroup?: () => void
+  groups: FirebaseGroupMap
 }
 
 export interface IFrameSidebarState {
@@ -1114,6 +1115,25 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     )
   }
 
+  renderGroupInfo() {
+    if (!this.props.group) {
+      return null;
+    }
+    const users = this.props.groups && this.props.groups[this.props.group] ? this.props.groups[this.props.group].users : {}
+    const names:string[] = []
+    Object.keys(users).map((email) => {
+      const user = users[email]
+      const {fullname} = this.classInfo.getUserName(email).name
+      names.push(`${fullname}${!user.active ? " (inactive)" : ""}`)
+    })
+    return (
+      <div className="groupname-header">
+        <div  className="groupname-header-name" title="Click to change group" onClick={this.props.changeGroup}>Group {this.props.group}</div>
+        <div>{names.join(", ")}</div>
+      </div>
+    )
+  }
+
   renderUsernameHeader() {
     if (this.props.viewOnlyMode) {
       return null
@@ -1125,7 +1145,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     }
     return <div className="username-header">
              {username.fullname}
-             {this.props.group ? <div className="groupname-header" title="Click to change group" onClick={this.props.changeGroup}>Group {this.props.group}</div> : null}
+             {this.renderGroupInfo()}
            </div>
   }
 

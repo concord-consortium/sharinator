@@ -56,6 +56,22 @@ export interface FirebaseUserMap {
   [s: string]: FirebaseUser
 }
 
+export interface FirebaseGroupUser {
+  active: boolean
+}
+
+export interface FirebaseGroupUserMap {
+  [email: string]: FirebaseGroupUser
+}
+
+export interface FirebaseGroup {
+  users: FirebaseGroupUserMap
+}
+
+export interface FirebaseGroupMap {
+  [id: number]: FirebaseGroup
+}
+
 export interface FirebaseDataContext {
   dataContext: string
   name: string
@@ -104,12 +120,21 @@ export type SuperagentResponse = any  // TODO
 export type Firebase = any // TODO
 export type IFramePhone = any // TODO
 
+export interface FirebaseGroupSnapshot {
+  val: () => FirebaseGroupMap
+}
+
 export interface FirebaseSnapshot {
   val: () => FirebaseData
 }
+export interface FirebaseDisconnect {
+  set: (vals:any) => any
+}
 export interface FirebaseRef {
-  on: (attr: string, callback: (snapshot:FirebaseSnapshot) => void) => void,
+  on: (attr: string, callback: (snapshot:FirebaseSnapshot|FirebaseGroupSnapshot) => void) => void,
   off: () => void
+  set: (vals: any) => void
+  onDisconnect: () => FirebaseDisconnect
 }
 
 

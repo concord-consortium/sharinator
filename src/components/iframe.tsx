@@ -1,7 +1,11 @@
 import * as React from "react";
 import { IFrameSidebar } from "./iframe-sidebar"
+import {ClassInfo, GetUserName, AllClassInfo} from "./class-info"
 import { getParam, getUID, FirebaseDemo, DemoFirebaseSnapshot } from "./demo"
-import {SuperagentError, SuperagentResponse, IFramePhone, Firebase, CODAPPhone, CODAPParams, InteractiveState, GlobalInteractiveState, LinkedState, CODAPCommand} from "./types"
+import {SuperagentError, SuperagentResponse, IFramePhone, Firebase, CODAPPhone, CODAPParams,
+        InteractiveState, GlobalInteractiveState, LinkedState, CODAPCommand,
+        FirebaseGroupMap, FirebaseGroupSnapshot, FirebaseRef, FirebaseGroupUser} from "./types"
+import escapeFirebaseKey from "./escape-firebase-key"
 
 const queryString = require("query-string")
 const superagent = require("superagent")
@@ -27,6 +31,8 @@ export interface IFrameState {
   demoUID: string|null
   demoUser?: string
   codapPhone: CODAPPhone|null
+  groups: FirebaseGroupMap
+  allClassInfo: AllClassInfo|null
 }
 
 export type AuthoredState = CODAPAuthoredState | CollabSpaceAuthoredState
@@ -91,6 +97,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   private clientPhone:CODAPPhone
   private iframeCanAutosave = false
   private groupArray:number[]
+  private groupUserRef:FirebaseRef
 
   refs: {
     iframe: HTMLIFrameElement
@@ -128,7 +135,9 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       codapPhone: null,
       needGroup: false,
       selectedGroup: false,
-      group: 0
+      group: 0,
+      groups: {},
+      allClassInfo: null
     }
   }
 
@@ -172,6 +181,34 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     return `${authoredState.collabSpaceUrl}#sessionTemplate=${authoredState.session}&session=${session}`
   }
 
+  getGroupRootKey() {
+    const {initInteractiveData} = this.state
+    if (!initInteractiveData) {
+      return null
+    }
+    return `classes/${initInteractiveData.publicClassHash}/interactive_${initInteractiveData.interactive.id}/groups`
+  }
+
+  watchGroups() {
+    const groupRootKey = this.getGroupRootKey()
+    if (!groupRootKey || !this.state.initInteractiveData) {
+      return
+    }
+    const groupsRef:FirebaseRef = firebase.database().ref(groupRootKey)
+
+    // need class info for user names in groups
+    const classInfo = new ClassInfo(this.state.initInteractiveData.classInfoUrl || "")
+    classInfo.getClassInfo((err, allClassInfo) => {
+      if (!err) {
+        this.setState({allClassInfo: allClassInfo})
+      }
+    })
+
+    groupsRef.on("value", (snapshot:FirebaseGroupSnapshot) => {
+      this.setState({groups: snapshot.val()})
+    })
+  }
+
   setupDemoMode() {
     const demoRef = firebase.database().ref(`demos/${this.state.demoUID}`)
     demoRef.once("value", (snapshot:DemoFirebaseSnapshot) => {
@@ -201,6 +238,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         initInteractiveData: initInteractiveData,
         authoredState: demo.authoredState,
         needGroup: demo.authoredState.grouped
+      }, () => {
+        this.watchGroups() // depends on publicClassHash being set
       })
       setTimeout(this.getInteractiveState, 10);
     })
@@ -233,6 +272,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         initInteractiveData: initInteractiveData,
         authoredState: authoredState,
         needGroup: authoredState ? authoredState.grouped : false
+      }, () => {
+        this.watchGroups() // depends on publicClassHash being set
       })
 
       if (initInteractiveData.interactiveStateUrl)  {
@@ -377,6 +418,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
                 viewOnlyMode={false}
                 group={this.state.group}
                 changeGroup={this.changeGroup}
+                groups={this.state.groups}
               />
             </div>
     }
@@ -388,12 +430,33 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       this.setState({
         selectedGroup: false
       })
+      if (this.groupUserRef) {
+        const inactiveUser:FirebaseGroupUser = {active: false}
+        this.groupUserRef.set(inactiveUser)
+      }
     }
   }
 
   submitSelectGroup(e:React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const group = parseInt(this.refs.group.value, 10)
+
+    const groupRootKey = this.getGroupRootKey()
+    const {initInteractiveData} = this.state
+    if (initInteractiveData && groupRootKey) {
+
+      const activeUser:FirebaseGroupUser = {active: true}
+      const inactiveUser:FirebaseGroupUser = {active: false}
+
+      if (this.groupUserRef) {
+        this.groupUserRef.set(inactiveUser)
+      }
+
+      this.groupUserRef = firebase.database().ref(`${groupRootKey}/${group}/users/${escapeFirebaseKey(initInteractiveData.authInfo.email)}`)
+      this.groupUserRef.set(activeUser)
+      this.groupUserRef.onDisconnect().set(inactiveUser)
+    }
+
     this.setState({
       group: group,
     }, () => {
@@ -406,7 +469,23 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   }
 
   renderSelectGroup():JSX.Element {
-    const options = this.groupArray.map((group) => <option value={group} key={group}>Group {group}</option>)
+    const options = this.groupArray.map((group) => {
+      let suffix = ""
+      const {allClassInfo} = this.state
+      if (allClassInfo) {
+        const users = this.state.groups[group] ? this.state.groups[group].users : {}
+        const names:string[] = []
+        Object.keys(users).map((email) => {
+          const user = users[email]
+          const {fullname} = allClassInfo.userNames[email]
+          names.push(`${fullname}${!user.active ? " (inactive)" : ""}`)
+        })
+        if (names.length > 0) {
+          suffix = `: ${names.join(", ")}`
+        }
+      }
+      return <option value={group} key={group}>Group {group}{suffix}</option>
+    })
     return <div>
       <div id="select-group">
         <form onSubmit={this.submitSelectGroup}>
