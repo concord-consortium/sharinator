@@ -140,6 +140,7 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
           codapPhone={this.state.codapPhone}
           viewOnlyMode={true}
           group={0}
+          groups={{}}
         />
       </div>
     </div>

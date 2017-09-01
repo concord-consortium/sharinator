@@ -139,7 +139,7 @@ button {
 .groupname-header {
   background-color: #0b7191;
 }
-.groupname-header:hover {
+.groupname-header-name:hover {
   text-decoration: underline;
   cursor: pointer;
 }
