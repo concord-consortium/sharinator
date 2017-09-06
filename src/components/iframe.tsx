@@ -172,7 +172,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     codapParams.documentServer = authoredState.docStoreUrl
     codapParams.launchFromLara = base64url.encode(JSON.stringify(launchParams))
 
-    return `${authoredState.codapUrl}?${queryString.stringify(codapParams)}`
+    const codapUrl = `${authoredState.codapUrl}?${queryString.stringify(codapParams)}`
+    return `../codap-shim/?codapUrl=${encodeURIComponent(codapUrl)}`
   }
 
   generateCollabSpaceIframeSrc(initInteractiveData:InitInteractiveData, authoredState:CollabSpaceAuthoredState) {
