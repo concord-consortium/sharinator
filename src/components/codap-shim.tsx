@@ -1,5 +1,5 @@
 import * as React from "react";
-import {SharingClient, SharableApp, Representation} from "cc-sharing"
+import {SharingClient, SharableApp, Representation, Text} from "cc-sharing"
 import {IFramePhone} from "./types"
 const queryString = require("query-string")
 
@@ -77,7 +77,12 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
   }
 
   handlePublish(resolve:ResolvePublish, reject:RejectPublish) {
-    debugger
+    resolve([
+      {
+        type: Text,
+        dataUrl: "test"
+      }
+    ])
   }
 
   render() {

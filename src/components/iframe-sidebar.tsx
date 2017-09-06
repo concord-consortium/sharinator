@@ -1,5 +1,5 @@
 import * as React from "react";
-import {InitInteractiveData, AuthoredState, CODAPAuthoredState, CollabSpaceAuthoredState} from "./iframe"
+import {InitInteractiveData, AuthoredState, CODAPAuthoredState, CollabSpaceAuthoredState, HandlePublishFunction} from "./iframe"
 import {ExportLibrary} from "./export-library"
 import {FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseData, FirebaseDataContext, UserName, Window, CODAPPhone} from "./types"
 import {ClassInfo, GetUserName} from "./class-info"
@@ -30,6 +30,7 @@ export interface IFrameSidebarProps {
   group: number
   changeGroup?: () => void
   groups: FirebaseGroupMap
+  handlePublish?: HandlePublishFunction
 }
 
 export interface IFrameSidebarState {
@@ -982,7 +983,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
   onPublish(e:React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault()
 
-    if (!this.props.initInteractiveData || !this.props.authoredState) {
+    if (!this.props.initInteractiveData || !this.props.authoredState || !this.props.handlePublish) {
       return
     }
 
@@ -990,6 +991,30 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
       publishing: true,
       publishingStatus: "Publishing..."
     })
+
+    this.props.handlePublish((err) => {
+      debugger
+      if (err) {
+        this.setState({
+          publishing: false,
+          publishingError: err.toString()
+        })
+      }
+      else {
+        this.setState({
+          publishing: false,
+          publishingStatus: "Published!"
+        })
+        const clearPublishingStatus = () => {
+          this.setState({
+            publishingStatus: null
+          })
+        }
+        setTimeout(clearPublishingStatus, 2000)
+      }
+    })
+
+    /*
 
     const data = this.props.initInteractiveData
     const classroomKey = `classes/${this.state.classHash}`
@@ -1072,6 +1097,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
           }
         });
     }
+    */
   }
 
   renderPublishingError() {

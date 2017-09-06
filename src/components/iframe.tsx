@@ -6,6 +6,7 @@ import {SuperagentError, SuperagentResponse, IFramePhone, Firebase, CODAPPhone, 
         InteractiveState, GlobalInteractiveState, LinkedState, CODAPCommand,
         FirebaseGroupMap, FirebaseGroupSnapshot, FirebaseRef, FirebaseGroupUser} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
+import {SharingParent, Context, Publishable} from "cc-sharing"
 
 const queryString = require("query-string")
 const superagent = require("superagent")
@@ -93,11 +94,17 @@ export interface LaunchParams {
   readOnlyKey?: string
 }
 
+export type HandlePublishCallback = (err?:any) => void
+export type HandlePublishFunction = (callback?:HandlePublishCallback) => void
+
 export class IFrame extends React.Component<IFrameProps, IFrameState> {
   private clientPhone:CODAPPhone
   private iframeCanAutosave = false
   private groupArray:number[]
   private groupUserRef:FirebaseRef
+  private parentPhone:IFramePhone
+  private sharingParent:SharingParent
+  private handlePublishCallback:HandlePublishCallback|null = null
 
   refs: {
     iframe: HTMLIFrameElement
@@ -113,6 +120,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     this.setupNormalMode = this.setupNormalMode.bind(this)
     this.submitSelectGroup = this.submitSelectGroup.bind(this)
     this.changeGroup = this.changeGroup.bind(this)
+    this.iframeLoaded = this.iframeLoaded.bind(this)
+    this.handlePublish = this.handlePublish.bind(this)
 
     const demoUID = getUID("demo")
     const demoUser = getParam("demoUser")
@@ -405,11 +414,41 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
            </form>
   }
 
+  handlePublish(callback:HandlePublishCallback) {
+    this.handlePublishCallback = callback
+    this.sharingParent.sendPublish()
+  }
+
+  receivePublish(snapshot:Publishable) {
+    if (this.handlePublishCallback) {
+      this.handlePublishCallback()
+      this.handlePublishCallback = null
+    }
+  }
+
+  iframeLoaded() {
+    const {initInteractiveData} = this.state
+    if (initInteractiveData) {
+      const context:Context = {
+        protocolVersion: "1.0.0",
+        user: {displayName: "noah", id:"1"},
+        id: "noah",
+        group: {displayName: "noahs group", id:"1"},
+        offering: {displayName: "offering_id", id: "1"},
+        clazz:  {displayName: "clazz_id", id: "1"},
+        localId: "x",
+        requestTime: new Date().toISOString()
+      }
+      this.parentPhone = iframePhone.ParentEndpoint(this.refs.iframe)
+      this.sharingParent = new SharingParent(this.parentPhone, context, this.receivePublish.bind(this))
+    }
+  }
+
   renderIFrame():JSX.Element|null {
     if (this.state.src && this.state.initInteractiveData) {
       return <div>
               <div id="iframe-container">
-                <iframe ref="iframe" src={this.state.src}></iframe>
+                <iframe ref="iframe" src={this.state.src} onLoad={this.iframeLoaded}></iframe>
               </div>
               <IFrameSidebar
                 initInteractiveData={this.state.initInteractiveData}
@@ -420,6 +459,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
                 group={this.state.group}
                 changeGroup={this.changeGroup}
                 groups={this.state.groups}
+                handlePublish={this.handlePublish}
               />
             </div>
     }
