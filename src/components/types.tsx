@@ -110,10 +110,6 @@ export interface ClassListItem {
   class_hash: string
 }
 
-export interface CODAPCommand {
-  message: string
-}
-
 export type SuperagentError = any  // TODO
 export type SuperagentResponse = any  // TODO
 
@@ -137,18 +133,6 @@ export interface FirebaseRef {
   onDisconnect: () => FirebaseDisconnect
 }
 
-
-export type CODAPPostData = any   // TODO
-export type CODAPListenerData = any // TODO
-
-export interface CODAPPhone {
-   addListener: (command: string, callback:(data:CODAPListenerData)=>void) => void
-   post: (message: string, data:CODAPPostData) => void
-   initialize: () => void
-   call: (requests:any, callback?: (results:any) => void) => void // TODO
-}
-
-export type CODAPParams = any  // TODO
 export type InteractiveState = any // TODO
 export type GlobalInteractiveState = any // TODO
 export type LinkedState = any // TODO

@@ -2,11 +2,12 @@ import * as React from "react";
 import { IFrameSidebar } from "./iframe-sidebar"
 import {ClassInfo, GetUserName, AllClassInfo} from "./class-info"
 import { getParam, getUID, FirebaseDemo, DemoFirebaseSnapshot } from "./demo"
-import {SuperagentError, SuperagentResponse, IFramePhone, Firebase, CODAPPhone, CODAPParams,
-        InteractiveState, GlobalInteractiveState, LinkedState, CODAPCommand,
+import {SuperagentError, SuperagentResponse, IFramePhone, Firebase,
+        InteractiveState, GlobalInteractiveState, LinkedState,
         FirebaseGroupMap, FirebaseGroupSnapshot, FirebaseRef, FirebaseGroupUser} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
-import {SharingParent, Context, Publishable} from "cc-sharing"
+import {SharingParent, Context} from "cc-sharing"
+import {CodapShimParams, CODAPPhone, CODAPParams, CODAPCommand, SetCopyUrlMessage} from "./codap-shim"
 
 const queryString = require("query-string")
 const superagent = require("superagent")
@@ -21,7 +22,6 @@ export interface IFrameProps {
 export interface IFrameState {
   src: string|null
   irsUrl: string|null
-  copyUrl: string|null
   needGroup: boolean,
   selectedGroup: boolean,
   group: number,
@@ -31,12 +31,13 @@ export interface IFrameState {
   initInteractiveData: InitInteractiveData|null
   demoUID: string|null
   demoUser?: string
-  codapPhone: CODAPPhone|null
   groups: FirebaseGroupMap
   allClassInfo: AllClassInfo|null
+  iframeType: AuthoredStateType|null
 }
 
 export type AuthoredState = CODAPAuthoredState | CollabSpaceAuthoredState
+export type AuthoredStateType = "codap" | "collabSpace"
 
 export interface CODAPAuthoredState {
   type: "codap"
@@ -98,13 +99,13 @@ export type HandlePublishCallback = (err?:any) => void
 export type HandlePublishFunction = (callback?:HandlePublishCallback) => void
 
 export class IFrame extends React.Component<IFrameProps, IFrameState> {
-  private clientPhone:CODAPPhone
-  private iframeCanAutosave = false
+  private laraPhone:CODAPPhone
   private groupArray:number[]
   private groupUserRef:FirebaseRef
   private parentPhone:IFramePhone
   private sharingParent:SharingParent
   private handlePublishCallback:HandlePublishCallback|null = null
+  private setupCFMListener = false
 
   refs: {
     iframe: HTMLIFrameElement
@@ -122,6 +123,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     this.changeGroup = this.changeGroup.bind(this)
     this.iframeLoaded = this.iframeLoaded.bind(this)
     this.handlePublish = this.handlePublish.bind(this)
+    this.sendCopyUrl = this.sendCopyUrl.bind(this)
 
     const demoUID = getUID("demo")
     const demoUser = getParam("demoUser")
@@ -138,15 +140,14 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       authoredState: null,
       authoringError: null,
       initInteractiveData: null,
-      copyUrl: null,
       demoUID: demoUID,
       demoUser: demoUser,
-      codapPhone: null,
       needGroup: false,
       selectedGroup: false,
       group: 0,
       groups: {},
-      allClassInfo: null
+      allClassInfo: null,
+      iframeType: null
     }
   }
 
@@ -159,9 +160,20 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     }
   }
 
-  generateIframeSrc(initInteractiveData:InitInteractiveData) {
+  generateIframeSrc() {
+    const {initInteractiveData} = this.state
+    if (!initInteractiveData) {
+      return null
+    }
     const authoredState:AuthoredState = initInteractiveData.authoredState as AuthoredState
-    return authoredState.type === "codap" ? this.generateCODAPIframeSrc(initInteractiveData, authoredState) : this.generateCollabSpaceIframeSrc(initInteractiveData, authoredState)
+    switch (authoredState.type) {
+      case "codap":
+        return this.generateCODAPIframeSrc(initInteractiveData, authoredState)
+      case "collabSpace":
+        return this.generateCollabSpaceIframeSrc(initInteractiveData, authoredState)
+      default:
+        return null
+    }
   }
 
   generateCODAPIframeSrc(initInteractiveData:InitInteractiveData, authoredState:CODAPAuthoredState) {
@@ -181,11 +193,21 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     codapParams.documentServer = authoredState.docStoreUrl
     codapParams.launchFromLara = base64url.encode(JSON.stringify(launchParams))
 
-    const codapUrl = `${authoredState.codapUrl}?${queryString.stringify(codapParams)}`
-    return `../codap-shim/?codapUrl=${encodeURIComponent(codapUrl)}`
+    const shimParams:CodapShimParams = {
+      codapUrl: `${authoredState.codapUrl}?${queryString.stringify(codapParams)}`,
+      email: initInteractiveData.authInfo.email,
+      interactiveId: initInteractiveData.interactive.id,
+      interactiveName: initInteractiveData.interactive.name,
+      classHash: initInteractiveData.publicClassHash || ""
+    }
+
+    return `../codap-shim/?${queryString.stringify(shimParams)}`
   }
 
   generateCollabSpaceIframeSrc(initInteractiveData:InitInteractiveData, authoredState:CollabSpaceAuthoredState) {
+    if (this.state.needGroup && !this.state.selectedGroup) {
+      return null
+    }
     const optionalGroup = this.state.group ? `_${this.state.group}` : ""
     const session = `${initInteractiveData.publicClassHash}${optionalGroup}`
     return `${authoredState.collabSpaceUrl}#sessionTemplate=${authoredState.session}&session=${session}`
@@ -243,21 +265,24 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         authInfo: {provider: "demo", loggedIn: true, email: email}
       }
       this.setState({
-        src: this.generateIframeSrc(initInteractiveData),
         irsUrl: demoAPIUrl("demoInteractiveRunState"),
         initInteractiveData: initInteractiveData,
         authoredState: demo.authoredState,
-        needGroup: demo.authoredState.grouped
+        needGroup: demo.authoredState.grouped,
+        iframeType: demo.authoredState.type
       }, () => {
         this.watchGroups() // depends on publicClassHash being set
+        this.setState({
+          src: this.generateIframeSrc() // depends on initInteractiveData to be set
+        })
       })
       setTimeout(this.getInteractiveState, 10);
     })
   }
 
   setupNormalMode() {
-    this.clientPhone = iframePhone.getIFrameEndpoint()
-    this.clientPhone.addListener('initInteractive', (initInteractiveData:InitInteractiveData) => {
+    this.laraPhone = iframePhone.getIFrameEndpoint()
+    this.laraPhone.addListener('initInteractive', (initInteractiveData:InitInteractiveData) => {
       let authoredState:AuthoredState|null = null
       if (typeof initInteractiveData.authoredState === "string") {
         try {
@@ -277,29 +302,32 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       }
 
       this.setState({
-        src: this.generateIframeSrc(initInteractiveData),
         irsUrl: initInteractiveData.interactiveStateUrl,
         initInteractiveData: initInteractiveData,
         authoredState: authoredState,
-        needGroup: authoredState ? authoredState.grouped : false
+        needGroup: authoredState ? authoredState.grouped : false,
+        iframeType: authoredState ? authoredState.type : null
       }, () => {
         this.watchGroups() // depends on publicClassHash being set
+        this.setState({
+          src: this.generateIframeSrc() // depends on initInteractiveData to be set
+        })
       })
 
       if (initInteractiveData.interactiveStateUrl)  {
         setTimeout(this.getInteractiveState, 1000)
       }
     })
-    this.clientPhone.addListener('getInteractiveState', () => {
-      if (this.iframeCanAutosave) {
+    this.laraPhone.addListener('getInteractiveState', () => {
+      if (this.state.iframeType === "codap") {
         this.postMessageToInnerIframe('cfm::autosave');
       }
-      else {
-        this.clientPhone.post('interactiveState', 'nochange');
+      else if (this.laraPhone) {
+        this.laraPhone.post('interactiveState', 'nochange');
       }
     });
-    this.clientPhone.initialize();
-    this.clientPhone.post('supportedFeatures', {
+    this.laraPhone.initialize();
+    this.laraPhone.post('supportedFeatures', {
       apiVersion: 1,
       features: {
         authoredState: true,
@@ -314,50 +342,32 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     }
   }
 
-  codapPhoneHandler(command:CODAPCommand, callback:Function) {
-    var success = false;
-    if (command) {
-      console.log('COMMAND!', command)
-      switch (command.message) {
-        case "codap-present":
-          success = true;
-          break;
-      }
-    }
-    callback({success: success});
-  }
-
   componentDidUpdate() {
     if (this.state.authoring) {
       this.refs.laraSharedUrl.focus()
     }
-    else if (this.refs.iframe && !this.state.codapPhone) {
-      this.setState({codapPhone: new iframePhone.IframePhoneRpcEndpoint(this.codapPhoneHandler.bind(this), "data-interactive", this.refs.iframe)});
-
+    else if (this.refs.iframe && !this.setupCFMListener) {
       // setup a generic postmessage CFM listener for the iframed CODAP window
-      let keepPollingForCommands = true
       window.onmessage = (e) => {
         switch (e.data.type) {
-          case "cfm::commands":
-            this.iframeCanAutosave = e.data.commands && e.data.commands.indexOf('cfm::autosave') !== -1
-            keepPollingForCommands = false
-            break
           case "cfm::autosaved":
-            if (this.clientPhone) {
-              this.clientPhone.post('interactiveState', 'nochange')
+            if (this.laraPhone) {
+              this.laraPhone.post('interactiveState', 'nochange')
             }
             break
         }
       }
+      this.setupCFMListener = true
+    }
+  }
 
-      // keep asking for the cfm commands available until we get a response once the inner iframe loads
-      const pollForCommandList = () => {
-        if (keepPollingForCommands) {
-          this.postMessageToInnerIframe('cfm::getCommands')
-          setTimeout(pollForCommandList, 100)
-        }
-      }
-      pollForCommandList()
+  sendCopyUrl(copyUrl:string) {
+    if (this.refs.iframe) {
+      const copyUrlMessage:SetCopyUrlMessage = {type: "setCopyUrl", copyUrl: copyUrl}
+      this.refs.iframe.contentWindow.postMessage(copyUrlMessage, '*')
+    }
+    else {
+      setTimeout(this.sendCopyUrl, 10)
     }
   }
 
@@ -370,18 +380,18 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       .end((err:SuperagentError, res:SuperagentResponse) => {
         if (!err) {
           try {
+            let copyUrl = null
             const json = JSON.parse(res.text)
             if (json && json.raw_data) {
               const rawData = JSON.parse(json.raw_data)
               if (rawData && rawData.docStore && rawData.docStore.accessKeys && rawData.docStore.accessKeys.readOnly && this.state.authoredState) {
                 if (this.state.authoredState.type === "codap") {
-                  iframe.setState({
-                    copyUrl: `${this.state.authoredState.docStoreUrl}/v2/documents?source=${rawData.docStore.recordid}&accessKey=RO::${rawData.docStore.accessKeys.readOnly}`,
-                  })
+                  copyUrl = `${this.state.authoredState.docStoreUrl}/v2/documents?source=${rawData.docStore.recordid}&accessKey=RO::${rawData.docStore.accessKeys.readOnly}`
+                  this.sendCopyUrl(copyUrl)
                 }
               }
-              return
             }
+            return
           }
           catch (e) {}
           setTimeout(this.getInteractiveState, 1000)
@@ -394,7 +404,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     try {
       const authoredState = parseCODAPUrlIntoAuthoredState(this.refs.laraSharedUrl.value, false) // TODO: add grouped form element
       this.setState({authoringError: null})
-      this.clientPhone.post('authoredState', authoredState)
+      this.laraPhone.post('authoredState', authoredState)
     }
     catch (e) {
       this.setState({authoringError: e.message})
@@ -419,7 +429,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     this.sharingParent.sendPublish()
   }
 
-  receivePublish(snapshot:Publishable) {
+  receivePublish(snapshot:any) {
     if (this.handlePublishCallback) {
       this.handlePublishCallback()
       this.handlePublishCallback = null
@@ -440,7 +450,11 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         requestTime: new Date().toISOString()
       }
       this.parentPhone = iframePhone.ParentEndpoint(this.refs.iframe)
-      this.sharingParent = new SharingParent(this.parentPhone, context, this.receivePublish.bind(this))
+      this.sharingParent = new SharingParent({
+        phone: this.parentPhone,
+        context: context,
+        callback: this.receivePublish.bind(this)
+      })
     }
   }
 
@@ -452,9 +466,6 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
               </div>
               <IFrameSidebar
                 initInteractiveData={this.state.initInteractiveData}
-                copyUrl={this.state.copyUrl}
-                authoredState={this.state.authoredState}
-                codapPhone={this.state.codapPhone}
                 viewOnlyMode={false}
                 group={this.state.group}
                 changeGroup={this.changeGroup}
@@ -500,11 +511,11 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
 
     this.setState({
       group: group,
+      selectedGroup: true
     }, () => {
-      // generateIframeSrc depends on this.state.group being set...
+      // generateIframeSrc depends on group and selectedGroup being set...
       this.setState({
-        selectedGroup: true,
-        src: this.state.initInteractiveData ? this.generateIframeSrc(this.state.initInteractiveData) : this.state.src
+        src: this.generateIframeSrc()
       })
     })
   }

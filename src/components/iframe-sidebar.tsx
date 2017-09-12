@@ -1,7 +1,7 @@
 import * as React from "react";
 import {InitInteractiveData, AuthoredState, CODAPAuthoredState, CollabSpaceAuthoredState, HandlePublishFunction} from "./iframe"
 import {ExportLibrary} from "./export-library"
-import {FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseData, FirebaseDataContext, UserName, Window, CODAPPhone} from "./types"
+import {FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseData, FirebaseDataContext, UserName, Window} from "./types"
 import {ClassInfo, GetUserName} from "./class-info"
 import {SuperagentError, SuperagentResponse, Firebase, FirebaseGroupMap} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
@@ -12,20 +12,17 @@ const superagent = require("superagent")
 
 declare var firebase: Firebase
 
-const mergedDataContextName = "Merged"
-const mergedDataContextTitle = "Merged"
-const mergedUserCollectionName = "Merged"
-const mergedUserCollectionTitle = "Merged"
-const mergedUserAttributeName = "User"
-const mergedUserAttributeTitle = "User"
-const mergedEmailAndVersionAttributeName = "EmailAndVersion"
-const mergedEmailAndVersionAttributeTitle = "EmailAndVersion"
+export const mergedDataContextName = "Merged"
+export const mergedDataContextTitle = "Merged"
+export const mergedUserCollectionName = "Merged"
+export const mergedUserCollectionTitle = "Merged"
+export const mergedUserAttributeName = "User"
+export const mergedUserAttributeTitle = "User"
+export const mergedEmailAndVersionAttributeName = "EmailAndVersion"
+export const mergedEmailAndVersionAttributeTitle = "EmailAndVersion"
 
 export interface IFrameSidebarProps {
   initInteractiveData: InitInteractiveData
-  authoredState: AuthoredState|null
-  copyUrl: string|null
-  codapPhone: CODAPPhone|null
   viewOnlyMode: boolean
   group: number
   changeGroup?: () => void
@@ -44,7 +41,7 @@ export interface IFrameSidebarState {
   initTimedout: boolean
 }
 
-interface CopyResults {
+export interface CopyResults {
   status: string
   valid: boolean
   id: number
@@ -64,7 +61,6 @@ export interface UserInteractivesProps {
   classHash: string
   interactiveId: number
   email: string
-  codapPhone: CODAPPhone|null
   initInteractiveData: InitInteractiveData
   myEmail: string
   classInfo: ClassInfo
@@ -106,7 +102,6 @@ export class UserInteractives extends React.Component<UserInteractivesProps, Use
           interactiveId={this.props.interactiveId}
           initInteractiveData={this.props.initInteractiveData}
           email={this.props.userInteractives.email}
-          codapPhone={this.props.codapPhone}
           first={false}
           myEmail={this.props.myEmail}
           classInfo={this.props.classInfo}
@@ -130,7 +125,6 @@ export class UserInteractives extends React.Component<UserInteractivesProps, Use
           classHash={this.props.classHash}
           interactiveId={this.props.interactiveId}
           email={this.props.email}
-          codapPhone={this.props.codapPhone}
           first={true}
           initInteractiveData={this.props.initInteractiveData}
           myEmail={this.props.myEmail}
@@ -148,7 +142,6 @@ export interface UserInteractiveProps {
   classHash: string
   interactiveId: number
   email: string
-  codapPhone: CODAPPhone|null
   first: boolean
   initInteractiveData: InitInteractiveData
   myEmail: string
@@ -238,7 +231,6 @@ export class UserInteractive extends React.Component<UserInteractiveProps, UserI
               classHash={this.props.classHash}
               interactiveId={this.props.interactiveId}
               email={this.props.email}
-              codapPhone={this.props.codapPhone}
               myEmail={this.props.myEmail}
               classInfo={this.props.classInfo}
             />
@@ -313,7 +305,6 @@ export interface UserInteractiveDataContextProps {
   classHash: string
   interactiveId: number
   email: string
-  codapPhone: CODAPPhone|null
   myEmail: string
   classInfo: ClassInfo
 }
@@ -343,12 +334,6 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
     this.toggleShowOptions = this.toggleShowOptions.bind(this)
     this.handleCopy = this.handleCopy.bind(this)
     this.handleMerge = this.handleMerge.bind(this)
-  }
-
-  callCODAP(request:any, callback?: (results:any) => void) {
-    if (this.props.codapPhone) {
-      this.props.codapPhone.call(request, callback)
-    }
   }
 
   loadDataContext() {
@@ -395,6 +380,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
   }
 
   handleMerge() {
+    /*
     const dataContextName = this.state.dataContext.name
 
     this.setState({mergeState: "Merging..."})
@@ -620,6 +606,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
         })
       })
     })
+    */
   }
 
   handleCopy() {
@@ -774,7 +761,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     this.classInfo = new ClassInfo(this.props.initInteractiveData.classInfoUrl || "")
 
     setTimeout(() => {
-      this.setState({initTimedout: !this.state.classHash || !this.props.codapPhone})
+      this.setState({initTimedout: !this.state.classHash})
     }, 5000)
   }
 
@@ -849,141 +836,11 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     })
   }
 
-  saveDataContexts(userDataContextsKey: string, callback: (err:string|null, dataContextMap?: FirebaseDataContextRefMap) => void) {
-    const {codapPhone} = this.props
-    if (!codapPhone) {
-      return
-    }
-
-    codapPhone.call({
-      action: 'get',
-      resource: 'dataContextList'
-    }, (result:any) => { // TODO
-      result = result || {success: false, values: {error: "Unable to get list of data contexts!"}}
-      if (!result.success) {
-        return callback(result.values.error)
-      }
-
-      const dataContexts:any[] = [] // TODO
-      const uniqueDataContextNames:string[] = []
-      const collectionRequests:any[] = [] // TODO
-      result.values.forEach((value:any) => { // TODO
-        // ignore duplicate context names (generated from ill behaving DIs) and merged data contexts
-        if ((uniqueDataContextNames.indexOf(value.name) !== -1) || (value.name.substr(0, mergedDataContextName.length) === mergedDataContextName)) {
-          return
-        }
-        uniqueDataContextNames.push(value.name)
-
-        dataContexts.push({
-          name: value.name,
-          title: value.title,
-          collections: {},
-          cases: {}
-        })
-        collectionRequests.push({
-          action: "get",
-          resource: `dataContext[${value.name}].collectionList`
-        })
-      })
-
-      codapPhone.call(collectionRequests, (results:any) => { // TODO
-        results = results || [{success: false, values: {error: "Unable to get list of collections!"}}]
-        let error:string|null = null
-
-        const dataContextForRequest:any[] = [] // TODO
-        const collectionInfoRequests:any[] = [] // TODO
-        const caseRequests:any[] = [] // TODO
-        results.forEach((result:any, dataContextIndex:number) => { // TODO
-          if (error || !result.success) {
-            error = error || result.values.error
-            return
-          }
-          const dataContext = dataContexts[dataContextIndex]
-          result.values.forEach((value:any, requestIndex:number) => { // TODO
-            dataContext.collections[value.id] = {
-              name: value.name,
-              title: value.title
-            }
-            dataContextForRequest.push(dataContext)
-            collectionInfoRequests.push({
-              action: "get",
-              resource: `dataContext[${dataContext.name}].collection[${value.name}]`
-            })
-            caseRequests.push({
-              action: "get",
-              resource: `dataContext[${dataContext.name}].collection[${value.name}].allCases`
-            })
-          })
-        })
-
-        if (error) {
-          return callback(error)
-        }
-
-        codapPhone.call(collectionInfoRequests, (results:any) => { // TODO
-          results = results || [{success: false, values: {error: "Unable to get collection data!"}}]
-          let error:string|null = null
-
-          results.forEach((result:any, requestIndex:number) => { // TODO
-            if (error || !result.success) {
-              error = error || result.values.error
-              return
-            }
-            const dataContext = dataContextForRequest[requestIndex]
-            const collection = result.values
-            dataContext.collections[collection.id].parent = collection.parent ?  dataContext.collections[collection.parent].name : null
-            dataContext.collections[collection.id].attrs = collection.attrs.map((attr:any) => { // TODO
-              return {
-                name: attr.name,
-                title: attr.title,
-                hidden: attr.hidden
-              }
-            })
-          })
-
-          codapPhone.call(caseRequests, (results:any) => { // TODO
-            results = results || [{success: false, values: {error: "Unable to get case data!"}}]
-            let error:string|null = null
-
-            results.forEach((result:any, requestIndex:number) => { // TODO
-              if (error || !result.success) {
-                error = error || result.values.error
-                return
-              }
-
-              const dataContext = dataContextForRequest[requestIndex]
-              const collectionId = result.values.collection.id
-              result.values.cases.forEach((_case:any) => { // TODO
-                if (_case.hasOwnProperty('caseIndex')) {
-                  dataContext.cases[_case.case.id] = {
-                    parent: _case.case.parent || null,
-                    values: _case.case.values,
-                    collection: collectionId
-                  }
-                }
-              })
-            })
-
-            const dataContextMap:FirebaseDataContextRefMap = {}
-            const userDataContextsRef = firebase.database().ref(userDataContextsKey)
-
-            dataContexts.forEach((dataContext) => {
-              const userDataContextRef = userDataContextsRef.push()
-              userDataContextRef.set(JSON.stringify(dataContext))
-              dataContextMap[userDataContextRef.key] = dataContext.title || dataContext.name
-            })
-
-            callback(error, dataContextMap)
-          })
-        })
-      })
-    })
-  }
 
   onPublish(e:React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault()
 
-    if (!this.props.initInteractiveData || !this.props.authoredState || !this.props.handlePublish) {
+    if (!this.props.initInteractiveData || !this.props.handlePublish) {
       return
     }
 
@@ -1129,7 +986,6 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
               classHash={this.state.classHash || ""}
               interactiveId={this.props.initInteractiveData.interactive.id}
               email={userInteractives.email}
-              codapPhone={this.props.codapPhone}
               initInteractiveData={this.props.initInteractiveData}
               myEmail={this.state.myEmail}
               classInfo={this.classInfo}
@@ -1191,7 +1047,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
       return <div id="iframe-sidebar">{this.state.error}</div>
     }
 
-    if (!this.state.classHash || !this.props.codapPhone) {
+    if (!this.state.classHash) {
       return <div id="iframe-sidebar">
                <div className="sidebar-loading">
                 Waiting for user info...

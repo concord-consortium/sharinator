@@ -361,11 +361,12 @@ caseless@~0.11.0:
   version "0.11.0"
   resolved "https://registry.yarnpkg.com/caseless/-/caseless-0.11.0.tgz#715b96ea9841593cc33067923f5ec60ebda4f7d7"
 
-cc-sharing@^1.0.1:
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/cc-sharing/-/cc-sharing-1.0.1.tgz#c93b2760b39a2d91115cbfeacdb6a26ab93b696d"
+cc-sharing@^1.0.3:
+  version "1.0.3"
+  resolved "https://registry.yarnpkg.com/cc-sharing/-/cc-sharing-1.0.3.tgz#2a24e16ce4bd6d1e377fe2d8cd4751e87b0c74dd"
   dependencies:
     iframe-phone "^1.2.0"
+    lodash "^4.17.4"
     semver "^5.3.0"
     uuid "^3.0.1"
 
@@ -1333,7 +1334,7 @@ loader-utils@^0.2.16, loader-utils@~0.2.2:
     json5 "^0.5.0"
     object-assign "^4.0.1"
 
-lodash@^4.13.1, lodash@^4.14.0:
+lodash@^4.13.1, lodash@^4.14.0, lodash@^4.17.4:
   version "4.17.4"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.4.tgz#78203a4d1c328ae1d86dca6460e369b57f4055ae"
 

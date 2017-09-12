@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Interactive, UserInteractive, InteractiveMap, User, CODAPPhone, CODAPCommand, IFramePhone} from "./types"
+import { Interactive, UserInteractive, InteractiveMap, User, IFramePhone} from "./types"
 import { ClassInfo } from "./class-info"
 import { ago } from "./ago"
 import { InitInteractiveData, InitInteractiveInteractiveData } from "./iframe"
@@ -20,7 +20,6 @@ export interface UserPageProps {
 export interface UserPageState {
   currentInteractiveCount: number
   initInteractiveData: InitInteractiveData
-  codapPhone: CODAPPhone|null
   iframeUrl: string
 }
 
@@ -29,7 +28,6 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
   constructor(props: UserPageProps) {
     super(props)
     this.versionSelected = this.versionSelected.bind(this)
-    this.iframeLoaded = this.iframeLoaded.bind(this)
 
     const query = queryString.parse(location.search)
 
@@ -59,32 +57,12 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
     this.state = {
       currentInteractiveCount: 0,
       initInteractiveData: initInteractiveData,
-      codapPhone: null,
       iframeUrl: this.props.userInteractive.url.replace("?", "?embeddedServer=yes")
     }
   }
 
   refs: {
     iframe: HTMLIFrameElement
-  }
-
-  codapPhoneHandler(command:CODAPCommand, callback:Function) {
-    var success = false;
-    if (command) {
-      console.log('COMMAND!', command)
-      switch (command.message) {
-        case "codap-present":
-          success = true;
-          break;
-      }
-    }
-    callback({success: success});
-  }
-
-  iframeLoaded() {
-    if (this.refs.iframe && !this.state.codapPhone) {
-      this.setState({codapPhone: new iframePhone.IframePhoneRpcEndpoint(this.codapPhoneHandler.bind(this), "data-interactive", this.refs.iframe)});
-    }
   }
 
   componentDidMount() {
@@ -132,12 +110,9 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
         { this.renderDropdown() }
       </div>
       <div id="iframe" className="u-full-width">
-        <iframe className="user-page-iframe" ref="iframe" src={this.state.iframeUrl} onLoad={this.iframeLoaded}></iframe>
+        <iframe className="user-page-iframe" ref="iframe" src={this.state.iframeUrl}></iframe>
         <IFrameSidebar
           initInteractiveData={this.state.initInteractiveData}
-          copyUrl={null}
-          authoredState={null}
-          codapPhone={this.state.codapPhone}
           viewOnlyMode={true}
           group={0}
           groups={{}}
