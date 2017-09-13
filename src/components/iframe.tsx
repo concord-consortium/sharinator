@@ -4,9 +4,10 @@ import {ClassInfo, GetUserName, AllClassInfo} from "./class-info"
 import { getParam, getUID, FirebaseDemo, DemoFirebaseSnapshot } from "./demo"
 import {SuperagentError, SuperagentResponse, IFramePhone, Firebase,
         InteractiveState, GlobalInteractiveState, LinkedState,
-        FirebaseGroupMap, FirebaseGroupSnapshot, FirebaseRef, FirebaseGroupUser} from "./types"
+        FirebaseGroupMap, FirebaseGroupSnapshot, FirebaseRef, FirebaseGroupUser,
+        FirebaseSavedSnapshot, FirebaseSavedSnapshotGroup} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
-import {SharingParent, Context} from "cc-sharing"
+import {SharingParent, Context, PublishResponse} from "cc-sharing"
 import {CodapShimParams, CODAPPhone, CODAPParams, CODAPCommand, SetCopyUrlMessage} from "./codap-shim"
 
 const queryString = require("query-string")
@@ -95,7 +96,7 @@ export interface LaunchParams {
   readOnlyKey?: string
 }
 
-export type HandlePublishCallback = (err?:any) => void
+export type HandlePublishCallback = (err:any|null, snapshot?:PublishResponse) => void
 export type HandlePublishFunction = (callback?:HandlePublishCallback) => void
 
 export class IFrame extends React.Component<IFrameProps, IFrameState> {
@@ -106,6 +107,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   private sharingParent:SharingParent
   private handlePublishCallback:HandlePublishCallback|null = null
   private setupCFMListener = false
+  private snapshotsRef:FirebaseRef|null
 
   refs: {
     iframe: HTMLIFrameElement
@@ -264,6 +266,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         interactive: {id: 1, name: "demo"},
         authInfo: {provider: "demo", loggedIn: true, email: email}
       }
+      this.setupSnapshotsRef(initInteractiveData)
       this.setState({
         irsUrl: demoAPIUrl("demoInteractiveRunState"),
         initInteractiveData: initInteractiveData,
@@ -301,6 +304,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         return
       }
 
+      this.setupSnapshotsRef(initInteractiveData)
+
       this.setState({
         irsUrl: initInteractiveData.interactiveStateUrl,
         initInteractiveData: initInteractiveData,
@@ -334,6 +339,10 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         interactiveState: true
       }
     })
+  }
+
+  setupSnapshotsRef(initInteractiveData:InitInteractiveData) {
+    this.snapshotsRef = firebase.database().ref(`classes/${initInteractiveData.publicClassHash}/snapshots/interactive_${initInteractiveData.interactive.id}`)
   }
 
   postMessageToInnerIframe(type:string) {
@@ -429,9 +438,30 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     this.sharingParent.sendPublish()
   }
 
-  receivePublish(snapshot:any) {
+  cleanSnapshotForFirebase(snapshot:PublishResponse) {
+    delete snapshot.context
+    delete snapshot.createdAt
+    if (snapshot.children) {
+      snapshot.children.forEach((child) => this.cleanSnapshotForFirebase(child))
+    }
+  }
+
+  receivePublish(snapshot:PublishResponse) {
+    this.cleanSnapshotForFirebase(snapshot)
+
+    if (this.snapshotsRef && this.state.initInteractiveData) {
+      const snapshotGroup:FirebaseSavedSnapshotGroup|null = this.state.group && this.state.groups[this.state.group] ? {id: this.state.group, members: this.state.groups[this.state.group].users || {}} : null
+      const pushedShapshot:FirebaseSavedSnapshot = {
+        createdAt: firebase.database.ServerValue.TIMESTAMP,
+        user: this.state.initInteractiveData.authInfo.email,
+        group: snapshotGroup,
+        snapshot
+      }
+      this.snapshotsRef.push().set(pushedShapshot)
+    }
+
     if (this.handlePublishCallback) {
-      this.handlePublishCallback()
+      this.handlePublishCallback(null, snapshot)
       this.handlePublishCallback = null
     }
   }
@@ -440,6 +470,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     const {initInteractiveData} = this.state
     if (initInteractiveData) {
       const context:Context = {
+        // TODO
         protocolVersion: "1.0.0",
         user: {displayName: "noah", id:"1"},
         id: "noah",

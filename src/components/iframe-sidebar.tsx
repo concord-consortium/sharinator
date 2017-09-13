@@ -850,7 +850,6 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     })
 
     this.props.handlePublish((err) => {
-      debugger
       if (err) {
         this.setState({
           publishing: false,

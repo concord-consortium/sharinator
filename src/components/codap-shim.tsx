@@ -1,12 +1,13 @@
 import * as React from "react";
 import {SharingClient, SharableApp, Representation, Text, Context} from "cc-sharing"
 const queryString = require("query-string")
-import {Firebase, IFramePhone, FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseData, FirebaseDataContext, UserName, Window} from "./types"
+import {Firebase, IFramePhone, FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseDataContextPathMap, FirebaseData, FirebaseDataContext, UserName, Window} from "./types"
 import {mergedDataContextName, CopyResults} from "./iframe-sidebar"
 import {SuperagentError, SuperagentResponse} from "./types"
 import {ClassInfo, GetUserName} from "./class-info"
 import escapeFirebaseKey from "./escape-firebase-key"
 import {InitInteractiveData, AuthoredState, CODAPAuthoredState, CollabSpaceAuthoredState, HandlePublishFunction} from "./iframe"
+import {CODAP, CODAPDataContext} from "cc-sharing"
 
 const superagent = require("superagent")
 const base64url = require("base64-url")
@@ -109,13 +110,15 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
   componentWillMount() {
     window.addEventListener("message", (e:MessageEvent) => {
       const message = e.data || {}
+      console.log("MESSAGE", e.data)
       if (e.source === window.parent) {
-        console.log("CHILD MESSAGE", e.data)
+        console.log("GOT CHILD MESSAGE", e.data)
         const copyUrlMessage = message as SetCopyUrlMessage
         if (copyUrlMessage.type === "setCopyUrl" ) {
           this.setState({copyUrl: copyUrlMessage.copyUrl})
         }
         else if (this.refs.iframe && this.refs.iframe.contentWindow && !this.sharinatorPrefix.test(message.type)) {
+          console.log("PROXYING CHILD MESSAGE", e.data)
           this.refs.iframe.contentWindow.postMessage(e.data, "*")
         }
       }
@@ -158,7 +161,7 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
               }
               const documentUrl = `${this.state.codapUrl}?#file=lara:${base64url.encode(JSON.stringify(laraParams))}`
 
-              this.saveDataContexts(userDataContextsKey, (err, dataContexts) => {
+              this.saveDataContexts(userDataContextsKey, (err, dataContexts, dataContextPaths) => {
                 if (err) {
                   throw err
                 }
@@ -177,8 +180,21 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
                 }
                 this.userInteractivesRef.push().set(userInteractive)
 
-                debugger
-                resolve([])
+                let representations:Representation[] = [{
+                  type: CODAP,
+                  dataUrl: documentUrl
+                }]
+                if (dataContextPaths) {
+                  Object.keys(dataContextPaths).forEach((dataContextPath) => {
+                    representations.push({
+                      type: CODAPDataContext,
+                      dataUrl: dataContextPath,
+                      name: dataContextPaths[dataContextPath]
+                    })
+                  })
+                }
+
+                resolve(representations)
               })
             }
             else {
@@ -192,7 +208,7 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
       })
   }
 
-  saveDataContexts(userDataContextsKey: string, callback: (err:string|null, dataContextMap?: FirebaseDataContextRefMap) => void) {
+  saveDataContexts(userDataContextsKey: string, callback: (err:string|null, dataContextRefMap?: FirebaseDataContextRefMap, dataContextPathMap?: FirebaseDataContextPathMap) => void) {
     const {codapPhone} = this
     if (!codapPhone) {
       return
@@ -308,15 +324,16 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
             })
 
             const dataContextMap:FirebaseDataContextRefMap = {}
+            const dataContextPathMap:FirebaseDataContextPathMap = {}
             const userDataContextsRef = firebase.database().ref(userDataContextsKey)
 
             dataContexts.forEach((dataContext) => {
               const userDataContextRef = userDataContextsRef.push()
               userDataContextRef.set(JSON.stringify(dataContext))
-              dataContextMap[userDataContextRef.key] = dataContext.title || dataContext.name
+              dataContextPathMap[userDataContextRef.toString()] = dataContextMap[userDataContextRef.key] = dataContext.title || dataContext.name
             })
 
-            callback(error, dataContextMap)
+            callback(error, dataContextMap, dataContextPathMap)
           })
         })
       })

@@ -1,3 +1,5 @@
+import {PublishResponse} from 'cc-sharing'
+
 export interface Interactive {
   id: string
   name: string
@@ -78,7 +80,23 @@ export interface FirebaseDataContext {
   title: string
 }
 
+export interface FirebaseSavedSnapshotGroup {
+  id: number,
+  members: FirebaseGroupUserMap
+}
+
+export interface FirebaseSavedSnapshot {
+  createdAt: number
+  user: string
+  group: FirebaseSavedSnapshotGroup|null
+  snapshot: PublishResponse
+}
+
 export interface FirebaseDataContextRefMap {
+  [s: string]: string
+}
+
+export interface FirebaseDataContextPathMap {
   [s: string]: string
 }
 
@@ -131,6 +149,7 @@ export interface FirebaseRef {
   off: () => void
   set: (vals: any) => void
   onDisconnect: () => FirebaseDisconnect
+  push: () => any
 }
 
 export type InteractiveState = any // TODO

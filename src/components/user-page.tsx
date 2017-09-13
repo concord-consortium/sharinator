@@ -65,22 +65,6 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
     iframe: HTMLIFrameElement
   }
 
-  componentDidMount() {
-    // TODO: resize iframe
-  }
-
-  componentWillReceiveProps(nextProps:UserPageProps) {
-    // check if the student added a version
-    if (nextProps.user.id === this.props.user.id) {
-      const nextInteractives = nextProps.user.interactives[this.props.userInteractive.id]
-      const currentInteractives = this.props.user.interactives[this.props.userInteractive.id]
-      if (nextInteractives.length > currentInteractives.length) {
-        //debugger
-      }
-    }
-  }
-
-
   versionSelected(e:React.SyntheticEvent<HTMLSelectElement>) {
     e.preventDefault()
     const value = parseInt(e.currentTarget.value, 10)
