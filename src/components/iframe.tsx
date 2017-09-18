@@ -8,7 +8,10 @@ import {SuperagentError, SuperagentResponse, IFramePhone, Firebase,
         FirebaseSavedSnapshot, FirebaseSavedSnapshotGroup} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
 import {SharingParent, Context, PublishResponse, Representation} from "cc-sharing"
-import {CodapShimParams, CODAPPhone, CODAPParams, CODAPCommand, SetCopyUrlMessage, MergeIntoDocumentMessage, CopyToClipboardMessage} from "./codap-shim"
+import {CodapShimParams, CODAPPhone, CODAPParams, CODAPCommand,
+        SetCopyUrlMessage, SetCopyUrlMessageName,
+        MergeIntoDocumentMessage, MergeIntoDocumentMessageName,
+        CopyToClipboardMessage, CopyToClipboardMessageName} from "./codap-shim"
 
 const queryString = require("query-string")
 const superagent = require("superagent")
@@ -113,10 +116,9 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   private laraPhone:CODAPPhone
   private groupArray:number[]
   private groupUserRef:FirebaseRef
-  private parentPhone:IFramePhone
+  private innerIframePhone:IFramePhone
   private sharingParent:SharingParent
   private handlePublishCallback:HandlePublishCallback|null = null
-  private setupCFMListener = false
 
   refs: {
     iframe: HTMLIFrameElement
@@ -137,6 +139,9 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     this.sendCopyUrl = this.sendCopyUrl.bind(this)
     this.setLightboxImageUrl = this.setLightboxImageUrl.bind(this)
     this.clearLightbox = this.clearLightbox.bind(this)
+    this.waitForInnerIframe = this.waitForInnerIframe.bind(this)
+    this.copyToClipboard = this.copyToClipboard.bind(this)
+    this.mergeIntoDocument = this.mergeIntoDocument.bind(this)
 
     const demoUID = getUID("demo")
     const demoUser = getParam("demoUser")
@@ -338,7 +343,9 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     })
     this.laraPhone.addListener('getInteractiveState', () => {
       if (this.state.iframeType === "codap") {
-        this.postMessageToInnerIframe('cfm::autosave');
+        if (this.innerIframePhone) {
+          this.innerIframePhone.post('cfm::autosave')
+        }
       }
       else if (this.laraPhone) {
         this.laraPhone.post('interactiveState', 'nochange');
@@ -358,59 +365,40 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     this.setState({snapshotsRef: firebase.database().ref(`classes/${initInteractiveData.publicClassHash}/snapshots/interactive_${initInteractiveData.interactive.id}`)})
   }
 
-  postMessageToInnerIframe(type:string) {
-    if (this.refs.iframe) {
-      this.refs.iframe.contentWindow.postMessage({type: type}, '*')
-    }
-  }
-
   componentDidUpdate() {
     if (this.state.authoring) {
       this.refs.laraSharedUrl.focus()
     }
-    else if (this.refs.iframe && !this.setupCFMListener) {
-      // setup a generic postmessage CFM listener for the iframed CODAP window
-      window.onmessage = (e) => {
-        switch (e.data.type) {
-          case "cfm::autosaved":
-            if (this.laraPhone) {
-              this.laraPhone.post('interactiveState', 'nochange')
-            }
-            break
-        }
-      }
-      this.setupCFMListener = true
+  }
+
+  waitForInnerIframe(fn:Function) {
+    if (this.innerIframePhone) {
+      fn()
+    }
+    else {
+      setTimeout(() => this.waitForInnerIframe(fn), 10)
     }
   }
 
   sendCopyUrl(copyUrl:string) {
-    if (this.parentPhone) {
-      const copyUrlMessage:SetCopyUrlMessage = {type: "setCopyUrl", copyUrl: copyUrl}
-      this.refs.iframe.contentWindow.postMessage(copyUrlMessage, '*')
-    }
-    else {
-      setTimeout(() => this.sendCopyUrl(copyUrl), 10)
-    }
+    this.waitForInnerIframe(() => {
+      const copyUrlMessage:SetCopyUrlMessage = {copyUrl}
+      this.innerIframePhone.post(SetCopyUrlMessageName, copyUrlMessage)
+    })
   }
 
   mergeIntoDocument(representation:Representation) {
-    if (this.parentPhone) {
-      const mergeIntoDocumentMessage:MergeIntoDocumentMessage = {type: "mergeIntoDocument", representation}
-      this.refs.iframe.contentWindow.postMessage(mergeIntoDocumentMessage, '*')
-    }
-    else {
-      setTimeout(() => this.mergeIntoDocument(representation), 10)
-    }
+    this.waitForInnerIframe(() => {
+      const mergeIntoDocumentMessage:MergeIntoDocumentMessage = {representation}
+      this.innerIframePhone.post(MergeIntoDocumentMessageName, mergeIntoDocumentMessage)
+    })
   }
 
   copyToClipboard(representation:Representation) {
-    if (this.parentPhone) {
-      const copyToClipboardMessage:CopyToClipboardMessage = {type: "copyToClipboard", representation}
-      this.refs.iframe.contentWindow.postMessage(copyToClipboardMessage, '*')
-    }
-    else {
-      setTimeout(() => this.copyToClipboard(representation), 10)
-    }
+    this.waitForInnerIframe(() => {
+      const copyToClipboardMessage:CopyToClipboardMessage = {representation}
+      this.innerIframePhone.post(CopyToClipboardMessageName, copyToClipboardMessage)
+    })
   }
 
   getInteractiveState() {
@@ -513,9 +501,16 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         localId: "x",
         requestTime: new Date().toISOString()
       }
-      this.parentPhone = iframePhone.ParentEndpoint(this.refs.iframe)
+      this.innerIframePhone = iframePhone.ParentEndpoint(this.refs.iframe)
+      this.innerIframePhone.addListener('cfm::autosaved', () => {
+        debugger
+        if (this.laraPhone) {
+          this.laraPhone.post('interactiveState', 'nochange')
+        }
+      })
+
       this.sharingParent = new SharingParent({
-        phone: this.parentPhone,
+        phone: this.innerIframePhone,
         context: context,
         callback: this.receivePublish.bind(this)
       })
@@ -551,7 +546,9 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       const iframeApi:IFrameApi = {
         changeGroup: this.changeGroup,
         handlePublish: this.handlePublish,
-        setLightboxImageUrl: this.setLightboxImageUrl
+        setLightboxImageUrl: this.setLightboxImageUrl,
+        copyToClipboard: this.copyToClipboard,
+        mergeIntoDocument: this.mergeIntoDocument
       }
       return <div>
               <div id="iframe-container">

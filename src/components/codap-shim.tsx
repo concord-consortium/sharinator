@@ -19,18 +19,18 @@ type RejectPublish = (reason?: any) => void
 
 export type CodapShimMessage = SetCopyUrlMessage | MergeIntoDocumentMessage | CopyToClipboardMessage
 
+export const SetCopyUrlMessageName = "setCopyUrl"
 export interface SetCopyUrlMessage {
-  type: "setCopyUrl",
   copyUrl: string
 }
 
+export const MergeIntoDocumentMessageName = "mergeIntoDocument"
 export interface MergeIntoDocumentMessage {
-  type: "mergeIntoDocument",
   representation: Representation
 }
 
+export const CopyToClipboardMessageName = "copyToClipboard"
 export interface CopyToClipboardMessage {
-  type: "copyToClipboard",
   representation: Representation
 }
 
@@ -100,6 +100,16 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
     }
 
     const phone = iframePhone.getIFrameEndpoint();
+    phone.addListener('setCopyUrl', (message:SetCopyUrlMessage) => {
+      this.setState({copyUrl: message.copyUrl})
+    })
+    phone.addListener('mergeIntoDocument', (message:MergeIntoDocumentMessage) => {
+      this.mergeIntoDocument(message.representation)
+    })
+    phone.addListener('copyToClipboard', (message:CopyToClipboardMessage) => {
+      this.copyToClipboard(message.representation)
+    })
+
     phone.initialize();
     const sharingClient = new SharingClient({phone, app})
 
@@ -115,33 +125,6 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
 
   refs: {
     iframe: HTMLIFrameElement
-  }
-
-  componentWillMount() {
-    /*
-    window.addEventListener("message", (e:MessageEvent) => {
-      const message:CodapShimMessage = e.data || {}
-      const messageType:string = message.type
-      console.log("MESSAGE", message)
-      if (e.source === window.parent) {
-        switch (message.type) {
-          case "setCopyUrl":
-            this.setState({copyUrl: message.copyUrl})
-            break
-          case "mergeIntoDocument":
-            this.mergeIntoDocument(message.representation)
-            break
-          case "copyToClipboard":
-            this.copyToClipboard(message.representation)
-            break
-          default:
-            if (this.refs.iframe && this.refs.iframe.contentWindow && !this.sharinatorPrefix.test(messageType)) {
-              this.refs.iframe.contentWindow.postMessage(e.data, "*")
-            }
-        }
-      }
-    })
-    */
   }
 
   handlePublish(resolve:ResolvePublish, reject:RejectPublish) {

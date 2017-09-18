@@ -816,8 +816,8 @@ export class UserSnapshotRepresentation extends React.Component<UserSnapshotRepr
     if (this.state.expanded) {
       return (
         <div className="user-snapshot-item-representation-item-options">
-          <div className="user-snapshot-item-representation-item-option-item">Merge Into My Document</div>
-          <div className="user-snapshot-item-representation-item-option-item">Copy To Clipboard</div>
+          <div className="user-snapshot-item-representation-item-option-item" onClick={this.mergeIntoDocument}>Merge Into My Document</div>
+          <div className="user-snapshot-item-representation-item-option-item" onClick={this.copyToClipboard}>Copy To Clipboard</div>
         </div>
       )
     }
