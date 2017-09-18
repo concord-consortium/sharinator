@@ -100,6 +100,7 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
           viewOnlyMode={true}
           group={0}
           groups={{}}
+          snapshotsRef={null}
         />
       </div>
     </div>

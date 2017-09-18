@@ -1,10 +1,11 @@
 import * as React from "react";
-import {InitInteractiveData, AuthoredState, CODAPAuthoredState, CollabSpaceAuthoredState, HandlePublishFunction} from "./iframe"
+import {InitInteractiveData, AuthoredState, CODAPAuthoredState, CollabSpaceAuthoredState, HandlePublishFunction, IFrameApi} from "./iframe"
 import {ExportLibrary} from "./export-library"
 import {FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseData, FirebaseDataContext, UserName, Window} from "./types"
 import {ClassInfo, GetUserName} from "./class-info"
-import {SuperagentError, SuperagentResponse, Firebase, FirebaseGroupMap} from "./types"
+import {SuperagentError, SuperagentResponse, Firebase, FirebaseGroupMap, FirebaseRef, FirebaseSavedSnapshot, FirebaseSnapshotSnapshots} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
+import {PublishResponse, Representation, CODAP, CODAPDataContext, Jpeg, Png, Gif, Text} from "cc-sharing"
 
 const queryString = require("query-string")
 const base64url = require("base64-url")
@@ -25,9 +26,9 @@ export interface IFrameSidebarProps {
   initInteractiveData: InitInteractiveData
   viewOnlyMode: boolean
   group: number
-  changeGroup?: () => void
   groups: FirebaseGroupMap
-  handlePublish?: HandlePublishFunction
+  snapshotsRef: FirebaseRef|null
+  iframeApi: IFrameApi
 }
 
 export interface IFrameSidebarState {
@@ -39,6 +40,7 @@ export interface IFrameSidebarState {
   userInteractives: PublishedUserInteractives[]
   myEmail: string
   initTimedout: boolean
+  userSnapshots: UserSnapshot[]
 }
 
 export interface CopyResults {
@@ -68,6 +70,16 @@ export interface UserInteractivesProps {
 
 export interface UserInteractivesState {
   showAll: boolean
+}
+
+export interface UserSnapshot {
+  number: number
+  name: UserName
+  userSnapshot: FirebaseSavedSnapshot
+}
+
+export interface UserSnapshotMap {
+  [s: string]: UserSnapshot
 }
 
 export class UserInteractives extends React.Component<UserInteractivesProps, UserInteractivesState> {
@@ -737,11 +749,248 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
   }
 }
 
+export interface UserSnapshotRepresentationProps {
+  representation: Representation
+  iframeApi: IFrameApi
+}
+
+export interface UserSnapshotRepresentationState {
+  expanded: boolean
+}
+
+export class UserSnapshotRepresentation extends React.Component<UserSnapshotRepresentationProps, UserSnapshotRepresentationState> {
+  constructor(props: UserSnapshotRepresentationProps) {
+    super(props)
+    this.toggle = this.toggle.bind(this)
+    this.setLightboxImageUrl = this.setLightboxImageUrl.bind(this)
+    this.mergeIntoDocument = this.mergeIntoDocument.bind(this)
+    this.copyToClipboard = this.copyToClipboard.bind(this)
+    this.state = {
+      expanded: false
+    }
+  }
+
+  setLightboxImageUrl() {
+    if (this.props.iframeApi.setLightboxImageUrl) {
+      this.props.iframeApi.setLightboxImageUrl(this.props.representation.dataUrl)
+    }
+  }
+
+  mergeIntoDocument() {
+    if (this.props.iframeApi.mergeIntoDocument) {
+      this.props.iframeApi.mergeIntoDocument(this.props.representation)
+    }
+  }
+
+  copyToClipboard() {
+    if (this.props.iframeApi.copyToClipboard) {
+      this.props.iframeApi.copyToClipboard(this.props.representation)
+    }
+  }
+
+  renderImage(representation:Representation) {
+    return <img src={representation.dataUrl} onClick={this.setLightboxImageUrl} />
+  }
+
+  renderCODAPOptions(representation:Representation) {
+    if (this.state.expanded) {
+      return (
+        <div className="user-snapshot-item-representation-item-options">
+          <a className="user-snapshot-item-representation-item-option-item" href={representation.dataUrl} target="_blank">Open In New Tab</a>
+        </div>
+      )
+    }
+    return null
+  }
+
+  renderCODAP(representation:Representation) {
+    return (
+      <div>
+        <div className="user-snapshot-item-representation-item-name" onClick={this.toggle}>Document</div>
+        {this.renderCODAPOptions(representation)}
+      </div>
+    )
+  }
+
+  renderCODAPDataContextOptions() {
+    if (this.state.expanded) {
+      return (
+        <div className="user-snapshot-item-representation-item-options">
+          <div className="user-snapshot-item-representation-item-option-item">Merge Into My Document</div>
+          <div className="user-snapshot-item-representation-item-option-item">Copy To Clipboard</div>
+        </div>
+      )
+    }
+    return null
+  }
+
+  renderCODAPDataContext(representation:Representation) {
+    return (
+      <div>
+        <div className="user-snapshot-item-representation-item-name" onClick={this.toggle}>{representation.name}</div>
+        {this.renderCODAPDataContextOptions()}
+      </div>
+    )
+  }
+
+  toggle() {
+    this.setState({expanded: !this.state.expanded})
+  }
+
+  renderText(representation:Representation) {
+    return <div>{representation.dataUrl}</div>
+  }
+
+  renderUnknown(representation:Representation) {
+    return <div>UKNOWN: {representation.type.type}</div>
+  }
+
+  render() {
+    const {representation} = this.props
+    const {type} = representation
+
+    let renderedRepresentation:JSX.Element = null
+
+    switch (type.type) {
+      case Jpeg.type:
+      case Gif.type:
+      case Png.type:
+        renderedRepresentation = this.renderImage(representation)
+        break
+      case Text.type:
+        renderedRepresentation = this.renderText(representation)
+        break
+      case CODAP.type:
+        renderedRepresentation = this.renderCODAP(representation)
+        break
+      case CODAPDataContext.type:
+        renderedRepresentation = this.renderCODAPDataContext(representation)
+        break
+      default:
+        renderedRepresentation = this.renderUnknown(representation)
+        break
+    }
+
+    return (
+      <div className="user-snapshot-item-representation-item">
+        {renderedRepresentation}
+      </div>
+    )
+  }
+}
+
+export interface UserSnapshotItemProps {
+  root: boolean
+  snapshot: PublishResponse
+  iframeApi: IFrameApi
+}
+
+export interface UserSnapshotItemState {
+}
+
+export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, UserSnapshotItemState> {
+  constructor(props: UserSnapshotItemProps) {
+    super(props)
+    this.state = {
+    }
+  }
+
+  renderRepresentations() {
+    return (
+      <div className="user-snapshot-item-representations">
+        {this.props.snapshot.representations.map((representation, index) => <UserSnapshotRepresentation key={index} representation={representation} iframeApi={this.props.iframeApi} />)}
+      </div>
+    )
+  }
+
+  renderChildItems():JSX.Element[] {
+    const {snapshot} = this.props
+    if (snapshot.children) {
+      return snapshot.children.map((child, i) => <UserSnapshotItem key={i} snapshot={child} root={false} iframeApi={this.props.iframeApi} />)
+    }
+    return []
+  }
+
+  render() {
+    const {snapshot} = this.props
+
+    if (!this.props.root) {
+      return (
+        <div className="user-snapshot-item">
+          <div className="user-snapshot-item-application">
+            <a className="user-snapshot-item-application-name" href={snapshot.application.launchUrl} target="_blank">{snapshot.application.name}</a>
+            {this.renderRepresentations()}
+            {this.renderChildItems()}
+          </div>
+        </div>
+      )
+    }
+    return (
+      <div className="user-snapshot-item">
+        {this.renderRepresentations()}
+        {this.renderChildItems()}
+      </div>
+    )
+  }
+}
+
+export interface UserRootSnapshotItemProps {
+  userSnapshot: UserSnapshot
+  iframeApi: IFrameApi
+}
+
+export interface UserRootSnapshotItemState {
+}
+
+export class UserRootSnapshotItem extends React.Component<UserRootSnapshotItemProps, UserRootSnapshotItemState> {
+  constructor(props: UserRootSnapshotItemProps) {
+    super(props)
+    this.state = {
+    }
+  }
+
+  renderCreatedAt() {
+    const {number, userSnapshot} = this.props.userSnapshot
+    const now = (new Date()).getTime()
+    const diff = Math.max(now - userSnapshot.createdAt, 0) / 1000
+    const plural = (count:number) => count === 1 ? "" : "s"
+    let when:string = "Just now"
+    if (diff > 59) {
+      if (diff < 60*60) {
+        const minutes = Math.round(diff/60)
+        when = `${minutes} minute${plural(minutes)} ago`
+      }
+      else if (diff < 60*60*24) {
+        const hours = Math.round(diff/(60*60))
+        when = `${hours} hour${plural(hours)} ago`
+      }
+      else {
+        const days = Math.round(diff/(60*60*24))
+        when = `${days} day${plural(days)} ago`
+      }
+    }
+    return <div className="user-snapshot-created-at">#{number} - {when}</div>
+  }
+
+  render() {
+    const {name, number, userSnapshot} = this.props.userSnapshot
+    const {createdAt, snapshot} = userSnapshot
+    return (
+      <div className="user-snapshot-root-item">
+        <div className="user-snapshot-root-item-user">{name.fullname}</div>
+        <UserSnapshotItem snapshot={snapshot} root={true} iframeApi={this.props.iframeApi} />
+        {this.renderCreatedAt()}
+      </div>
+    )
+  }
+}
+
 export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSidebarState> {
   private interactiveRef:any // TODO
   private userInteractivesRef:any // TODO
   private classInfo:ClassInfo
   private classroomRef:any // TODO
+  private snapshotRef:FirebaseRef
 
   constructor(props: IFrameSidebarProps) {
     super(props)
@@ -755,7 +1004,8 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
       publishingStatus: null,
       userInteractives: [],
       myEmail: this.props.initInteractiveData.authInfo.email,
-      initTimedout: false
+      initTimedout: false,
+      userSnapshots: []
     }
 
     this.classInfo = new ClassInfo(this.props.initInteractiveData.classInfoUrl || "")
@@ -834,13 +1084,72 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
         this.setState({userInteractives: publishedUserInteractives.sort(sortPublishedUserInteractives)})
       })
     })
+    this.listenForSnapshots()
   }
 
+  componentWillUpdate() {
+    this.listenForSnapshots()
+  }
+
+  sortUserSnapshots(a: UserSnapshot, b: UserSnapshot):number {
+    if (!a.name || !b.name) { return 0 }
+    if (a.name._firstName < b.name._firstName) { return -1 }
+    if (a.name._firstName > b.name._firstName) { return 1 }
+    if (a.name._lastName < b.name._lastName) { return -1 }
+    if (a.name._lastName > b.name._lastName) { return 1 }
+    return 0;
+  }
+
+  listenForSnapshots() {
+    if (this.props.snapshotsRef && (this.snapshotRef !== this.props.snapshotsRef)) {
+      this.snapshotRef = this.props.snapshotsRef
+      this.props.snapshotsRef.on("value", (snapshot:FirebaseSnapshotSnapshots) => {
+
+        const snapshotMap = snapshot.val() || {}
+        const userSnapshotMap:UserSnapshotMap = {}
+        let usernameNotFound = false
+        Object.keys(snapshotMap).forEach((snapshot) => {
+          const savedSnapshot = snapshotMap[snapshot]
+          const user = this.classInfo.getUserName(savedSnapshot.user)
+          usernameNotFound = usernameNotFound || !user.found
+          if (!userSnapshotMap[savedSnapshot.user]) {
+            userSnapshotMap[savedSnapshot.user] = {
+              number: 1,
+              name: user.name,
+              userSnapshot: savedSnapshot
+            }
+          }
+          else {
+            userSnapshotMap[savedSnapshot.user].number++
+            if (userSnapshotMap[savedSnapshot.user].userSnapshot.createdAt < savedSnapshot.createdAt) {
+              userSnapshotMap[savedSnapshot.user].userSnapshot = savedSnapshot
+            }
+          }
+        })
+
+        const userSnapshots:UserSnapshot[] = Object.keys(userSnapshotMap).map((user) => {
+          return userSnapshotMap[user]
+        })
+        this.setState({userSnapshots: userSnapshots.sort(this.sortUserSnapshots)})
+
+        if (usernameNotFound) {
+          this.classInfo.getStudentNames((err, names) => {
+            if (!err) {
+              this.state.userSnapshots.forEach((userSnapshot) => {
+                userSnapshot.name = this.classInfo.getUserName(userSnapshot.userSnapshot.user).name
+              })
+              this.setState({userSnapshots: this.state.userSnapshots.sort(this.sortUserSnapshots)})
+            }
+          })
+        }
+      })
+    }
+  }
 
   onPublish(e:React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault()
 
-    if (!this.props.initInteractiveData || !this.props.handlePublish) {
+    if (!this.props.initInteractiveData || !this.props.iframeApi.handlePublish) {
       return
     }
 
@@ -849,7 +1158,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
       publishingStatus: "Publishing..."
     })
 
-    this.props.handlePublish((err) => {
+    this.props.iframeApi.handlePublish((err) => {
       if (err) {
         this.setState({
           publishing: false,
@@ -869,91 +1178,6 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
         setTimeout(clearPublishingStatus, 2000)
       }
     })
-
-    /*
-
-    const data = this.props.initInteractiveData
-    const classroomKey = `classes/${this.state.classHash}`
-    const safeUserKey = escapeFirebaseKey(data.authInfo.email)
-    const interactiveKey = `${classroomKey}/interactives/interactive_${data.interactive.id}`
-    const userInteractivesKey = `${classroomKey}/users/${safeUserKey}/interactives/interactive_${data.interactive.id}`
-    const userDataContextsKey = `dataContexts/${this.state.classHash}/${safeUserKey}/interactive_${data.interactive.id}`
-
-    if (this.props.authoredState.type === "collabSpace") {
-      this.setState({
-        publishing: false,
-        publishingStatus: "Published (NOT REALLY)!"
-      })
-    }
-    else if (this.props.authoredState.type === "codap") {
-      const codapAuthoredState = this.props.authoredState
-      superagent
-        .post(this.props.copyUrl)
-        .set('Accept', 'application/json')
-        .end((err:SuperagentError, res:SuperagentResponse) => {
-          this.setState({
-            publishingError: null,
-            publishing: false
-          })
-
-          if (!err) {
-            try {
-              const copyResults:CopyResults = JSON.parse(res.text)
-              if (copyResults && copyResults.id && copyResults.readAccessKey) {
-                const laraParams = {
-                  recordid: copyResults.id,
-                  accessKeys: {
-                    readOnly: copyResults.readAccessKey
-                  }
-                }
-                const documentUrl = `${codapAuthoredState.codapUrl}?#file=lara:${base64url.encode(JSON.stringify(laraParams))}`
-
-                this.saveDataContexts(userDataContextsKey, (err, dataContexts) => {
-                  if (err) {
-                    throw err
-                  }
-
-                  // save the interactive name (noop after it is first set)
-                  const firebaseInteractive:FirebaseInteractive = {name: data.interactive.name}
-                  this.interactiveRef = this.interactiveRef || firebase.database().ref(interactiveKey)
-                  this.interactiveRef.set(firebaseInteractive)
-
-                  // push the copy
-                  this.userInteractivesRef = this.userInteractivesRef || firebase.database().ref(userInteractivesKey)
-                  const userInteractive:FirebaseUserInteractive = {
-                    createdAt: firebase.database.ServerValue.TIMESTAMP,
-                    documentUrl: documentUrl,
-                    dataContexts: dataContexts || {}
-                  }
-                  this.userInteractivesRef.push().set(userInteractive)
-
-                  this.setState({
-                    publishing: false,
-                    publishingStatus: "Published!"
-                  })
-                  const clearPublishingStatus = () => {
-                    this.setState({
-                      publishingStatus: null
-                    })
-                  }
-                  setTimeout(clearPublishingStatus, 2000)
-                })
-              }
-              else {
-                err = "Invalid response from copy document call"
-              }
-            }
-            catch (e) {
-              err = e
-            }
-          }
-
-          if (err) {
-            this.setState({publishingError: err})
-          }
-        });
-    }
-    */
   }
 
   renderPublishingError() {
@@ -996,6 +1220,17 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     )
   }
 
+  renderUserSnapshots() {
+    if (!this.state.userSnapshots) {
+      return null
+    }
+    return (
+      <div className="user-snapshot-items">
+        {this.state.userSnapshots.map((userSnapshot) => <UserRootSnapshotItem key={userSnapshot.userSnapshot.user} userSnapshot={userSnapshot} iframeApi={this.props.iframeApi} /> )}
+      </div>
+    )
+  }
+
   renderGroupInfo() {
     if (!this.props.group) {
       return null;
@@ -1009,7 +1244,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     })
     return (
       <div className="groupname-header">
-        <div  className="groupname-header-name" title="Click to change group" onClick={this.props.changeGroup}>Group {this.props.group}</div>
+        <div  className="groupname-header-name" title="Click to change group" onClick={this.props.iframeApi.changeGroup}>Group {this.props.group}</div>
         <div>{names.join(", ")}</div>
       </div>
     )
@@ -1062,7 +1297,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
              { this.renderButtons() }
              { this.renderPublishingError() }
              { this.renderPublishingStatus() }
-             { this.renderUserInteractives() }
+             { this.renderUserSnapshots() }
            </div>
   }
 }

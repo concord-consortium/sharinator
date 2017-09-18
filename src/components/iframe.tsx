@@ -7,8 +7,8 @@ import {SuperagentError, SuperagentResponse, IFramePhone, Firebase,
         FirebaseGroupMap, FirebaseGroupSnapshot, FirebaseRef, FirebaseGroupUser,
         FirebaseSavedSnapshot, FirebaseSavedSnapshotGroup} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
-import {SharingParent, Context, PublishResponse} from "cc-sharing"
-import {CodapShimParams, CODAPPhone, CODAPParams, CODAPCommand, SetCopyUrlMessage} from "./codap-shim"
+import {SharingParent, Context, PublishResponse, Representation} from "cc-sharing"
+import {CodapShimParams, CODAPPhone, CODAPParams, CODAPCommand, SetCopyUrlMessage, MergeIntoDocumentMessage, CopyToClipboardMessage} from "./codap-shim"
 
 const queryString = require("query-string")
 const superagent = require("superagent")
@@ -35,6 +35,16 @@ export interface IFrameState {
   groups: FirebaseGroupMap
   allClassInfo: AllClassInfo|null
   iframeType: AuthoredStateType|null
+  snapshotsRef:FirebaseRef|null
+  lightboxImageUrl: string|null
+}
+
+export interface IFrameApi {
+  handlePublish?: HandlePublishFunction
+  setLightboxImageUrl?: (url:string|null) => void
+  changeGroup?: () => void
+  mergeIntoDocument?: (representation:Representation) => void
+  copyToClipboard?: (representation:Representation) => void
 }
 
 export type AuthoredState = CODAPAuthoredState | CollabSpaceAuthoredState
@@ -107,7 +117,6 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   private sharingParent:SharingParent
   private handlePublishCallback:HandlePublishCallback|null = null
   private setupCFMListener = false
-  private snapshotsRef:FirebaseRef|null
 
   refs: {
     iframe: HTMLIFrameElement
@@ -126,6 +135,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     this.iframeLoaded = this.iframeLoaded.bind(this)
     this.handlePublish = this.handlePublish.bind(this)
     this.sendCopyUrl = this.sendCopyUrl.bind(this)
+    this.setLightboxImageUrl = this.setLightboxImageUrl.bind(this)
+    this.clearLightbox = this.clearLightbox.bind(this)
 
     const demoUID = getUID("demo")
     const demoUser = getParam("demoUser")
@@ -149,7 +160,9 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       group: 0,
       groups: {},
       allClassInfo: null,
-      iframeType: null
+      iframeType: null,
+      snapshotsRef: null,
+      lightboxImageUrl: null
     }
   }
 
@@ -342,7 +355,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   }
 
   setupSnapshotsRef(initInteractiveData:InitInteractiveData) {
-    this.snapshotsRef = firebase.database().ref(`classes/${initInteractiveData.publicClassHash}/snapshots/interactive_${initInteractiveData.interactive.id}`)
+    this.setState({snapshotsRef: firebase.database().ref(`classes/${initInteractiveData.publicClassHash}/snapshots/interactive_${initInteractiveData.interactive.id}`)})
   }
 
   postMessageToInnerIframe(type:string) {
@@ -371,12 +384,32 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   }
 
   sendCopyUrl(copyUrl:string) {
-    if (this.refs.iframe) {
+    if (this.parentPhone) {
       const copyUrlMessage:SetCopyUrlMessage = {type: "setCopyUrl", copyUrl: copyUrl}
       this.refs.iframe.contentWindow.postMessage(copyUrlMessage, '*')
     }
     else {
-      setTimeout(this.sendCopyUrl, 10)
+      setTimeout(() => this.sendCopyUrl(copyUrl), 10)
+    }
+  }
+
+  mergeIntoDocument(representation:Representation) {
+    if (this.parentPhone) {
+      const mergeIntoDocumentMessage:MergeIntoDocumentMessage = {type: "mergeIntoDocument", representation}
+      this.refs.iframe.contentWindow.postMessage(mergeIntoDocumentMessage, '*')
+    }
+    else {
+      setTimeout(() => this.mergeIntoDocument(representation), 10)
+    }
+  }
+
+  copyToClipboard(representation:Representation) {
+    if (this.parentPhone) {
+      const copyToClipboardMessage:CopyToClipboardMessage = {type: "copyToClipboard", representation}
+      this.refs.iframe.contentWindow.postMessage(copyToClipboardMessage, '*')
+    }
+    else {
+      setTimeout(() => this.copyToClipboard(representation), 10)
     }
   }
 
@@ -449,7 +482,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   receivePublish(snapshot:PublishResponse) {
     this.cleanSnapshotForFirebase(snapshot)
 
-    if (this.snapshotsRef && this.state.initInteractiveData) {
+    if (this.state.snapshotsRef && this.state.initInteractiveData) {
       const snapshotGroup:FirebaseSavedSnapshotGroup|null = this.state.group && this.state.groups[this.state.group] ? {id: this.state.group, members: this.state.groups[this.state.group].users || {}} : null
       const pushedShapshot:FirebaseSavedSnapshot = {
         createdAt: firebase.database.ServerValue.TIMESTAMP,
@@ -457,7 +490,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         group: snapshotGroup,
         snapshot
       }
-      this.snapshotsRef.push().set(pushedShapshot)
+      this.state.snapshotsRef.push().set(pushedShapshot)
     }
 
     if (this.handlePublishCallback) {
@@ -489,19 +522,49 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     }
   }
 
+  setLightboxImageUrl(url:string|null) {
+    this.setState({lightboxImageUrl: url === this.state.lightboxImageUrl ? null : url})
+  }
+
+  clearLightbox() {
+    this.setLightboxImageUrl(null)
+  }
+
+  renderLightbox() {
+    if (!this.state.lightboxImageUrl) {
+      return null
+    }
+    return (
+      <div className="image-lightbox" onClick={this.clearLightbox}>
+        <div className="image-lightbox-background" />
+        <div className="image-lightbox-image">
+          <div>
+            <img src={this.state.lightboxImageUrl} />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   renderIFrame():JSX.Element|null {
     if (this.state.src && this.state.initInteractiveData) {
+      const iframeApi:IFrameApi = {
+        changeGroup: this.changeGroup,
+        handlePublish: this.handlePublish,
+        setLightboxImageUrl: this.setLightboxImageUrl
+      }
       return <div>
               <div id="iframe-container">
-                <iframe ref="iframe" src={this.state.src} onLoad={this.iframeLoaded}></iframe>
+                <iframe ref="iframe" src={this.state.src} onLoad={this.iframeLoaded} sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-pointer-lock"></iframe>
+                {this.renderLightbox()}
               </div>
               <IFrameSidebar
                 initInteractiveData={this.state.initInteractiveData}
                 viewOnlyMode={false}
                 group={this.state.group}
-                changeGroup={this.changeGroup}
                 groups={this.state.groups}
-                handlePublish={this.handlePublish}
+                snapshotsRef={this.state.snapshotsRef}
+                iframeApi={iframeApi}
               />
             </div>
     }

@@ -141,11 +141,17 @@ export interface FirebaseGroupSnapshot {
 export interface FirebaseSnapshot {
   val: () => FirebaseData
 }
+export interface FirebaseSavedSnapshotMap {
+  [s: string]: FirebaseSavedSnapshot
+}
+export interface FirebaseSnapshotSnapshots {
+  val: () => FirebaseSavedSnapshotMap
+}
 export interface FirebaseDisconnect {
   set: (vals:any) => any
 }
 export interface FirebaseRef {
-  on: (attr: string, callback: (snapshot:FirebaseSnapshot|FirebaseGroupSnapshot) => void) => void,
+  on: (attr: string, callback: (snapshot:FirebaseSnapshot|FirebaseGroupSnapshot|FirebaseSnapshotSnapshots) => void) => void,
   off: () => void
   set: (vals: any) => void
   onDisconnect: () => FirebaseDisconnect
