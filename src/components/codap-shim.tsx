@@ -17,6 +17,20 @@ declare var firebase: Firebase
 type ResolvePublish = (value?: Representation[] | PromiseLike<Representation[]> | undefined) => void
 type RejectPublish = (reason?: any) => void
 
+export interface DataContextLeafMap {
+  [key: string]: DataContextLeaf
+}
+export interface DataContextLeafMapMap {
+  [key: string]: DataContextLeafMap
+}
+
+export interface DataContextLeaf {
+  values: any
+  collection: string
+  children: DataContextLeafMap
+  parent: DataContextLeaf|null
+}
+
 export type CodapShimMessage = SetCopyUrlMessage | MergeIntoDocumentMessage | CopyToClipboardMessage
 
 export const SetCopyUrlMessageName = "setCopyUrl"
@@ -79,9 +93,12 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
   private userInteractivesRef:any // TODO
   private classInfo:ClassInfo
   private classroomRef:any // TODO
+  private dataContextTreeCache:DataContextLeafMapMap
 
   constructor(props: CodapShimProps) {
     super(props)
+
+    this.dataContextTreeCache = {}
 
     this.handlePublish = this.handlePublish.bind(this)
     this.iframeLoaded = this.iframeLoaded.bind(this)
@@ -345,7 +362,6 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
   }
 
   codapPhoneHandler(command:CODAPCommand, callback:Function) {
-    console.log("codapPhoneHandler", command)
     var success = false;
     if (command) {
       switch (command.message) {
@@ -365,12 +381,153 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
     this.codapPhone = new iframePhone.IframePhoneRpcEndpoint(this.codapPhoneHandler, "data-interactive", this.refs.iframe)
   }
 
+  loadDataContext(representation:Representation, callback: (err:any, tree?:DataContextLeafMap) => void) {
+    if (this.dataContextTreeCache[representation.dataUrl]) {
+      callback(null, this.dataContextTreeCache[representation.dataUrl])
+      return
+    }
+
+    const url:HTMLAnchorElement = document.createElement("A") as HTMLAnchorElement
+    url.href = representation.dataUrl
+    const pathname = decodeURIComponent(url.pathname.substr(1))
+
+    const dataContextRef = firebase.database().ref(pathname)
+    dataContextRef.once("value", (snapshot:any) => {
+      try {
+        // convert to a tree
+        debugger
+        const tree:DataContextLeafMap = {}
+        const leaves:DataContextLeafMap = {}
+        const dataContext:any = JSON.parse(snapshot.val())  // TODO
+        Object.keys(dataContext.cases).forEach((id) => {
+          const _case:any = dataContext.cases[id]  // TODO
+          const parent = _case.parent ? leaves[_case.parent] : null
+          const leaf = {
+            values: _case.values,
+            collection: dataContext.collections[_case.collection].name,
+            children: {},
+            parent: parent
+          }
+          leaves[id] = leaf
+          if (parent) {
+            parent.children[id] = leaf
+          }
+          else {
+            tree[id] = leaf
+          }
+        })
+
+        this.dataContextTreeCache[representation.dataUrl] = tree
+        callback(null, tree)
+      }
+      catch (e) {
+        callback(e)
+      }
+    })
+  }
+
   mergeIntoDocument(representation:Representation) {
     debugger
   }
 
   copyToClipboard(representation:Representation) {
-    debugger
+    this.loadDataContext(representation, (err, tree) => {
+      if (err || !tree) {
+        if (err) {
+          alert(err.toString())
+        }
+        return
+      }
+      debugger
+
+      const addItemValues = (item:any, row:any) => { // TODO
+        Object.keys(item.values).forEach((key) => {
+          row[key] = item.values[key]
+        })
+      }
+
+      const addParentValues = (item:any, row:any) => { // TODO
+        if (item.parent) {
+          addParentValues(item.parent, row)
+          addItemValues(item.parent, row)
+        }
+      }
+
+      const addToRows = (item:any, rows:any[]) => { // TODO
+        if (Object.keys(item.children).length !== 0) {
+          Object.keys(item.children).forEach((id) => {
+            addToRows(item.children[id], rows)
+          })
+        }
+        else {
+          const row:any = {} // TODO
+          addParentValues(item, row)
+          addItemValues(item, row)
+          rows.push(row)
+        }
+      }
+
+      // create tables for each top level collection
+      const tables:string[] = []
+      Object.keys(tree).forEach((id) => {
+        const rows:any[] = [] // TODO
+        addToRows(tree[id], rows)
+
+        if (rows.length > 0) {
+          const tableHeader = Object.keys(rows[0]).map((col:any) => { // TODO
+            return `<th>${col}</th>`
+          }).join("")
+          const tableRows = rows.map((row:any) => { // TODO
+            const tds = Object.keys(row).map((col:any) => { // TODO
+              return `<td>${row[col]}</td>`
+            }).join("")
+            return `<tr>${tds}</tr>`
+          }).join("")
+          tables.push(`<table width='100%'><thead><tr>${tableHeader}</tr></thead><tbody>${tableRows}</tbody></table>`)
+        }
+
+        // copy to clipboard
+        const content = tables.join("")
+        let copied = false
+        let selection, range, mark
+        try {
+          mark = document.createElement("mark")
+          mark.innerHTML = content
+          document.body.appendChild(mark)
+
+          selection = document.getSelection()
+          selection.removeAllRanges()
+
+          range = document.createRange()
+          range.selectNode(mark)
+          selection.addRange(range)
+
+          copied = document.execCommand("copy")
+        }
+        catch (e) {
+          try {
+            (window as Window).clipboardData.setData("text", content)
+            copied = true
+          }
+          catch (e) {
+            copied = false
+          }
+        }
+        finally {
+          if (selection) {
+            if (range && (typeof selection.removeRange === "function")) {
+              selection.removeRange(range)
+            }
+            else {
+              selection.removeAllRanges()
+            }
+          }
+          if (mark) {
+            document.body.removeChild(mark)
+          }
+        }
+      })
+    })
   }
 
   /*

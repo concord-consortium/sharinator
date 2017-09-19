@@ -503,7 +503,6 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       }
       this.innerIframePhone = iframePhone.ParentEndpoint(this.refs.iframe)
       this.innerIframePhone.addListener('cfm::autosaved', () => {
-        debugger
         if (this.laraPhone) {
           this.laraPhone.post('interactiveState', 'nochange')
         }
