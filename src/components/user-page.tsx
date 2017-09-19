@@ -101,6 +101,7 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
           group={0}
           groups={{}}
           snapshotsRef={null}
+          iframeApi={{}}
         />
       </div>
     </div>

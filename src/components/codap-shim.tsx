@@ -393,36 +393,38 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
 
     const dataContextRef = firebase.database().ref(pathname)
     dataContextRef.once("value", (snapshot:any) => {
+      let dataContext:any
       try {
-        // convert to a tree
-        debugger
-        const tree:DataContextLeafMap = {}
-        const leaves:DataContextLeafMap = {}
-        const dataContext:any = JSON.parse(snapshot.val())  // TODO
-        Object.keys(dataContext.cases).forEach((id) => {
-          const _case:any = dataContext.cases[id]  // TODO
-          const parent = _case.parent ? leaves[_case.parent] : null
-          const leaf = {
-            values: _case.values,
-            collection: dataContext.collections[_case.collection].name,
-            children: {},
-            parent: parent
-          }
-          leaves[id] = leaf
-          if (parent) {
-            parent.children[id] = leaf
-          }
-          else {
-            tree[id] = leaf
-          }
-        })
-
-        this.dataContextTreeCache[representation.dataUrl] = tree
-        callback(null, tree)
+        dataContext = JSON.parse(snapshot.val())  // TODO
       }
       catch (e) {
         callback(e)
+        return
       }
+
+      // convert to a tree
+      const tree:DataContextLeafMap = {}
+      const leaves:DataContextLeafMap = {}
+      Object.keys(dataContext.cases).forEach((id) => {
+        const _case:any = dataContext.cases[id]  // TODO
+        const parent = _case.parent ? leaves[_case.parent] : null
+        const leaf = {
+          values: _case.values,
+          collection: dataContext.collections[_case.collection].name,
+          children: {},
+          parent: parent
+        }
+        leaves[id] = leaf
+        if (parent) {
+          parent.children[id] = leaf
+        }
+        else {
+          tree[id] = leaf
+        }
+      })
+
+      this.dataContextTreeCache[representation.dataUrl] = tree
+      callback(null, tree)
     })
   }
 
@@ -438,7 +440,6 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
         }
         return
       }
-      debugger
 
       const addItemValues = (item:any, row:any) => { // TODO
         Object.keys(item.values).forEach((key) => {
@@ -467,11 +468,28 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
         }
       }
 
+      // split the tree into top level collections
+      const collections:DataContextLeafMap = {}
+      Object.keys(tree).forEach((id) => {
+        const leaf = tree[id]
+        if (!leaf.parent) {
+          if (!collections[leaf.collection]) {
+            collections[leaf.collection] = {
+              values: [],
+              collection: leaf.collection,
+              children: {},
+              parent: null
+            }
+          }
+          collections[leaf.collection].children[id] = leaf
+        }
+      })
+
       // create tables for each top level collection
       const tables:string[] = []
-      Object.keys(tree).forEach((id) => {
+      Object.keys(collections).forEach((id) => {
         const rows:any[] = [] // TODO
-        addToRows(tree[id], rows)
+        addToRows(collections[id], rows)
 
         if (rows.length > 0) {
           const tableHeader = Object.keys(rows[0]).map((col:any) => { // TODO
@@ -485,48 +503,48 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
           }).join("")
           tables.push(`<table width='100%'><thead><tr>${tableHeader}</tr></thead><tbody>${tableRows}</tbody></table>`)
         }
+      })
 
-        // copy to clipboard
-        const content = tables.join("")
-        let copied = false
-        let selection, range, mark
+      // copy to clipboard
+      const content = tables.join("")
+      let copied = false
+      let selection, range, mark
+      try {
+        mark = document.createElement("mark")
+        mark.innerHTML = content
+        document.body.appendChild(mark)
+
+        selection = document.getSelection()
+        selection.removeAllRanges()
+
+        range = document.createRange()
+        range.selectNode(mark)
+        selection.addRange(range)
+
+        copied = document.execCommand("copy")
+      }
+      catch (e) {
         try {
-          mark = document.createElement("mark")
-          mark.innerHTML = content
-          document.body.appendChild(mark)
-
-          selection = document.getSelection()
-          selection.removeAllRanges()
-
-          range = document.createRange()
-          range.selectNode(mark)
-          selection.addRange(range)
-
-          copied = document.execCommand("copy")
+          (window as Window).clipboardData.setData("text", content)
+          copied = true
         }
         catch (e) {
-          try {
-            (window as Window).clipboardData.setData("text", content)
-            copied = true
+          copied = false
+        }
+      }
+      finally {
+        if (selection) {
+          if (range && (typeof selection.removeRange === "function")) {
+            selection.removeRange(range)
           }
-          catch (e) {
-            copied = false
+          else {
+            selection.removeAllRanges()
           }
         }
-        finally {
-          if (selection) {
-            if (range && (typeof selection.removeRange === "function")) {
-              selection.removeRange(range)
-            }
-            else {
-              selection.removeAllRanges()
-            }
-          }
-          if (mark) {
-            document.body.removeChild(mark)
-          }
+        if (mark) {
+          document.body.removeChild(mark)
         }
-      })
+      }
     })
   }
 
@@ -758,107 +776,6 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
       })
     })
   }
-  */
-
-  /*
-
-  handleCopy() {
-    this.setState({copyState: "Copying..."})
-
-    const addItemValues = (item:any, row:any) => { // TODO
-      Object.keys(item.values).forEach((key) => {
-        row[key] = item.values[key]
-      })
-    }
-
-    const addParentValues = (item:any, row:any) => { // TODO
-      if (item.parent) {
-        addParentValues(item.parent, row)
-        addItemValues(item.parent, row)
-      }
-    }
-
-    const addToRows = (item:any, rows:any[]) => { // TODO
-      if (Object.keys(item.children).length !== 0) {
-        Object.keys(item.children).forEach((id) => {
-          addToRows(item.children[id], rows)
-        })
-      }
-      else {
-        const row:any = {} // TODO
-        addParentValues(item, row)
-        addItemValues(item, row)
-        rows.push(row)
-      }
-    }
-
-    // create tables for each top level collection
-    const tables:string[] = []
-    Object.keys(this.tree).forEach((id) => {
-      const rows:any[] = [] // TODO
-      addToRows(this.tree[id], rows)
-
-      if (rows.length > 0) {
-        const tableHeader = Object.keys(rows[0]).map((col:any) => { // TODO
-          return `<th>${col}</th>`
-        }).join("")
-        const tableRows = rows.map((row:any) => { // TODO
-          const tds = Object.keys(row).map((col:any) => { // TODO
-            return `<td>${row[col]}</td>`
-          }).join("")
-          return `<tr>${tds}</tr>`
-        }).join("")
-        tables.push(`<table width='100%'><thead><tr>${tableHeader}</tr></thead><tbody>${tableRows}</tbody></table>`)
-      }
-
-      // copy to clipboard
-      const content = tables.join("")
-      let copied = false
-      let selection, range, mark
-      try {
-        mark = document.createElement("mark")
-        mark.innerHTML = content
-        document.body.appendChild(mark)
-
-        selection = document.getSelection()
-        selection.removeAllRanges()
-
-        range = document.createRange()
-        range.selectNode(mark)
-        selection.addRange(range)
-
-        copied = document.execCommand("copy")
-      }
-      catch (e) {
-        try {
-          (window as Window).clipboardData.setData("text", content)
-          copied = true
-        }
-        catch (e) {
-          copied = false
-        }
-      }
-      finally {
-        if (selection) {
-          if (range && (typeof selection.removeRange === "function")) {
-            selection.removeRange(range)
-          }
-          else {
-            selection.removeAllRanges()
-          }
-        }
-        if (mark) {
-          document.body.removeChild(mark)
-        }
-
-        this.setState({copyState: copied ? "Copied" : "Could not copy!"})
-        setTimeout(() => {
-          this.setState({copyState: null})
-        }, 2000)
-      }
-    })
-  }
-
   */
 
   render() {
