@@ -490,16 +490,15 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
 
   iframeLoaded() {
     const {initInteractiveData} = this.state
-    if (initInteractiveData) {
+    if (initInteractiveData && initInteractiveData.publicClassHash) {
       const context:Context = {
-        // TODO
         protocolVersion: "1.0.0",
-        user: {displayName: "noah", id:"1"},
-        id: "noah",
-        group: {displayName: "noahs group", id:"1"},
-        offering: {displayName: "offering_id", id: "1"},
-        clazz:  {displayName: "clazz_id", id: "1"},
-        localId: "x",
+        user: {displayName: "REMOVE", id: initInteractiveData.authInfo.email},
+        id: initInteractiveData.authInfo.email,
+        group: {displayName: "REMOVE", id: this.state.group},
+        offering: {displayName: "REMOVE", id: initInteractiveData.interactive.id},
+        clazz:  {displayName: "REMOVE", id: initInteractiveData.publicClassHash},
+        localId: "TODO",
         requestTime: new Date().toISOString()
       }
       this.innerIframePhone = iframePhone.ParentEndpoint(this.refs.iframe)

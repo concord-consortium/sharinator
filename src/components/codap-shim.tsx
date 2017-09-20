@@ -124,6 +124,7 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
         name: "CODAP (shim)"
       },
       getDataFunc: (context) => {
+        debugger
         return new Promise(this.handlePublish)
       }
     }
