@@ -36,7 +36,7 @@ export interface IFrameState {
   demoUID: string|null
   demoUser?: string
   groups: FirebaseGroupMap
-  allClassInfo: AllClassInfo|null
+  classInfo: AllClassInfo|null
   iframeType: AuthoredStateType|null
   snapshotsRef:FirebaseRef|null
   lightboxImageUrl: string|null
@@ -86,7 +86,6 @@ export interface InitInteractiveData {
   linkedState: LinkedState|null
   interactiveStateUrl: string
   collaboratorUrls: string|null
-  publicClassHash: string|null
   classInfoUrl: string|null
   interactive: InitInteractiveInteractiveData
   authInfo: InitInteractiveAuthInfoData
@@ -130,7 +129,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     super(props)
 
     this.submitAuthoringInfo = this.submitAuthoringInfo.bind(this)
-    this.getInteractiveState = this.getInteractiveState.bind(this)
+    this.getCODAPInteractiveState = this.getCODAPInteractiveState.bind(this)
+    this.pollForCODAPInteractiveState = this.pollForCODAPInteractiveState.bind(this)
     this.setupNormalMode = this.setupNormalMode.bind(this)
     this.submitSelectGroup = this.submitSelectGroup.bind(this)
     this.changeGroup = this.changeGroup.bind(this)
@@ -164,7 +164,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       selectedGroup: false,
       group: 0,
       groups: {},
-      allClassInfo: null,
+      classInfo: null,
       iframeType: null,
       snapshotsRef: null,
       lightboxImageUrl: null
@@ -218,7 +218,6 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       email: initInteractiveData.authInfo.email,
       interactiveId: initInteractiveData.interactive.id,
       interactiveName: initInteractiveData.interactive.name,
-      classHash: initInteractiveData.publicClassHash || "",
       classInfoUrl: initInteractiveData.classInfoUrl
     }
 
@@ -226,40 +225,56 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   }
 
   generateCollabSpaceIframeSrc(initInteractiveData:InitInteractiveData, authoredState:CollabSpaceAuthoredState) {
-    if (this.state.needGroup && !this.state.selectedGroup) {
+    if ((this.state.needGroup && !this.state.selectedGroup) || !this.state.classInfo) {
       return null
     }
     const optionalGroup = this.state.group ? `_${this.state.group}` : ""
-    const session = `${initInteractiveData.publicClassHash}${optionalGroup}`
+    const session = `${this.state.classInfo.classHash}${optionalGroup}`
     return `${authoredState.collabSpaceUrl}#sessionTemplate=${authoredState.session}&session=${session}`
   }
 
   getGroupRootKey() {
     const {initInteractiveData} = this.state
-    if (!initInteractiveData) {
+    if (!initInteractiveData || !this.state.classInfo) {
       return null
     }
-    return `classes/${initInteractiveData.publicClassHash}/interactive_${initInteractiveData.interactive.id}/groups`
+    return `classes/${this.state.classInfo.classHash}/interactive_${initInteractiveData.interactive.id}/groups`
   }
 
-  watchGroups() {
+  doneSettingModeState(initInteractiveData:InitInteractiveData, authoredState: CODAPAuthoredState|CollabSpaceAuthoredState) {
     const groupRootKey = this.getGroupRootKey()
-    if (!groupRootKey || !this.state.initInteractiveData) {
-      return
+    if (groupRootKey) {
+      const groupsRef:FirebaseRef = firebase.database().ref(groupRootKey)
+      groupsRef.on("value", (snapshot:FirebaseGroupSnapshot) => {
+        this.setState({groups: snapshot.val()})
+      })
     }
-    const groupsRef:FirebaseRef = firebase.database().ref(groupRootKey)
 
-    // need class info for user names in groups
-    const classInfo = new ClassInfo(this.state.initInteractiveData.classInfoUrl || "")
-    classInfo.getClassInfo((err, allClassInfo) => {
-      if (!err) {
-        this.setState({allClassInfo: allClassInfo})
+    if (!initInteractiveData.classInfoUrl) {
+      // in lara preview mode there is no class info url so just show the iframe
+      this.setState({
+        src: this.generateIframeSrc()
+      })
+    }
+    else {
+      const classInfo = new ClassInfo(initInteractiveData.classInfoUrl)
+      classInfo.getClassInfo((err, info) => {
+        if (err) {
+          alert(err)
+        }
+        else {
+          this.setState({
+            classInfo: info,
+            snapshotsRef: firebase.database().ref(`classes/${info.classHash}/snapshots/interactive_${initInteractiveData.interactive.id}`),
+            src: this.generateIframeSrc()
+          })
+          this.setState({classInfo: info})
+        }
+      })
+      if (authoredState.type === "codap") {
+        this.pollForCODAPInteractiveState(authoredState)
       }
-    })
-
-    groupsRef.on("value", (snapshot:FirebaseGroupSnapshot) => {
-      this.setState({groups: snapshot.val()})
-    })
+    }
   }
 
   setupDemoMode() {
@@ -280,12 +295,10 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         linkedState: null,
         interactiveStateUrl: demoAPIUrl("demoInteractiveRunState"),
         collaboratorUrls: null,
-        publicClassHash: this.state.demoUID,
         classInfoUrl: demoAPIUrl("demoClassInfo"),
         interactive: {id: 1, name: "demo"},
         authInfo: {provider: "demo", loggedIn: true, email: email}
       }
-      this.setupSnapshotsRef(initInteractiveData)
       this.setState({
         irsUrl: demoAPIUrl("demoInteractiveRunState"),
         initInteractiveData: initInteractiveData,
@@ -293,12 +306,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         needGroup: demo.authoredState.grouped,
         iframeType: demo.authoredState.type
       }, () => {
-        this.watchGroups() // depends on publicClassHash being set
-        this.setState({
-          src: this.generateIframeSrc() // depends on initInteractiveData to be set
-        })
+        this.doneSettingModeState(initInteractiveData, demo.authoredState)
       })
-      setTimeout(this.getInteractiveState, 10);
     })
   }
 
@@ -323,8 +332,6 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         return
       }
 
-      this.setupSnapshotsRef(initInteractiveData)
-
       this.setState({
         irsUrl: initInteractiveData.interactiveStateUrl,
         initInteractiveData: initInteractiveData,
@@ -332,15 +339,11 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         needGroup: authoredState ? authoredState.grouped : false,
         iframeType: authoredState ? authoredState.type : null
       }, () => {
-        this.watchGroups() // depends on publicClassHash being set
-        this.setState({
-          src: this.generateIframeSrc() // depends on initInteractiveData to be set
-        })
+        if (authoredState) {
+          this.doneSettingModeState(initInteractiveData, authoredState)
+        }
       })
 
-      if (initInteractiveData.interactiveStateUrl)  {
-        setTimeout(this.getInteractiveState, 1000)
-      }
     })
     this.laraPhone.addListener('getInteractiveState', () => {
       if (this.state.iframeType === "codap") {
@@ -360,10 +363,6 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         interactiveState: true
       }
     })
-  }
-
-  setupSnapshotsRef(initInteractiveData:InitInteractiveData) {
-    this.setState({snapshotsRef: firebase.database().ref(`classes/${initInteractiveData.publicClassHash}/snapshots/interactive_${initInteractiveData.interactive.id}`)})
   }
 
   componentDidUpdate() {
@@ -402,30 +401,34 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     })
   }
 
-  getInteractiveState() {
+  pollForCODAPInteractiveState(authoredState:CODAPAuthoredState) {
+    const poll = () => this.getCODAPInteractiveState(authoredState)
+    setTimeout(poll, 1000)
+  }
+
+  getCODAPInteractiveState(authoredState:CODAPAuthoredState) {
     const iframe = this
     superagent
       .get(this.state.irsUrl)
       .withCredentials()
       .set('Accept', 'application/json')
       .end((err:SuperagentError, res:SuperagentResponse) => {
+        let copyUrl = null
         if (!err) {
           try {
-            let copyUrl = null
             const json = JSON.parse(res.text)
             if (json && json.raw_data) {
               const rawData = JSON.parse(json.raw_data)
-              if (rawData && rawData.docStore && rawData.docStore.accessKeys && rawData.docStore.accessKeys.readOnly && this.state.authoredState) {
-                if (this.state.authoredState.type === "codap") {
-                  copyUrl = `${this.state.authoredState.docStoreUrl}/v2/documents?source=${rawData.docStore.recordid}&accessKey=RO::${rawData.docStore.accessKeys.readOnly}`
-                  this.sendCopyUrl(copyUrl)
-                }
+              if (rawData && rawData.docStore && rawData.docStore.accessKeys && rawData.docStore.accessKeys.readOnly) {
+                copyUrl = `${authoredState.docStoreUrl}/v2/documents?source=${rawData.docStore.recordid}&accessKey=RO::${rawData.docStore.accessKeys.readOnly}`
+                this.sendCopyUrl(copyUrl)
               }
             }
-            return
           }
           catch (e) {}
-          setTimeout(this.getInteractiveState, 1000)
+        }
+        if (!copyUrl) {
+          this.pollForCODAPInteractiveState(authoredState)
         }
       });
   }
@@ -489,15 +492,15 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   }
 
   iframeLoaded() {
-    const {initInteractiveData} = this.state
-    if (initInteractiveData && initInteractiveData.publicClassHash) {
+    const {initInteractiveData, classInfo} = this.state
+    if (initInteractiveData && classInfo) {
       const context:Context = {
         protocolVersion: "1.0.0",
         user: {displayName: "REMOVE", id: initInteractiveData.authInfo.email},
         id: initInteractiveData.authInfo.email,
         group: {displayName: "REMOVE", id: this.state.group},
         offering: {displayName: "REMOVE", id: initInteractiveData.interactive.id},
-        clazz:  {displayName: "REMOVE", id: initInteractiveData.publicClassHash},
+        clazz:  {displayName: "REMOVE", id: classInfo.classHash},
         localId: "TODO",
         requestTime: new Date().toISOString()
       }
@@ -613,13 +616,13 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   renderSelectGroup():JSX.Element {
     const options = this.groupArray.map((group) => {
       let suffix = ""
-      const {allClassInfo} = this.state
-      if (allClassInfo) {
+      const {classInfo} = this.state
+      if (classInfo) {
         const users = this.state.groups[group] ? this.state.groups[group].users : {}
         const names:string[] = []
         Object.keys(users).map((email) => {
           const user = users[email]
-          const {fullname} = allClassInfo.userNames[email]
+          const {fullname} = classInfo.userNames[email]
           names.push(`${fullname}${!user.active ? " (inactive)" : ""}`)
         })
         if (names.length > 0) {

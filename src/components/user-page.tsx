@@ -42,7 +42,6 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
       linkedState: null,
       interactiveStateUrl: "",
       collaboratorUrls: null,
-      publicClassHash: null,
       classInfoUrl: query.class,
       interactive: {
         id: parseInt(this.props.userInteractive.id.split("_")[1], 10),

@@ -78,7 +78,6 @@ export interface CodapShimParams {
   email: string
   interactiveId: number
   interactiveName: string
-  classHash: string
   classInfoUrl: string|null
 }
 
@@ -116,15 +115,12 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
 
     const query:CodapShimParams = queryString.parse(location.search)
 
-    this.classInfo = new ClassInfo(query.classInfoUrl || "")
-
     const app:SharableApp = {
       application: {
         launchUrl: window.location.toString(),
         name: "CODAP (shim)"
       },
       getDataFunc: (context) => {
-        debugger
         return new Promise(this.handlePublish)
       }
     }
@@ -148,9 +144,16 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
       email: query.email,
       interactiveId: query.interactiveId,
       interactiveName: query.interactiveName,
-      classHash: query.classHash,
+      classHash: null,
       copyUrl: null
     }
+
+    this.classInfo = new ClassInfo(query.classInfoUrl || "")
+    this.classInfo.getClassInfo((err, info) => {
+      if (!err) {
+        this.setState({classHash: info.classHash})
+      }
+    })
   }
 
   refs: {
@@ -159,7 +162,8 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
 
   handlePublish(resolve:ResolvePublish, reject:RejectPublish) {
     const {interactiveId, email, interactiveName} = this.state
-    if (!interactiveId || (email === null) || (interactiveName === null) || !this.state.copyUrl) {
+    debugger
+    if (!interactiveId || (email === null) || (interactiveName === null) || !this.state.copyUrl || !this.state.classHash) {
       reject("Not ready to publish")
       return
     }
