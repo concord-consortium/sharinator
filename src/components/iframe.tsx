@@ -218,7 +218,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       email: initInteractiveData.authInfo.email,
       interactiveId: initInteractiveData.interactive.id,
       interactiveName: initInteractiveData.interactive.name,
-      classHash: initInteractiveData.publicClassHash || ""
+      classHash: initInteractiveData.publicClassHash || "",
+      classInfoUrl: initInteractiveData.classInfoUrl
     }
 
     return `../codap-shim/?${queryString.stringify(shimParams)}`
@@ -551,7 +552,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       }
       return <div>
               <div id="iframe-container">
-                <iframe ref="iframe" src={this.state.src} onLoad={this.iframeLoaded} sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-pointer-lock"></iframe>
+                <iframe ref="iframe" src={this.state.src} onLoad={this.iframeLoaded}></iframe>
                 {this.renderLightbox()}
               </div>
               <IFrameSidebar
