@@ -117,6 +117,7 @@ export interface FirebaseUserInteractiveInstanceMap {
 export interface FirebaseData {
   interactives: FirebaseInteractiveMap
   users: FirebaseUserMap
+  snapshots: FirebaseSavedSnapshotMapMap
 }
 
 export interface MyClassListResponse {
@@ -144,6 +145,9 @@ export interface FirebaseSnapshot {
 export interface FirebaseSavedSnapshotMap {
   [s: string]: FirebaseSavedSnapshot
 }
+export interface FirebaseSavedSnapshotMapMap {
+  [s: string]: FirebaseSavedSnapshotMap
+}
 export interface FirebaseSnapshotSnapshots {
   val: () => FirebaseSavedSnapshotMap
 }
@@ -156,6 +160,15 @@ export interface FirebaseRef {
   set: (vals: any) => void
   onDisconnect: () => FirebaseDisconnect
   push: () => any
+}
+
+export interface SnapshotUserInteractive {
+  snapshot: FirebaseSavedSnapshot
+  userInteractive: UserInteractive
+  user: User
+}
+export interface SnapshotUserInteractiveMap {
+  [s: string]: SnapshotUserInteractive
 }
 
 export type InteractiveState = any // TODO

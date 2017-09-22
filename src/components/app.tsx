@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Interactive, InteractiveMap, User, UserMap, UserInteractive, FirebaseInteractive, FirebaseUser, FirebaseData, FirebaseUserInteractive, Activity} from "./types"
+import { Interactive, InteractiveMap, User, UserMap, UserInteractive, FirebaseInteractive, FirebaseUser, FirebaseData, FirebaseUserInteractive, Activity, SnapshotUserInteractiveMap} from "./types"
 import { UserPage } from "./user-page"
 import { ClassroomPage } from "./classroom-page"
 import { DashboardPage } from "./dashboard-page"
@@ -152,6 +152,7 @@ export class App extends React.Component<AppProps, AppState> {
         const interactiveMap:InteractiveMap = {}
         const userMap:UserMap = {}
         let userNamesNotFound:boolean = false
+        const snapshotMap:SnapshotUserInteractiveMap = {}
 
         if (firebaseData) {
           if (firebaseData.interactives) {
@@ -180,21 +181,25 @@ export class App extends React.Component<AppProps, AppState> {
                 userNamesNotFound = true
               }
 
-              if (firebaseUser.interactives) {
-                Object.keys(firebaseUser.interactives).forEach((firebaseInteractiveId) => {
+              if (firebaseData.snapshots) {
+                Object.keys(firebaseData.snapshots).forEach((firebaseInteractiveId) => {
                   const interactive = interactiveMap[firebaseInteractiveId]
                   if (interactive) {
                     const userInteractives = user.interactives[firebaseInteractiveId] = user.interactives[firebaseInteractiveId] || []
-                    const firebaseUserInteractives = firebaseUser.interactives[firebaseInteractiveId]
-                    Object.keys(firebaseUserInteractives).forEach((firebaseUserInteractiveId) => {
-                      const firebaseUserInteractive = firebaseUserInteractives[firebaseUserInteractiveId]
+                    const snapshots = firebaseData.snapshots[firebaseInteractiveId]
+                    Object.keys(snapshots).forEach((firebaseSnapshotId) => {
+                      const snapshot = snapshots[firebaseSnapshotId]
                       const userInteractive:UserInteractive = {
                         id: firebaseInteractiveId,
                         name: interactive.name,
-                        url: firebaseUserInteractive.documentUrl,
-                        createdAt: firebaseUserInteractive.createdAt
+                        url: snapshot.snapshot.application.launchUrl,
+                        createdAt: snapshot.createdAt
                       }
                       userInteractives.push(userInteractive)
+
+                      snapshot.snapshot.representations.forEach((representation) => {
+                        snapshotMap[representation.dataUrl] = {snapshot, userInteractive, user}
+                      })
 
                       activity.push({
                         user: user,
@@ -205,6 +210,7 @@ export class App extends React.Component<AppProps, AppState> {
                   }
                 })
               }
+
               users.push(user)
               userMap[firebaseUserId] = user
             })
@@ -232,6 +238,17 @@ export class App extends React.Component<AppProps, AppState> {
               this.setState({userInteractive: state.userInteractive || null, user: state.user || null})
             })
 
+            if (query.representation) {
+              const item = snapshotMap[query.representation]
+              if (item) {
+                userInteractive = item.userInteractive
+                user = item.user
+              }
+              else {
+                error = "Sorry, the requested info was not found"
+              }
+            }
+            /*
             if (query.interactive && query.user) {
               user = userMap[query.user]
               const interactiveKey = `interactive_${query.interactive}`
@@ -251,6 +268,7 @@ export class App extends React.Component<AppProps, AppState> {
                 error = "Sorry, the requested user interactive was not found!"
               }
             }
+            */
             firstLoad = false
           }
         }

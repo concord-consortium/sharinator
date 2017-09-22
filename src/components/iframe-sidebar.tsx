@@ -41,6 +41,7 @@ export interface IFrameSidebarState {
   myEmail: string
   initTimedout: boolean
   userSnapshots: UserSnapshot[]
+  classInfoUrl: string
 }
 
 export interface CopyResults {
@@ -649,6 +650,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
 export interface UserSnapshotRepresentationProps {
   representation: Representation
   iframeApi: IFrameApi
+  classInfoUrl: string
 }
 
 export interface UserSnapshotRepresentationState {
@@ -691,9 +693,12 @@ export class UserSnapshotRepresentation extends React.Component<UserSnapshotRepr
 
   renderCODAPOptions(representation:Representation) {
     if (this.state.expanded) {
+      const classUrl = this.props.classInfoUrl
+      const href = `../dashboard/?class=${encodeURIComponent(classUrl)}&representation=${encodeURIComponent(representation.dataUrl)}`
+
       return (
         <div className="user-snapshot-item-representation-item-options">
-          <a className="user-snapshot-item-representation-item-option-item" href={representation.dataUrl} target="_blank">Open In New Tab</a>
+          <a className="user-snapshot-item-representation-item-option-item" href={href} target="_blank">Open In Dashboard</a>
         </div>
       )
     }
@@ -780,6 +785,7 @@ export interface UserSnapshotItemProps {
   root: boolean
   snapshot: PublishResponse
   iframeApi: IFrameApi
+  classInfoUrl: string
 }
 
 export interface UserSnapshotItemState {
@@ -795,7 +801,7 @@ export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, Use
   renderRepresentations() {
     return (
       <div className="user-snapshot-item-representations">
-        {this.props.snapshot.representations.map((representation, index) => <UserSnapshotRepresentation key={index} representation={representation} iframeApi={this.props.iframeApi} />)}
+        {this.props.snapshot.representations.map((representation, index) => <UserSnapshotRepresentation key={index} classInfoUrl={this.props.classInfoUrl} representation={representation} iframeApi={this.props.iframeApi} />)}
       </div>
     )
   }
@@ -803,7 +809,7 @@ export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, Use
   renderChildItems():JSX.Element[] {
     const {snapshot} = this.props
     if (snapshot.children) {
-      return snapshot.children.map((child, i) => <UserSnapshotItem key={i} snapshot={child} root={false} iframeApi={this.props.iframeApi} />)
+      return snapshot.children.map((child, i) => <UserSnapshotItem key={i} snapshot={child} root={false} iframeApi={this.props.iframeApi} classInfoUrl={this.props.classInfoUrl} />)
     }
     return []
   }
@@ -834,6 +840,7 @@ export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, Use
 export interface UserRootSnapshotItemProps {
   userSnapshot: UserSnapshot
   iframeApi: IFrameApi
+  classInfoUrl: string
 }
 
 export interface UserRootSnapshotItemState {
@@ -875,7 +882,7 @@ export class UserRootSnapshotItem extends React.Component<UserRootSnapshotItemPr
     return (
       <div className="user-snapshot-root-item">
         <div className="user-snapshot-root-item-user">{name.fullname}</div>
-        <UserSnapshotItem snapshot={snapshot} root={true} iframeApi={this.props.iframeApi} />
+        <UserSnapshotItem snapshot={snapshot} root={true} iframeApi={this.props.iframeApi} classInfoUrl={this.props.classInfoUrl} />
         {this.renderCreatedAt()}
       </div>
     )
@@ -902,7 +909,8 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
       userInteractives: [],
       myEmail: this.props.initInteractiveData.authInfo.email,
       initTimedout: false,
-      userSnapshots: []
+      userSnapshots: [],
+      classInfoUrl: this.props.initInteractiveData.classInfoUrl || ""
     }
 
     this.classInfo = new ClassInfo(this.props.initInteractiveData.classInfoUrl || "")
@@ -1123,7 +1131,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     }
     return (
       <div className="user-snapshot-items">
-        {this.state.userSnapshots.map((userSnapshot) => <UserRootSnapshotItem key={userSnapshot.userSnapshot.user} userSnapshot={userSnapshot} iframeApi={this.props.iframeApi} /> )}
+        {this.state.userSnapshots.map((userSnapshot) => <UserRootSnapshotItem key={userSnapshot.userSnapshot.user} userSnapshot={userSnapshot} iframeApi={this.props.iframeApi} classInfoUrl={this.state.classInfoUrl}/> )}
       </div>
     )
   }

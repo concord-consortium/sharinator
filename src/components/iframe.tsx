@@ -20,6 +20,8 @@ const base64url = require("base64-url")
 declare var iframePhone: IFramePhone
 declare var firebase: Firebase
 
+export type AppType = "CODAP" | "CollabSpace"
+
 export interface IFrameProps {
 }
 
@@ -40,6 +42,7 @@ export interface IFrameState {
   iframeType: AuthoredStateType|null
   snapshotsRef:FirebaseRef|null
   lightboxImageUrl: string|null
+  appType: AppType
 }
 
 export interface IFrameApi {
@@ -66,7 +69,8 @@ export interface CODAPAuthoredState {
 export interface CollabSpaceAuthoredState {
   type: "collabSpace"
   grouped: boolean
-  collabSpaceUrl: string
+  fullUrl: string
+  baseUrl: string
   session: string
 }
 
@@ -121,8 +125,10 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
 
   refs: {
     iframe: HTMLIFrameElement
-    laraSharedUrl: HTMLInputElement
+    urlType: HTMLSelectElement
+    appURL: HTMLInputElement
     group: HTMLSelectElement
+    grouped: HTMLInputElement
   }
 
   constructor(props: IFrameProps) {
@@ -167,7 +173,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       classInfo: null,
       iframeType: null,
       snapshotsRef: null,
-      lightboxImageUrl: null
+      lightboxImageUrl: null,
+      appType: "CODAP"
     }
   }
 
@@ -230,7 +237,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     }
     const optionalGroup = this.state.group ? `_${this.state.group}` : ""
     const session = `${this.state.classInfo.classHash}${optionalGroup}`
-    return `${authoredState.collabSpaceUrl}#sessionTemplate=${authoredState.session}&session=${session}`
+    return `${authoredState.baseUrl}#sessionTemplate=${authoredState.session}&session=${session}`
   }
 
   getGroupRootKey() {
@@ -266,7 +273,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
           this.setState({
             classInfo: info,
             snapshotsRef: firebase.database().ref(`classes/${info.classHash}/snapshots/interactive_${initInteractiveData.interactive.id}`),
-            src: this.generateIframeSrc()
+          }, () => {
+            this.setState({src: this.generateIframeSrc()})
           })
           this.setState({classInfo: info})
         }
@@ -367,7 +375,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
 
   componentDidUpdate() {
     if (this.state.authoring) {
-      this.refs.laraSharedUrl.focus()
+      this.refs.urlType.focus()
     }
   }
 
@@ -436,7 +444,17 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   submitAuthoringInfo(e:React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     try {
-      const authoredState = parseCODAPUrlIntoAuthoredState(this.refs.laraSharedUrl.value, false) // TODO: add grouped form element
+      const appType = this.refs.urlType.value
+      const appUrl = this.refs.appURL.value
+      const grouped = this.refs.grouped.checked
+      let authoredState: CODAPAuthoredState | CollabSpaceAuthoredState
+
+      if (this.refs.urlType.value === "CODAP") {
+        authoredState = parseCODAPUrlIntoAuthoredState(appUrl, grouped)
+      }
+      else {
+        authoredState = parseCollaborationSpaceUrlIntoAuthoredState(appUrl, grouped)
+      }
       this.setState({authoringError: null})
       this.laraPhone.post('authoredState', authoredState)
     }
@@ -449,12 +467,23 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     const inputStyle = {width: "100%"}
     const errorStyle = {color: "#f00", marginTop: 10, marginBottom: 10}
     const {authoredState} = this.state
-    const url = (authoredState ? (authoredState.type === "codap" ? authoredState.laraSharedUrl : authoredState.collabSpaceUrl) : "") || ""
-    return <form onSubmit={this.submitAuthoringInfo}>
+    const appType:AppType = authoredState ? (authoredState.type === "codap" ? "CODAP" : "CollabSpace") : "CODAP"
+    const url = (authoredState ? (authoredState.type === "codap" ? authoredState.laraSharedUrl : authoredState.fullUrl) : "") || ""
+    const grouped = authoredState ? authoredState.grouped : false
+    return <form className="lara-authoring" onSubmit={this.submitAuthoringInfo}>
              {this.state.authoringError ? <div style={errorStyle}>{this.state.authoringError}</div> : null}
-             <label htmlFor="laraSharedUrl">Shared URL from LARA tab in CODAP</label>
-             <input type="text" id="laraSharedUrl" ref="laraSharedUrl" style={inputStyle} defaultValue={url} />
-             <input type="submit" value="Save" />
+             <label htmlFor="urlType">App URL Type</label>
+             <select ref="urlType" defaultValue={appType}>
+               <option value="CODAP">CODAP Lara Sharing URL</option>
+               <option value="CollabSpace">Collaboration Space URL</option>
+             </select>
+             <label htmlFor="appURL">App URL</label>
+             <input type="text" ref="appURL" placeholder="URL here..." defaultValue={url} />
+             <label>Options</label>
+             <input type="checkbox" ref="grouped" value="1" defaultChecked={grouped} /> Grouped Activity
+             <div>
+              <input type="submit" value="Save" />
+             </div>
            </form>
   }
 
@@ -690,10 +719,16 @@ export function parseCODAPUrlIntoAuthoredState(url:string, grouped:boolean) {
 export function parseCollaborationSpaceUrlIntoAuthoredState(url:string, grouped:boolean):AuthoredState {
   const [baseUrl, hash, ...rest] = url.split("#")
   const params = queryString.parse(hash || "")
+
+  if (!params.session) {
+    throw new Error("No session hash parameter was found in the collaboration space url")
+  }
+
   return {
     type: "collabSpace",
     grouped: grouped,
-    collabSpaceUrl: baseUrl,
+    fullUrl: url,
+    baseUrl: baseUrl,
     session: params.session
   }
 }

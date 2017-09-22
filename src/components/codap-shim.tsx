@@ -162,7 +162,6 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
 
   handlePublish(resolve:ResolvePublish, reject:RejectPublish) {
     const {interactiveId, email, interactiveName} = this.state
-    debugger
     if (!interactiveId || (email === null) || (interactiveName === null) || !this.state.copyUrl || !this.state.classHash) {
       reject("Not ready to publish")
       return

@@ -60,3 +60,7 @@ iframe {
   width: 90%;
   margin-left: 10%;
 }
+
+form.lara-authoring input[type=text] {
+  width: 100%;
+}
