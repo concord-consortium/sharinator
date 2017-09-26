@@ -758,7 +758,7 @@ export class UserSnapshotRepresentation extends React.Component<UserSnapshotRepr
     const {representation} = this.props
     const {type} = representation
 
-    let renderedRepresentation:JSX.Element = null
+    let renderedRepresentation:JSX.Element|null = null
 
     switch (type.type) {
       case Jpeg.type:
