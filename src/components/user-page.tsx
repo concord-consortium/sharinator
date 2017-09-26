@@ -15,6 +15,7 @@ export interface UserPageProps {
   userInteractive: UserInteractive
   user: User
   classInfo: ClassInfo
+  authDomain: string
 }
 
 export interface UserPageState {
@@ -101,6 +102,7 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
           groups={{}}
           snapshotsRef={null}
           iframeApi={{}}
+          authDomain={this.props.authDomain}
         />
       </div>
     </div>

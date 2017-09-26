@@ -4,6 +4,7 @@ import { UserPage } from "./user-page"
 import { ClassroomPage } from "./classroom-page"
 import { DashboardPage } from "./dashboard-page"
 import { ClassInfo } from "./class-info"
+import getAuthDomain from "./get-auth-domain"
 import {SuperagentError, SuperagentResponse, Firebase, FirebaseSnapshot, FirebaseRef, ClassListItem, MyClassListResponse} from "./types"
 
 const superagent = require("superagent")
@@ -28,6 +29,7 @@ export interface AppState {
   activity: Array<Activity>
   firebaseData: FirebaseData|null
   classes: ClassListItem[]
+  authDomain: string
 }
 
 export class App extends React.Component<AppProps, AppState> {
@@ -51,7 +53,8 @@ export class App extends React.Component<AppProps, AppState> {
       users: [],
       activity: [],
       firebaseData: null,
-      classes: []
+      classes: [],
+      authDomain: "none"
     }
   }
 
@@ -64,7 +67,8 @@ export class App extends React.Component<AppProps, AppState> {
 
     this.setState({
       loading: true,
-      class: query.class
+      class: query.class,
+      authDomain: getAuthDomain(query.offering || query.class)
     })
 
     if (query.offering) {
@@ -139,7 +143,7 @@ export class App extends React.Component<AppProps, AppState> {
       this.setState({className: info.name})
 
       // connect to firebase
-      this.classroomRef = firebase.database().ref(`classes/${info.classHash}`)
+      this.classroomRef = firebase.database().ref(`${this.state.authDomain}/classes/${info.classHash}`)
       this.classroomRef.on("value", (snapshot:FirebaseSnapshot) => {
         const interactives:Array<Interactive> = []
         const users:Array<User> = []
@@ -356,6 +360,7 @@ export class App extends React.Component<AppProps, AppState> {
                  setUserInteractive={this.setUserInteractive}
                  getInteractiveHref={this.getInteractiveHref}
                  classInfo={this.classInfo}
+                 authDomain={this.state.authDomain}
                  />
       }
       /*
@@ -378,6 +383,7 @@ export class App extends React.Component<AppProps, AppState> {
                getInteractiveHref={this.getInteractiveHref}
                classInfo={this.classInfo}
                classes={this.state.classes}
+               authDomain={this.state.authDomain}
                />
     }
     return null

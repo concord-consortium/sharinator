@@ -14,6 +14,7 @@ export interface DashboardPageProps {
   activity: Array<Activity>
   classInfo: ClassInfo
   classes: ClassListItem[]
+  authDomain: string
 }
 
 export type Tab = "users" | "interactives" | "activity"
@@ -154,7 +155,7 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
           extendedClassInfo.name = info.name
 
           if (!extendedClassInfo.classroomRef) {
-            extendedClassInfo.classroomRef = firebase.database().ref(`classes/${info.classHash}`)
+            extendedClassInfo.classroomRef = firebase.database().ref(`${this.props.authDomain}/classes/${info.classHash}`)
             if (extendedClassInfo.classroomRef) {
               extendedClassInfo.classroomRef.on("value", (snapshot:FirebaseSnapshot) => {
                 const activity:Array<Activity> = []

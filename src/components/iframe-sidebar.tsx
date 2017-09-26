@@ -29,6 +29,7 @@ export interface IFrameSidebarProps {
   groups: FirebaseGroupMap
   snapshotsRef: FirebaseRef|null
   iframeApi: IFrameApi
+  authDomain: string
 }
 
 export interface IFrameSidebarState {
@@ -67,6 +68,7 @@ export interface UserInteractivesProps {
   initInteractiveData: InitInteractiveData
   myEmail: string
   classInfo: ClassInfo
+  authDomain: string
 }
 
 export interface UserInteractivesState {
@@ -118,6 +120,7 @@ export class UserInteractives extends React.Component<UserInteractivesProps, Use
           first={false}
           myEmail={this.props.myEmail}
           classInfo={this.props.classInfo}
+          authDomain={this.props.authDomain}
          />
       )
     })
@@ -142,6 +145,7 @@ export class UserInteractives extends React.Component<UserInteractivesProps, Use
           initInteractiveData={this.props.initInteractiveData}
           myEmail={this.props.myEmail}
           classInfo={this.props.classInfo}
+          authDomain={this.props.authDomain}
         />
         {this.renderAll()}
       </div>
@@ -159,6 +163,7 @@ export interface UserInteractiveProps {
   initInteractiveData: InitInteractiveData
   myEmail: string
   classInfo: ClassInfo
+  authDomain: string
 }
 
 export interface UserInteractiveState {
@@ -246,6 +251,7 @@ export class UserInteractive extends React.Component<UserInteractiveProps, UserI
               email={this.props.email}
               myEmail={this.props.myEmail}
               classInfo={this.props.classInfo}
+              authDomain={this.props.authDomain}
             />
           )
         })}
@@ -320,6 +326,7 @@ export interface UserInteractiveDataContextProps {
   email: string
   myEmail: string
   classInfo: ClassInfo
+  authDomain: string
 }
 
 export type MergeState = "Merging..." | "Merged" | "Already merged!" | "Could not merge!" | null
@@ -348,7 +355,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
   loadDataContext() {
     if (!this.loading && (this.state.dataContext === null)) {
       this.loading = true
-      const dataContextRef = firebase.database().ref(`dataContexts/${this.props.classHash}/${this.props.email}/interactive_${this.props.interactiveId}/${this.props.dataContextId}`)
+      const dataContextRef = firebase.database().ref(`${this.props.authDomain}/dataContexts/${this.props.classHash}/${this.props.email}/interactive_${this.props.interactiveId}/${this.props.dataContextId}`)
       dataContextRef.once("value", (snapshot:any) => {  // TODO
         try {
           // convert to a tree
@@ -931,7 +938,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
         classHash: info.classHash
       })
 
-      const refName = `classes/${info.classHash}`
+      const refName = `${this.props.authDomain}/classes/${info.classHash}`
       this.classroomRef = firebase.database().ref(refName)
       this.classroomRef.on("value", (snapshot:any) => { // TODO
         const firebaseData:FirebaseData = snapshot.val()
@@ -1117,6 +1124,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
               initInteractiveData={this.props.initInteractiveData}
               myEmail={this.state.myEmail}
               classInfo={this.classInfo}
+              authDomain={this.props.authDomain}
             />
           )
         })

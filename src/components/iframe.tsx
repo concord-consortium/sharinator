@@ -7,6 +7,7 @@ import {SuperagentError, SuperagentResponse, IFramePhone, Firebase,
         FirebaseGroupMap, FirebaseGroupSnapshot, FirebaseRef, FirebaseGroupUser,
         FirebaseSavedSnapshot, FirebaseSavedSnapshotGroup} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
+import getAuthDomain from "./get-auth-domain"
 import {SharingParent, Context, PublishResponse, Representation} from "cc-sharing"
 import {CodapShimParams, CODAPPhone, CODAPParams, CODAPCommand,
         SetCopyUrlMessage, SetCopyUrlMessageName,
@@ -43,6 +44,7 @@ export interface IFrameState {
   snapshotsRef:FirebaseRef|null
   lightboxImageUrl: string|null
   appType: AppType
+  authDomain: string
 }
 
 export interface IFrameApi {
@@ -174,7 +176,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       iframeType: null,
       snapshotsRef: null,
       lightboxImageUrl: null,
-      appType: "CODAP"
+      appType: "CODAP",
+      authDomain: "none"
     }
   }
 
@@ -245,7 +248,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     if (!initInteractiveData || !this.state.classInfo) {
       return null
     }
-    return `classes/${this.state.classInfo.classHash}/interactive_${initInteractiveData.interactive.id}/groups`
+    return `${this.state.authDomain}/classes/${this.state.classInfo.classHash}/interactive_${initInteractiveData.interactive.id}/groups`
   }
 
   doneSettingModeState(initInteractiveData:InitInteractiveData, authoredState: CODAPAuthoredState|CollabSpaceAuthoredState) {
@@ -272,7 +275,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         else {
           this.setState({
             classInfo: info,
-            snapshotsRef: firebase.database().ref(`classes/${info.classHash}/snapshots/interactive_${initInteractiveData.interactive.id}`),
+            snapshotsRef: firebase.database().ref(`${this.state.authDomain}/classes/${info.classHash}/snapshots/interactive_${initInteractiveData.interactive.id}`),
           }, () => {
             this.setState({src: this.generateIframeSrc()})
           })
@@ -312,7 +315,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         initInteractiveData: initInteractiveData,
         authoredState: demo.authoredState,
         needGroup: demo.authoredState.grouped,
-        iframeType: demo.authoredState.type
+        iframeType: demo.authoredState.type,
+        authDomain: "demo"
       }, () => {
         this.doneSettingModeState(initInteractiveData, demo.authoredState)
       })
@@ -322,6 +326,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   setupNormalMode() {
     this.laraPhone = iframePhone.getIFrameEndpoint()
     this.laraPhone.addListener('initInteractive', (initInteractiveData:InitInteractiveData) => {
+      const authDomain = getAuthDomain(initInteractiveData.authInfo && initInteractiveData.authInfo.provider)
+
       let authoredState:AuthoredState|null = null
       if (typeof initInteractiveData.authoredState === "string") {
         try {
@@ -345,7 +351,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         initInteractiveData: initInteractiveData,
         authoredState: authoredState,
         needGroup: authoredState ? authoredState.grouped : false,
-        iframeType: authoredState ? authoredState.type : null
+        iframeType: authoredState ? authoredState.type : null,
+        authDomain: authDomain
       }, () => {
         if (authoredState) {
           this.doneSettingModeState(initInteractiveData, authoredState)
@@ -593,6 +600,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
                 groups={this.state.groups}
                 snapshotsRef={this.state.snapshotsRef}
                 iframeApi={iframeApi}
+                authDomain={this.state.authDomain}
               />
             </div>
     }

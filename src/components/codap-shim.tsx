@@ -6,6 +6,7 @@ import {CopyResults} from "./iframe-sidebar"
 import {SuperagentError, SuperagentResponse} from "./types"
 import {ClassInfo, GetUserName} from "./class-info"
 import escapeFirebaseKey from "./escape-firebase-key"
+import getAuthDomain from "./get-auth-domain"
 import {InitInteractiveData, AuthoredState, CODAPAuthoredState, CollabSpaceAuthoredState, HandlePublishFunction} from "./iframe"
 
 const superagent = require("superagent")
@@ -91,6 +92,7 @@ export interface CodapShimState {
   interactiveId: number|null
   interactiveName: string|null
   copyUrl: string|null
+  authDomain: string
 }
 
 export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
@@ -145,7 +147,8 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
       interactiveId: query.interactiveId,
       interactiveName: query.interactiveName,
       classHash: null,
-      copyUrl: null
+      copyUrl: null,
+      authDomain: getAuthDomain(query.classInfoUrl)
     }
 
     this.classInfo = new ClassInfo(query.classInfoUrl || "")
@@ -167,11 +170,11 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
       return
     }
 
-    const classroomKey = `classes/${this.state.classHash}`
+    const classroomKey = `${this.state.authDomain}/classes/${this.state.classHash}`
     const safeUserKey = escapeFirebaseKey(email)
     const interactiveKey = `${classroomKey}/interactives/interactive_${interactiveId}`
     const userInteractivesKey = `${classroomKey}/users/${safeUserKey}/interactives/interactive_${interactiveId}`
-    const userDataContextsKey = `dataContexts/${this.state.classHash}/${safeUserKey}/interactive_${interactiveId}`
+    const userDataContextsKey = `${this.state.authDomain}/dataContexts/${this.state.classHash}/${safeUserKey}/interactive_${interactiveId}`
 
     superagent
       .post(this.state.copyUrl)
