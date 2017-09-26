@@ -1,3 +1,5 @@
+import {PublishResponse} from 'cc-sharing'
+
 export interface Interactive {
   id: string
   name: string
@@ -78,7 +80,23 @@ export interface FirebaseDataContext {
   title: string
 }
 
+export interface FirebaseSavedSnapshotGroup {
+  id: number,
+  members: FirebaseGroupUserMap
+}
+
+export interface FirebaseSavedSnapshot {
+  createdAt: number
+  user: string
+  group: FirebaseSavedSnapshotGroup|null
+  snapshot: PublishResponse
+}
+
 export interface FirebaseDataContextRefMap {
+  [s: string]: string
+}
+
+export interface FirebaseDataContextPathMap {
   [s: string]: string
 }
 
@@ -99,6 +117,7 @@ export interface FirebaseUserInteractiveInstanceMap {
 export interface FirebaseData {
   interactives: FirebaseInteractiveMap
   users: FirebaseUserMap
+  snapshots: FirebaseSavedSnapshotMapMap
 }
 
 export interface MyClassListResponse {
@@ -108,10 +127,6 @@ export interface ClassListItem {
   uri: string
   name: string
   class_hash: string
-}
-
-export interface CODAPCommand {
-  message: string
 }
 
 export type SuperagentError = any  // TODO
@@ -127,28 +142,35 @@ export interface FirebaseGroupSnapshot {
 export interface FirebaseSnapshot {
   val: () => FirebaseData
 }
+export interface FirebaseSavedSnapshotMap {
+  [s: string]: FirebaseSavedSnapshot
+}
+export interface FirebaseSavedSnapshotMapMap {
+  [s: string]: FirebaseSavedSnapshotMap
+}
+export interface FirebaseSnapshotSnapshots {
+  val: () => FirebaseSavedSnapshotMap
+}
 export interface FirebaseDisconnect {
   set: (vals:any) => any
 }
 export interface FirebaseRef {
-  on: (attr: string, callback: (snapshot:FirebaseSnapshot|FirebaseGroupSnapshot) => void) => void,
+  on: (attr: string, callback: (snapshot:FirebaseSnapshot|FirebaseGroupSnapshot|FirebaseSnapshotSnapshots) => void) => void,
   off: () => void
   set: (vals: any) => void
   onDisconnect: () => FirebaseDisconnect
+  push: () => any
 }
 
-
-export type CODAPPostData = any   // TODO
-export type CODAPListenerData = any // TODO
-
-export interface CODAPPhone {
-   addListener: (command: string, callback:(data:CODAPListenerData)=>void) => void
-   post: (message: string, data:CODAPPostData) => void
-   initialize: () => void
-   call: (requests:any, callback?: (results:any) => void) => void // TODO
+export interface SnapshotUserInteractive {
+  snapshot: FirebaseSavedSnapshot
+  userInteractive: UserInteractive
+  user: User
+}
+export interface SnapshotUserInteractiveMap {
+  [s: string]: SnapshotUserInteractive
 }
 
-export type CODAPParams = any  // TODO
 export type InteractiveState = any // TODO
 export type GlobalInteractiveState = any // TODO
 export type LinkedState = any // TODO

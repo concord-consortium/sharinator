@@ -156,3 +156,40 @@ button {
   height: 700px;
   width: 715px;
 }
+
+.user-snapshot-items {
+  margin: 10px;
+}
+.user-snapshot-root-item {
+  margin-bottom: 10px;
+}
+.user-snapshot-root-item-user {
+  font-weight: bold;
+}
+.user-snapshot-item {
+  margin-left: 10px;
+  font-size: 0.9em;
+}
+.user-snapshot-item-representation-item-options {
+  margin-left: 10px;
+}
+.user-snapshot-item-representation-item-name:hover {
+  cursor: pointer;
+  text-decoration: underline;
+}
+a.user-snapshot-item-representation-item-option-item {
+  color: #000;
+  text-decoration: none;
+}
+.user-snapshot-item-representation-item-option-item:hover {
+  cursor: pointer;
+  text-decoration: underline;
+}
+.user-snapshot-created-at {
+  font-size: 0.8em;
+  font-style: italic;
+  margin-left: 10px;
+}
+.user-snapshot-item-representation-item img {
+  width: 50%;
+}

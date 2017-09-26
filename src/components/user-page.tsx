@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Interactive, UserInteractive, InteractiveMap, User, CODAPPhone, CODAPCommand, IFramePhone} from "./types"
+import { Interactive, UserInteractive, InteractiveMap, User, IFramePhone} from "./types"
 import { ClassInfo } from "./class-info"
 import { ago } from "./ago"
 import { InitInteractiveData, InitInteractiveInteractiveData } from "./iframe"
@@ -15,12 +15,12 @@ export interface UserPageProps {
   userInteractive: UserInteractive
   user: User
   classInfo: ClassInfo
+  authDomain: string
 }
 
 export interface UserPageState {
   currentInteractiveCount: number
   initInteractiveData: InitInteractiveData
-  codapPhone: CODAPPhone|null
   iframeUrl: string
 }
 
@@ -29,7 +29,6 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
   constructor(props: UserPageProps) {
     super(props)
     this.versionSelected = this.versionSelected.bind(this)
-    this.iframeLoaded = this.iframeLoaded.bind(this)
 
     const query = queryString.parse(location.search)
 
@@ -44,7 +43,6 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
       linkedState: null,
       interactiveStateUrl: "",
       collaboratorUrls: null,
-      publicClassHash: null,
       classInfoUrl: query.class,
       interactive: {
         id: parseInt(this.props.userInteractive.id.split("_")[1], 10),
@@ -59,7 +57,6 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
     this.state = {
       currentInteractiveCount: 0,
       initInteractiveData: initInteractiveData,
-      codapPhone: null,
       iframeUrl: this.props.userInteractive.url.replace("?", "?embeddedServer=yes")
     }
   }
@@ -67,41 +64,6 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
   refs: {
     iframe: HTMLIFrameElement
   }
-
-  codapPhoneHandler(command:CODAPCommand, callback:Function) {
-    var success = false;
-    if (command) {
-      console.log('COMMAND!', command)
-      switch (command.message) {
-        case "codap-present":
-          success = true;
-          break;
-      }
-    }
-    callback({success: success});
-  }
-
-  iframeLoaded() {
-    if (this.refs.iframe && !this.state.codapPhone) {
-      this.setState({codapPhone: new iframePhone.IframePhoneRpcEndpoint(this.codapPhoneHandler.bind(this), "data-interactive", this.refs.iframe)});
-    }
-  }
-
-  componentDidMount() {
-    // TODO: resize iframe
-  }
-
-  componentWillReceiveProps(nextProps:UserPageProps) {
-    // check if the student added a version
-    if (nextProps.user.id === this.props.user.id) {
-      const nextInteractives = nextProps.user.interactives[this.props.userInteractive.id]
-      const currentInteractives = this.props.user.interactives[this.props.userInteractive.id]
-      if (nextInteractives.length > currentInteractives.length) {
-        //debugger
-      }
-    }
-  }
-
 
   versionSelected(e:React.SyntheticEvent<HTMLSelectElement>) {
     e.preventDefault()
@@ -132,15 +94,15 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
         { this.renderDropdown() }
       </div>
       <div id="iframe" className="u-full-width">
-        <iframe className="user-page-iframe" ref="iframe" src={this.state.iframeUrl} onLoad={this.iframeLoaded}></iframe>
+        <iframe className="user-page-iframe" ref="iframe" src={this.state.iframeUrl}></iframe>
         <IFrameSidebar
           initInteractiveData={this.state.initInteractiveData}
-          copyUrl={null}
-          authoredState={null}
-          codapPhone={this.state.codapPhone}
           viewOnlyMode={true}
           group={0}
           groups={{}}
+          snapshotsRef={null}
+          iframeApi={{}}
+          authDomain={this.props.authDomain}
         />
       </div>
     </div>

@@ -121,7 +121,6 @@ export class Demo extends React.Component<DemoProps, DemoState> {
   }
 
   formSubmitted(e:React.FormEvent<HTMLFormElement>) {
-    debugger
     e.preventDefault()
     const appURL = this.refs.appURL.value
     const urlType = this.refs.urlType.value

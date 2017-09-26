@@ -5,6 +5,7 @@ module.exports = {
         app: "./src/app.tsx",
         iframe: "./src/iframe.tsx",
         demo: "./src/demo.tsx",
+        "codap-shim": "./src/codap-shim.tsx",
         globals: ["react", "react-dom"]
     },
 
