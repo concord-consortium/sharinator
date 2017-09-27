@@ -825,10 +825,13 @@ export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, Use
     const {snapshot} = this.props
 
     if (!this.props.root) {
+      const classUrl = this.props.classInfoUrl
+      //const href = `../dashboard/?class=${encodeURIComponent(classUrl)}&application=${encodeURIComponent(snapshot.application.launchUrl)}`
+      // <a className="user-snapshot-item-application-name" href={href} target="_blank">{snapshot.application.name}</a>
+
       return (
         <div className="user-snapshot-item">
           <div className="user-snapshot-item-application">
-            <a className="user-snapshot-item-application-name" href={snapshot.application.launchUrl} target="_blank">{snapshot.application.name}</a>
             {this.renderRepresentations()}
             {this.renderChildItems()}
           </div>
