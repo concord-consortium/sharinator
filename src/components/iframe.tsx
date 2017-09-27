@@ -668,7 +668,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       }
       return <option value={group} key={group}>Group {group}{suffix}</option>
     })
-    return <div>
+    return <div id="select-group-wrapper">
       <div id="select-group">
         <form onSubmit={this.submitSelectGroup}>
           <select ref="group">{options}</select>
