@@ -5,6 +5,7 @@ import { ClassInfoResultResponse, User } from "./class-info"
 import { Firebase } from "./types"
 const queryString = require("query-string")
 const superagent = require("superagent")
+import * as refs from "./refs"
 
 const UID_LENGTH = 40
 
@@ -100,7 +101,7 @@ export class Demo extends React.Component<DemoProps, DemoState> {
     }
 
     if (demoUID) {
-      const demo = firebase.database().ref(`demos/${demoUID}`)
+      const demo = refs.makeDemoRef(demoUID)
       demo.once("value", (snapshot:DemoFirebaseSnapshot) => {
         const firebaseData:FirebaseDemo = snapshot.val()
         this.setState({demo: firebaseData})
@@ -171,7 +172,7 @@ export class Demo extends React.Component<DemoProps, DemoState> {
         teachers: teachers
       }
 
-      const demo = firebase.database().ref(`demos/${demoUID}`)
+      const demo = refs.makeDemoRef(demoUID)
       const demoInfo:FirebaseDemo = {
         authoredState: authoredState,
         users: users,

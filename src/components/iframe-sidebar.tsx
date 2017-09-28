@@ -6,6 +6,7 @@ import {ClassInfo, GetUserName} from "./class-info"
 import {SuperagentError, SuperagentResponse, Firebase, FirebaseGroupMap, FirebaseRef, FirebaseSavedSnapshot, FirebaseSnapshotSnapshots} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
 import {PublishResponse, Representation, CODAP, CODAPDataContext, Jpeg, Png, Gif, Text} from "cc-sharing"
+import * as refs from "./refs"
 
 const queryString = require("query-string")
 const base64url = require("base64-url")
@@ -355,7 +356,7 @@ export class UserInteractiveDataContext extends React.Component<UserInteractiveD
   loadDataContext() {
     if (!this.loading && (this.state.dataContext === null)) {
       this.loading = true
-      const dataContextRef = firebase.database().ref(`${this.props.authDomain}/dataContexts/${this.props.classHash}/${this.props.email}/interactive_${this.props.interactiveId}/${this.props.dataContextId}`)
+      const dataContextRef = refs.makeUserDataContextRef(this.props.authDomain, this.props.classHash, this.props.interactiveId, this.props.email, this.props.dataContextId)
       dataContextRef.once("value", (snapshot:any) => {  // TODO
         try {
           // convert to a tree
@@ -826,12 +827,12 @@ export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, Use
 
     if (!this.props.root) {
       const classUrl = this.props.classInfoUrl
-      //const href = `../dashboard/?class=${encodeURIComponent(classUrl)}&application=${encodeURIComponent(snapshot.application.launchUrl)}`
-      // <a className="user-snapshot-item-application-name" href={href} target="_blank">{snapshot.application.name}</a>
+      const href = `../dashboard/?class=${encodeURIComponent(classUrl)}&application=${encodeURIComponent(snapshot.application.launchUrl)}`
 
       return (
         <div className="user-snapshot-item">
           <div className="user-snapshot-item-application">
+            <a className="user-snapshot-item-application-name" href={href} target="_blank">{snapshot.application.name}</a>
             {this.renderRepresentations()}
             {this.renderChildItems()}
           </div>
@@ -941,8 +942,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
         classHash: info.classHash
       })
 
-      const refName = `${this.props.authDomain}/classes/${info.classHash}`
-      this.classroomRef = firebase.database().ref(refName)
+      this.classroomRef = refs.makeClassroomRef(this.props.authDomain, info.classHash)
       this.classroomRef.on("value", (snapshot:any) => { // TODO
         const firebaseData:FirebaseData = snapshot.val()
         const publishedUserInteractives:PublishedUserInteractives[] = []

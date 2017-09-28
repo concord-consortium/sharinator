@@ -6,6 +6,7 @@ import { DashboardPage } from "./dashboard-page"
 import { ClassInfo } from "./class-info"
 import getAuthDomain from "./get-auth-domain"
 import {SuperagentError, SuperagentResponse, Firebase, FirebaseSnapshot, FirebaseRef, ClassListItem, MyClassListResponse} from "./types"
+import * as refs from "./refs"
 
 const superagent = require("superagent")
 
@@ -65,10 +66,15 @@ export class App extends React.Component<AppProps, AppState> {
       return this.setState({error: "Missing class or offering and token in query string"})
     }
 
+    let authDomain = getAuthDomain(query.offering || query.class)
+    if (authDomain.indexOf("cloudfunctions")) {
+      authDomain = "demo"
+    }
+
     this.setState({
       loading: true,
       class: query.class,
-      authDomain: getAuthDomain(query.offering || query.class)
+      authDomain: authDomain
     })
 
     if (query.offering) {
@@ -143,7 +149,8 @@ export class App extends React.Component<AppProps, AppState> {
       this.setState({className: info.name})
 
       // connect to firebase
-      this.classroomRef = firebase.database().ref(`${this.state.authDomain}/classes/${info.classHash}`)
+      debugger
+      this.classroomRef = refs.makeClassroomRef(this.state.authDomain, info.classHash)
       this.classroomRef.on("value", (snapshot:FirebaseSnapshot) => {
         const interactives:Array<Interactive> = []
         const users:Array<User> = []
@@ -252,6 +259,7 @@ export class App extends React.Component<AppProps, AppState> {
                 error = "Sorry, the requested info was not found"
               }
             }
+            debugger
             /*
             if (query.interactive && query.user) {
               user = userMap[query.user]
