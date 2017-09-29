@@ -66,10 +66,7 @@ export class App extends React.Component<AppProps, AppState> {
       return this.setState({error: "Missing class or offering and token in query string"})
     }
 
-    let authDomain = getAuthDomain(query.offering || query.class)
-    if (authDomain.indexOf("cloudfunctions")) {
-      authDomain = "demo"
-    }
+    const authDomain = getAuthDomain(query.offering || query.class)
 
     this.setState({
       loading: true,

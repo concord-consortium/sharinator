@@ -2,7 +2,6 @@ import * as React from "react";
 import {SharingClient, SharableApp, Representation, Text, Context, CODAP, CODAPDataContext} from "cc-sharing"
 const queryString = require("query-string")
 import {Firebase, IFramePhone, FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap, FirebaseDataContextPathMap, FirebaseData, FirebaseDataContext, UserName, Window} from "./types"
-import {CopyResults} from "./iframe-sidebar"
 import {SuperagentError, SuperagentResponse} from "./types"
 import {ClassInfo, GetUserName} from "./class-info"
 import escapeFirebaseKey from "./escape-firebase-key"
@@ -27,6 +26,14 @@ export const mergedEmailAndVersionAttributeTitle = "EmailAndVersion"
 
 type ResolvePublish = (value?: Representation[] | PromiseLike<Representation[]> | undefined) => void
 type RejectPublish = (reason?: any) => void
+
+export interface CopyResults {
+  status: string
+  valid: boolean
+  id: number
+  readAccessKey: string
+  readWriteAccessKey: string
+}
 
 export interface DataContextLeafMap {
   [key: string]: DataContextLeaf
@@ -208,6 +215,7 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
                 }
 
                 // save the interactive name (noop after it is first set)
+                debugger
                 const firebaseInteractive:FirebaseInteractive = {name: interactiveName}
                 this.interactiveRef.set(firebaseInteractive)
 
