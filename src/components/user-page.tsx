@@ -1,9 +1,10 @@
 import * as React from "react"
-import { Interactive, UserInteractive, InteractiveMap, User, IFramePhone} from "./types"
+import { Interactive, UserInteractive, InteractiveMap, User, IFramePhone, FirebaseRef} from "./types"
 import { ClassInfo } from "./class-info"
 import { ago } from "./ago"
 import { InitInteractiveData, InitInteractiveInteractiveData } from "./iframe"
 import { IFrameSidebar } from "./iframe-sidebar"
+import * as refs from "./refs"
 
 const queryString = require("query-string")
 
@@ -14,7 +15,6 @@ export interface UserPageProps {
   getInteractiveHref: (user:User, userInteractive:UserInteractive) => string
   userInteractive: UserInteractive
   user: User
-  classInfo: ClassInfo
   authDomain: string
 }
 
@@ -100,7 +100,6 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
           viewOnlyMode={true}
           group={0}
           groups={{}}
-          snapshotsRef={null}
           iframeApi={{}}
           authDomain={this.props.authDomain}
         />

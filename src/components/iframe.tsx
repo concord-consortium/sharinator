@@ -602,7 +602,6 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
                 viewOnlyMode={false}
                 group={this.state.group}
                 groups={this.state.groups}
-                snapshotsRef={this.state.snapshotsRef}
                 iframeApi={iframeApi}
                 authDomain={this.state.authDomain}
               />

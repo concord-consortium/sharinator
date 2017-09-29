@@ -215,7 +215,6 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
                 }
 
                 // save the interactive name (noop after it is first set)
-                debugger
                 const firebaseInteractive:FirebaseInteractive = {name: interactiveName}
                 this.interactiveRef.set(firebaseInteractive)
 

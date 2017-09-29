@@ -19,7 +19,6 @@ export interface IFrameSidebarProps {
   viewOnlyMode: boolean
   group: number
   groups: FirebaseGroupMap
-  snapshotsRef: FirebaseRef|null
   iframeApi: IFrameApi
   authDomain: string
 }
@@ -34,6 +33,7 @@ export interface IFrameSidebarState {
   initTimedout: boolean
   userSnapshots: UserSnapshot[]
   classInfoUrl: string
+  snapshotsRef: FirebaseRef|null
 }
 
 export interface UserSnapshot {
@@ -295,7 +295,6 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
   private interactiveRef:any // TODO
   private userInteractivesRef:any // TODO
   private classInfo:ClassInfo
-  private snapshotRef:FirebaseRef
 
   constructor(props: IFrameSidebarProps) {
     super(props)
@@ -310,7 +309,8 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
       myEmail: this.props.initInteractiveData.authInfo.email,
       initTimedout: false,
       userSnapshots: [],
-      classInfoUrl: this.props.initInteractiveData.classInfoUrl || ""
+      classInfoUrl: this.props.initInteractiveData.classInfoUrl || "",
+      snapshotsRef: null
     }
 
     this.classInfo = new ClassInfo(this.props.initInteractiveData.classInfoUrl || "")
@@ -328,14 +328,12 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
       }
 
       this.setState({
-        classHash: info.classHash
+        classHash: info.classHash,
+        snapshotsRef: refs.makeSnapshotsRef(this.props.authDomain, info.classHash, this.props.initInteractiveData.interactive.id)
+      }, () => {
+        this.listenForSnapshots()
       })
     })
-    this.listenForSnapshots()
-  }
-
-  componentWillUpdate() {
-    this.listenForSnapshots()
   }
 
   sortUserSnapshots(a: UserSnapshot, b: UserSnapshot):number {
@@ -348,9 +346,9 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
   }
 
   listenForSnapshots() {
-    if (this.props.snapshotsRef && (this.snapshotRef !== this.props.snapshotsRef)) {
-      this.snapshotRef = this.props.snapshotsRef
-      this.props.snapshotsRef.on("value", (snapshot:FirebaseSnapshotSnapshots) => {
+    const {snapshotsRef} = this.state
+    if (snapshotsRef) {
+      snapshotsRef.on("value", (snapshot:FirebaseSnapshotSnapshots) => {
 
         const snapshotMap = snapshot.val() || {}
         const userSnapshotMap:UserSnapshotMap = {}
