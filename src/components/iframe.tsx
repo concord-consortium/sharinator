@@ -13,6 +13,7 @@ import {CodapShimParams, CODAPPhone, CODAPParams, CODAPCommand,
         SetCopyUrlMessage, SetCopyUrlMessageName,
         MergeIntoDocumentMessage, MergeIntoDocumentMessageName,
         CopyToClipboardMessage, CopyToClipboardMessageName} from "./codap-shim"
+import * as refs from "./refs"
 
 const queryString = require("query-string")
 const superagent = require("superagent")
@@ -248,13 +249,13 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     if (!initInteractiveData || !this.state.classInfo) {
       return null
     }
-    return `${this.state.authDomain}/classes/${this.state.classInfo.classHash}/interactive_${initInteractiveData.interactive.id}/groups`
+    return refs.groupRootKey(this.state.authDomain, this.state.classInfo.classHash, initInteractiveData.interactive.id)
   }
 
   doneSettingModeState(initInteractiveData:InitInteractiveData, authoredState: CODAPAuthoredState|CollabSpaceAuthoredState) {
     const groupRootKey = this.getGroupRootKey()
     if (groupRootKey) {
-      const groupsRef:FirebaseRef = firebase.database().ref(groupRootKey)
+      const groupsRef:FirebaseRef = refs.makeGroupsRefWithRootKey(groupRootKey)
       groupsRef.on("value", (snapshot:FirebaseGroupSnapshot) => {
         this.setState({groups: snapshot.val()})
       })
@@ -275,7 +276,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         else {
           this.setState({
             classInfo: info,
-            snapshotsRef: firebase.database().ref(`${this.state.authDomain}/classes/${info.classHash}/snapshots/interactive_${initInteractiveData.interactive.id}`),
+            snapshotsRef: refs.makeSnapshotsRef(this.state.authDomain, info.classHash, initInteractiveData.interactive.id)
           }, () => {
             this.setState({src: this.generateIframeSrc()})
           })
@@ -289,38 +290,40 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   }
 
   setupDemoMode() {
-    const demoRef = firebase.database().ref(`demos/${this.state.demoUID}`)
-    demoRef.once("value", (snapshot:DemoFirebaseSnapshot) => {
-      const demo:FirebaseDemo = snapshot.val()
-      const demoParams = `demo=${this.state.demoUID}&demoUser=${this.state.demoUser}`
-      const demoAPIUrl = (endPoint:string) => `https://us-central1-classroom-sharing.cloudfunctions.net/${endPoint}?${demoParams}`
-      const email = this.state.demoUser ? demo.users[this.state.demoUser].email : "no-email@example.com"
-      const initInteractiveData:InitInteractiveData = {
-        version: 1,
-        error: null,
-        mode: "runtime",
-        authoredState: demo.authoredState,
-        interactiveState: null,
-        globalInteractiveState: null,
-        hasLinkedInteractive: false,
-        linkedState: null,
-        interactiveStateUrl: demoAPIUrl("demoInteractiveRunState"),
-        collaboratorUrls: null,
-        classInfoUrl: demoAPIUrl("demoClassInfo"),
-        interactive: {id: 1, name: "demo"},
-        authInfo: {provider: "demo", loggedIn: true, email: email}
-      }
-      this.setState({
-        irsUrl: demoAPIUrl("demoInteractiveRunState"),
-        initInteractiveData: initInteractiveData,
-        authoredState: demo.authoredState,
-        needGroup: demo.authoredState.grouped,
-        iframeType: demo.authoredState.type,
-        authDomain: "demo"
-      }, () => {
-        this.doneSettingModeState(initInteractiveData, demo.authoredState)
+    if (this.state.demoUID) {
+      const demoRef = refs.makeDemoRef(this.state.demoUID)
+      demoRef.once("value", (snapshot:DemoFirebaseSnapshot) => {
+        const demo:FirebaseDemo = snapshot.val()
+        const demoParams = `demo=${this.state.demoUID}&demoUser=${this.state.demoUser}`
+        const demoAPIUrl = (endPoint:string) => `https://us-central1-classroom-sharing.cloudfunctions.net/${endPoint}?${demoParams}`
+        const email = this.state.demoUser ? demo.users[this.state.demoUser].email : "no-email@example.com"
+        const initInteractiveData:InitInteractiveData = {
+          version: 1,
+          error: null,
+          mode: "runtime",
+          authoredState: demo.authoredState,
+          interactiveState: null,
+          globalInteractiveState: null,
+          hasLinkedInteractive: false,
+          linkedState: null,
+          interactiveStateUrl: demoAPIUrl("demoInteractiveRunState"),
+          collaboratorUrls: null,
+          classInfoUrl: demoAPIUrl("demoClassInfo"),
+          interactive: {id: 1, name: "demo"},
+          authInfo: {provider: "demo", loggedIn: true, email: email}
+        }
+        this.setState({
+          irsUrl: demoAPIUrl("demoInteractiveRunState"),
+          initInteractiveData: initInteractiveData,
+          authoredState: demo.authoredState,
+          needGroup: demo.authoredState.grouped,
+          iframeType: demo.authoredState.type,
+          authDomain: "demo"
+        }, () => {
+          this.doneSettingModeState(initInteractiveData, demo.authoredState)
+        })
       })
-    })
+    }
   }
 
   setupNormalMode() {
@@ -634,7 +637,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         this.groupUserRef.set(inactiveUser)
       }
 
-      this.groupUserRef = firebase.database().ref(`${groupRootKey}/${group}/users/${escapeFirebaseKey(initInteractiveData.authInfo.email)}`)
+      this.groupUserRef = refs.makeGroupUserRefWithRootKey(groupRootKey, group, initInteractiveData.authInfo.email)
       this.groupUserRef.set(activeUser)
       this.groupUserRef.onDisconnect().set(inactiveUser)
     }

@@ -2,6 +2,7 @@ import * as React from "react";
 import { Interactive, InteractiveMap, User, UserMap, UserInteractive, Activity, ClassListItem, FirebaseRef, Firebase, FirebaseSnapshot, FirebaseInteractive, FirebaseUser, FirebaseData, FirebaseUserInteractive} from "./types"
 import { ClassInfo } from "./class-info"
 import { ago } from "./ago"
+import * as refs from "./refs"
 
 declare var firebase: Firebase
 
@@ -155,7 +156,7 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
           extendedClassInfo.name = info.name
 
           if (!extendedClassInfo.classroomRef) {
-            extendedClassInfo.classroomRef = firebase.database().ref(`${this.props.authDomain}/classes/${info.classHash}`)
+            extendedClassInfo.classroomRef = refs.makeClassroomRef(this.props.authDomain, info.classHash)
             if (extendedClassInfo.classroomRef) {
               extendedClassInfo.classroomRef.on("value", (snapshot:FirebaseSnapshot) => {
                 const activity:Array<Activity> = []

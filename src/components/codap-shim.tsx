@@ -8,6 +8,7 @@ import {ClassInfo, GetUserName} from "./class-info"
 import escapeFirebaseKey from "./escape-firebase-key"
 import getAuthDomain from "./get-auth-domain"
 import {InitInteractiveData, AuthoredState, CODAPAuthoredState, CollabSpaceAuthoredState, HandlePublishFunction} from "./iframe"
+import * as refs from "./refs"
 
 const superagent = require("superagent")
 const base64url = require("base64-url")
@@ -30,8 +31,14 @@ type RejectPublish = (reason?: any) => void
 export interface DataContextLeafMap {
   [key: string]: DataContextLeaf
 }
-export interface DataContextLeafMapMap {
-  [key: string]: DataContextLeafMap
+
+export interface DataContextCache {
+  [key: string]: DataContextCacheItem
+}
+
+export interface DataContextCacheItem {
+  tree: DataContextLeafMap
+  dataContext: any // TODO
 }
 
 export interface DataContextLeaf {
@@ -102,9 +109,10 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
   private iframeCanAutosave = false
   private interactiveRef:any // TODO
   private userInteractivesRef:any // TODO
+  private userDataContextsRef:any // TODO
   private classInfo:ClassInfo
   private classroomRef:any // TODO
-  private dataContextTreeCache:DataContextLeafMapMap
+  private dataContextTreeCache:DataContextCache
 
   constructor(props: CodapShimProps) {
     super(props)
@@ -170,11 +178,10 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
       return
     }
 
-    const classroomKey = `${this.state.authDomain}/classes/${this.state.classHash}`
-    const safeUserKey = escapeFirebaseKey(email)
-    const interactiveKey = `${classroomKey}/interactives/interactive_${interactiveId}`
-    const userInteractivesKey = `${classroomKey}/users/${safeUserKey}/interactives/interactive_${interactiveId}`
-    const userDataContextsKey = `${this.state.authDomain}/dataContexts/${this.state.classHash}/${safeUserKey}/interactive_${interactiveId}`
+
+    this.interactiveRef = this.interactiveRef || refs.makeInteractiveRef(this.state.authDomain, this.state.classHash, interactiveId)
+    this.userInteractivesRef = this.userInteractivesRef || refs.makeUserInteractivesRef(this.state.authDomain, this.state.classHash, interactiveId, email)
+    this.userDataContextsRef = this.userDataContextsRef || refs.makeUserDataContextsRef(this.state.authDomain, this.state.classHash, interactiveId, email)
 
     superagent
       .post(this.state.copyUrl)
@@ -195,18 +202,16 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
               }
               const documentUrl = `${this.state.codapUrl}?#file=lara:${base64url.encode(JSON.stringify(laraParams))}`
 
-              this.saveDataContexts(userDataContextsKey, (err, dataContexts, dataContextPaths) => {
+              this.saveDataContexts((err, dataContexts, dataContextPaths) => {
                 if (err) {
                   throw err
                 }
 
                 // save the interactive name (noop after it is first set)
                 const firebaseInteractive:FirebaseInteractive = {name: interactiveName}
-                this.interactiveRef = this.interactiveRef || firebase.database().ref(interactiveKey)
                 this.interactiveRef.set(firebaseInteractive)
 
                 // push the copy
-                this.userInteractivesRef = this.userInteractivesRef || firebase.database().ref(userInteractivesKey)
                 const userInteractive:FirebaseUserInteractive = {
                   createdAt: firebase.database.ServerValue.TIMESTAMP,
                   documentUrl: documentUrl,
@@ -242,7 +247,7 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
       })
   }
 
-  saveDataContexts(userDataContextsKey: string, callback: (err:string|null, dataContextRefMap?: FirebaseDataContextRefMap, dataContextPathMap?: FirebaseDataContextPathMap) => void) {
+  saveDataContexts(callback: (err:string|null, dataContextRefMap?: FirebaseDataContextRefMap, dataContextPathMap?: FirebaseDataContextPathMap) => void) {
     const {codapPhone} = this
     if (!codapPhone) {
       return
@@ -359,10 +364,9 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
 
             const dataContextMap:FirebaseDataContextRefMap = {}
             const dataContextPathMap:FirebaseDataContextPathMap = {}
-            const userDataContextsRef = firebase.database().ref(userDataContextsKey)
 
             dataContexts.forEach((dataContext) => {
-              const userDataContextRef = userDataContextsRef.push()
+              const userDataContextRef = this.userDataContextsRef.push()
               userDataContextRef.set(JSON.stringify(dataContext))
               dataContextPathMap[userDataContextRef.toString()] = dataContextMap[userDataContextRef.key] = dataContext.title || dataContext.name
             })
@@ -402,15 +406,11 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
 
   loadDataContext(representation:Representation, callback: (err:any, tree?:DataContextLeafMap, dataContext?:any) => void) {
     if (this.dataContextTreeCache[representation.dataUrl]) {
-      callback(null, this.dataContextTreeCache[representation.dataUrl])
+      callback(null, this.dataContextTreeCache[representation.dataUrl].tree, this.dataContextTreeCache[representation.dataUrl].dataContext)
       return
     }
 
-    const url:HTMLAnchorElement = document.createElement("A") as HTMLAnchorElement
-    url.href = representation.dataUrl
-    const pathname = decodeURIComponent(url.pathname.substr(1))
-
-    const dataContextRef = firebase.database().ref(pathname)
+    const dataContextRef = refs.makeRefFromUrl(representation.dataUrl)
     dataContextRef.once("value", (snapshot:any) => {
       let dataContext:any
       try {
@@ -442,15 +442,13 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
         }
       })
 
-      this.dataContextTreeCache[representation.dataUrl] = tree
-      callback(null, tree)
+      this.dataContextTreeCache[representation.dataUrl] = {tree, dataContext}
+      callback(null, tree, dataContext)
     })
   }
 
   mergeIntoDocument(representation:Representation) {
-    alert("Temporarily disabled for testing")
-    /*
-    this.loadDataContext(representation, (err, tree) => {
+    this.loadDataContext(representation, (err, tree, dataContext) => {
       if (err || !tree) {
         if (err) {
           alert(err.toString())
@@ -583,7 +581,6 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
           const collections:any[] = [] // TODO
 
           // add all the collections
-          const {dataContext} = this.state
           Object.keys(dataContext.collections).forEach((id) => {
             const collection = dataContext.collections[id]
             collections.push({
@@ -674,7 +671,6 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
         })
       })
     })
-    */
   }
 
   copyToClipboard(representation:Representation) {
@@ -792,236 +788,6 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
       }
     })
   }
-
-  /*
-  handleMerge() {
-    const dataContextName = this.state.dataContext.name
-
-    this.setState({mergeState: "Merging..."})
-
-    const showThenClear = (mergeState:MergeState) => {
-      this.setState({mergeState: mergeState})
-      setTimeout(() => {
-        this.setState({mergeState: null})
-      }, 2000)
-    }
-
-    const mergedDataContextInfo = () => {
-      const {dataContext} = this.state
-      return {
-        name: `Merged${dataContext.name}`,
-        title: `Merged: ${dataContext.title}`
-      }
-    }
-
-    const merge = (callback: (caseId:number) => void) => {
-      checkIfAlreadyMerged((existingCaseId:number) => {
-        if (existingCaseId) {
-          showThenClear("Already merged!")
-          callback(existingCaseId)
-        }
-        else {
-          createNewMergeCase((newCaseId) => {
-            addCases(this.tree, newCaseId, () => {
-              showThenClear("Merged")
-              callback(newCaseId)
-            })
-          })
-        }
-      })
-    }
-
-    const checkIfAlreadyMerged = (callback: (caseId:number) => void) => {
-      const mergedDataContext = mergedDataContextInfo()
-      this.callCODAP({
-        action: 'get',
-        resource: `dataContext[${mergedDataContext.name}].collection[${mergedUserCollectionName}].caseSearch[${mergedEmailAndVersionAttributeName}==${this.props.email}:${this.props.version}]`
-      }, (result:any) => {  // TODO
-        callback(result.success && (result.values.length > 0) ? result.values[0].id : 0)
-      })
-    }
-
-    const createNewMergeCase = (callback: (caseId:number) => void) => {
-      const mergedDataContext = mergedDataContextInfo()
-      const values:any = {} // TODO
-      const them = this.props.classInfo.getUserName(this.props.email)
-      values[mergedUserAttributeName] = `${them.found ? them.name.fullname : this.props.email} #${this.props.version}`
-      values[mergedEmailAndVersionAttributeName] = `${this.props.email}:${this.props.version}`
-
-      this.callCODAP({
-        action: 'create',
-        resource: `dataContext[${mergedDataContext.name}].collection[${mergedUserCollectionName}].case`,
-        values: [{
-          parent: null,
-          values: values
-        }]
-      }, (result:any) => { // TODO
-        callback(result.values[0].id)
-      })
-    }
-
-    const addCases = (branch:any, parentId:number, callback:Function) => {  // TODO
-      const mergedDataContext = mergedDataContextInfo()
-      const atRoot = branch === this.tree
-      const cases = Object.keys(branch).map((id) => branch[id])
-
-      const checkIfDone = () => {
-        if (atRoot) {
-          callback()
-        }
-      }
-
-      const addEachCase = () => {
-        if (cases.length === 0) {
-          checkIfDone()
-        }
-        else {
-          const _case = cases.shift()
-          this.callCODAP({
-            action: 'create',
-            resource: `dataContext[${mergedDataContext.name}].collection[${_case.collection}].case`,
-            values: {
-              parent: parentId,
-              values: _case.values
-            }
-          }, (result:any) => { // TODO
-            addCases(_case.children, result.values[0].id, callback)
-            addEachCase()
-          })
-        }
-      }
-
-      const addAllCases = () => {
-        const values = cases.map((_case) => { return { parent: parentId, values: _case.values }})
-        this.callCODAP({
-          action: 'create',
-          resource: `dataContext[${mergedDataContext.name}].collection[${cases[0].collection}].case`,
-          values: values
-        }, (result:any) => { // TODO
-          checkIfDone()
-        })
-      }
-
-      const processCases = () => {
-        if (cases.length === 0) {
-          checkIfDone()
-        }
-        else {
-          if (Object.keys(cases[0].children).length > 0) {
-            // case has children so we need to add each case one and a time to get the id
-            addEachCase()
-          }
-          else {
-            // no children so we can bulk add all the cases
-            addAllCases()
-          }
-        }
-      }
-
-      processCases()
-    }
-
-    const ensureMergedDataContextExists = (callback:() => void) => {
-      const mergedDataContext = mergedDataContextInfo()
-      this.callCODAP({
-        action: 'get',
-        resource: `dataContext[${mergedDataContext.name}]`
-      }, (result:any) => {  // TODO
-        const collections:any[] = [] // TODO
-
-        // add all the collections
-        const {dataContext} = this.state
-        Object.keys(dataContext.collections).forEach((id) => {
-          const collection = dataContext.collections[id]
-          collections.push({
-            name: collection.name,
-            title: collection.title,
-            parent: collection.parent ? collection.parent : mergedUserCollectionName,
-            attrs: collection.attrs
-          })
-        })
-
-        if (!result.success) {
-          // if merged data context does not exist create the merged collection
-          collections.unshift({
-            name: mergedUserCollectionName,
-            title: mergedUserCollectionTitle,
-            attrs: [
-              {name: mergedUserAttributeName, title: mergedUserAttributeTitle},
-              {name: mergedEmailAndVersionAttributeName, title: mergedEmailAndVersionAttributeTitle, hidden: true}
-            ]
-          })
-
-          this.callCODAP({
-            action: 'create',
-            resource: 'dataContext',
-            values: {
-              name: mergedDataContext.name,
-              title: mergedDataContext.title,
-              collections: collections
-            }
-          }, (result:any) => {  // TODO
-            callback()
-          })
-        }
-        else {
-          // otherwise ensure that all the collections exist on each merge
-          // (this is in case the DI does not add the collections until after startup like the Dataflow DI)
-          this.callCODAP({
-            action: 'create',
-            resource: 'collection',
-            values: collections
-          }, (result:any) => {  // TODO
-            callback()
-          })
-        }
-      });
-    }
-
-    const showCaseTable = (callback: () => void) => {
-      const mergedDataContext = mergedDataContextInfo()
-      this.callCODAP({
-        action: 'get',
-        resource: `component[${mergedDataContext.name}]`
-      }, (result:any) => {  // TODO
-        if (!result.success) {
-          this.callCODAP({
-            action: 'create',
-            resource: 'component',
-            values: {
-              type: 'caseTable',
-              name: mergedDataContext.name,
-              title: mergedDataContext.title,
-              dataContext: mergedDataContext.name
-            }
-          }, (result:any) => {  // TODO
-            callback()
-          });
-        }
-        else {
-          callback()
-        }
-      });
-    }
-
-    const selectMergedCase = (caseId:number) => {
-      const mergedDataContext = mergedDataContextInfo()
-      this.callCODAP({
-        action: 'create',
-        resource: `dataContext[${mergedDataContext.name}].selectionList`,
-        values: [caseId]
-      })
-    }
-
-    ensureMergedDataContextExists(() => {
-      merge((caseId) => {
-        showCaseTable(() => {
-          selectMergedCase(caseId)
-        })
-      })
-    })
-  }
-  */
 
   render() {
     return <iframe ref="iframe" src={this.state.codapUrl} onLoad={this.iframeLoaded}></iframe>
