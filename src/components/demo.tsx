@@ -1,6 +1,7 @@
 import * as React from "react";
 import { IFrameSidebar } from "./iframe-sidebar"
-import { parseCODAPUrlIntoAuthoredState, parseCollaborationSpaceUrlIntoAuthoredState, AuthoredState } from "./iframe"
+import { AuthoredState } from "./iframe"
+import { parseCODAPUrlIntoAuthoredState, parseCollaborationSpaceUrlIntoAuthoredState } from "./url-parsers"
 import { ClassInfoResultResponse, User } from "./class-info"
 import { Firebase } from "./types"
 const queryString = require("query-string")
