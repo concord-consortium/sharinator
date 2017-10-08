@@ -536,11 +536,11 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     if (initInteractiveData && classInfo) {
       const context:Context = {
         protocolVersion: "1.0.0",
-        user: {displayName: "REMOVE", id: initInteractiveData.authInfo.email},
+        user: initInteractiveData.authInfo.email,
         id: initInteractiveData.authInfo.email,
-        group: {displayName: "REMOVE", id: this.state.group},
-        offering: {displayName: "REMOVE", id: initInteractiveData.interactive.id},
-        clazz:  {displayName: "REMOVE", id: classInfo.classHash},
+        group: this.state.group,
+        offering: initInteractiveData.interactive.id,
+        class:  classInfo.classHash,
         localId: "TODO",
         requestTime: new Date().toISOString()
       }

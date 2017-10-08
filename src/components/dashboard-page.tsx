@@ -182,7 +182,7 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
                     })
                   }
 
-                  if (firebaseData.users) {
+                  /* if (firebaseData.users) {
                     extendedClassInfo.users = []
                     Object.keys(firebaseData.users).forEach((firebaseUserId) => {
                       const firebaseUser:FirebaseUser = firebaseData.users[firebaseUserId]
@@ -220,7 +220,7 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
                       }
                       extendedClassInfo.users.push(user)
                     })
-                  }
+                  } */
 
                   this.generateRows()
                 }

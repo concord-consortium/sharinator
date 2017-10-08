@@ -115,7 +115,6 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
   private cfmPrefix = /^cfm::/
   private iframeCanAutosave = false
   private interactiveRef:any // TODO
-  private userInteractivesRef:any // TODO
   private userDataContextsRef:any // TODO
   private classInfo:ClassInfo
   private classroomRef:any // TODO
@@ -187,7 +186,6 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
 
 
     this.interactiveRef = this.interactiveRef || refs.makeInteractiveRef(this.state.authDomain, this.state.classHash, interactiveId)
-    this.userInteractivesRef = this.userInteractivesRef || refs.makeUserInteractivesRef(this.state.authDomain, this.state.classHash, interactiveId, email)
     this.userDataContextsRef = this.userDataContextsRef || refs.makeUserDataContextsRef(this.state.authDomain, this.state.classHash, interactiveId, email)
 
     superagent
@@ -217,14 +215,6 @@ export class CodapShim extends React.Component<CodapShimProps, CodapShimState> {
                 // save the interactive name (noop after it is first set)
                 const firebaseInteractive:FirebaseInteractive = {name: interactiveName}
                 this.interactiveRef.set(firebaseInteractive)
-
-                // push the copy
-                const userInteractive:FirebaseUserInteractive = {
-                  createdAt: firebase.database.ServerValue.TIMESTAMP,
-                  documentUrl: documentUrl,
-                  dataContexts: dataContexts || {}
-                }
-                this.userInteractivesRef.push().set(userInteractive)
 
                 let representations:Representation[] = [{
                   type: CODAP,

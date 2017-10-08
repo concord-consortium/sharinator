@@ -183,7 +183,6 @@ export class App extends React.Component<AppProps, AppState> {
                 Object.keys(snapshots).forEach((firebaseSnapshotId) => {
                   const snapshot = snapshots[firebaseSnapshotId]
 
-                  const firebaseUser:FirebaseUser = firebaseData.users[snapshot.user]
                   const userName = this.classInfo.getUserName(snapshot.user)
                   if (!userName.found) {
                     userNamesNotFound = true

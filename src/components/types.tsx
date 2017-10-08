@@ -54,10 +54,6 @@ export interface FirebaseUser {
   interactives: FirebaseUserInteractiveMap
 }
 
-export interface FirebaseUserMap {
-  [s: string]: FirebaseUser
-}
-
 export interface FirebaseGroupUser {
   active: boolean
 }
@@ -116,7 +112,6 @@ export interface FirebaseUserInteractiveInstanceMap {
 
 export interface FirebaseData {
   interactives: FirebaseInteractiveMap
-  users: FirebaseUserMap
   snapshots: FirebaseSavedSnapshotMapMap
 }
 
