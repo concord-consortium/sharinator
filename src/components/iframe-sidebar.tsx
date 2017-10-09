@@ -5,7 +5,7 @@ import {FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap,
 import {ClassInfo, GetUserName} from "./class-info"
 import {SuperagentError, SuperagentResponse, Firebase, FirebaseGroupMap, FirebaseRef, FirebaseSavedSnapshot, FirebaseSnapshotSnapshots} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
-import {PublishResponse, Representation, CODAP, CODAPDataContext, Jpeg, Png, Gif, Text} from "cc-sharing"
+import {PublishResponse, Representation, CODAP, CODAPDataContext, Jpeg, Png, Gif, Text, LaunchApplication, CollabSpace} from "cc-sharing"
 import * as refs from "./refs"
 
 const queryString = require("query-string")
@@ -181,19 +181,24 @@ export class UserSnapshotRepresentation extends React.Component<UserSnapshotRepr
 }
 
 export interface UserSnapshotItemProps {
-  root: boolean
+  parents: PublishResponse[]
   snapshot: PublishResponse
   iframeApi: IFrameApi
   classInfoUrl: string
 }
 
 export interface UserSnapshotItemState {
+  withinCollabSpace: boolean
+  parentsPlusMe: PublishResponse[]
 }
 
 export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, UserSnapshotItemState> {
   constructor(props: UserSnapshotItemProps) {
     super(props)
+    const withinCollabSpace = this.props.parents.find((parent) => parent.application.type ? parent.application.type.type == CollabSpace.type : false)
     this.state = {
+      withinCollabSpace: !!withinCollabSpace,
+      parentsPlusMe: this.props.parents.concat(this.props.snapshot)
     }
   }
 
@@ -208,28 +213,45 @@ export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, Use
   renderChildItems():JSX.Element[] {
     const {snapshot} = this.props
     if (snapshot.children) {
-      return snapshot.children.map((child, i) => <UserSnapshotItem key={i} snapshot={child} root={false} iframeApi={this.props.iframeApi} classInfoUrl={this.props.classInfoUrl} />)
+      return snapshot.children.map((child, i) => <UserSnapshotItem key={i} snapshot={child} parents={this.state.parentsPlusMe} iframeApi={this.props.iframeApi} classInfoUrl={this.props.classInfoUrl} />)
     }
     return []
+  }
+
+  renderApplicationName(application:LaunchApplication) {
+    const classUrl = this.props.classInfoUrl
+    const href = `../dashboard/?class=${encodeURIComponent(classUrl)}&application=${encodeURIComponent(application.launchUrl)}`
+
+    if (this.state.withinCollabSpace) {
+      return (
+        <div>
+          <div className="user-snapshot-item-application-item-name">{application.name}</div>
+          <div className="user-snapshot-item-application-item-options">
+            <div className="user-snapshot-item-application-item-option-item">Add to Collaboration Space</div>
+            <a className="user-snapshot-item-application-item-option-item" href={href} target="_blank">Open in Dashboard</a>
+          </div>
+        </div>
+      )
+    }
+
+    return <a className="user-snapshot-item-application-name" href={href} target="_blank">{application.name}</a>
   }
 
   render() {
     const {snapshot} = this.props
 
-    if (!this.props.root) {
-      const classUrl = this.props.classInfoUrl
-      const href = `../dashboard/?class=${encodeURIComponent(classUrl)}&application=${encodeURIComponent(snapshot.application.launchUrl)}`
-
+    if (this.props.parents.length !== 0) {
       return (
         <div className="user-snapshot-item">
           <div className="user-snapshot-item-application">
-            <a className="user-snapshot-item-application-name" href={href} target="_blank">{snapshot.application.name}</a>
+            {this.renderApplicationName(snapshot.application)}
             {this.renderRepresentations()}
             {this.renderChildItems()}
           </div>
         </div>
       )
     }
+
     return (
       <div className="user-snapshot-item">
         {this.renderRepresentations()}
@@ -284,7 +306,7 @@ export class UserRootSnapshotItem extends React.Component<UserRootSnapshotItemPr
     return (
       <div className="user-snapshot-root-item">
         <div className="user-snapshot-root-item-user">{name.fullname}</div>
-        <UserSnapshotItem snapshot={snapshot} root={true} iframeApi={this.props.iframeApi} classInfoUrl={this.props.classInfoUrl} />
+        <UserSnapshotItem snapshot={snapshot} parents={[]} iframeApi={this.props.iframeApi} classInfoUrl={this.props.classInfoUrl} />
         {this.renderCreatedAt()}
       </div>
     )
