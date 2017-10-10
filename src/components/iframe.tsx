@@ -8,7 +8,7 @@ import {SuperagentError, SuperagentResponse, IFramePhone, Firebase,
         FirebaseSavedSnapshot, FirebaseSavedSnapshotGroup} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
 import getAuthDomain from "./get-auth-domain"
-import {SharingParent, Context, PublishResponse, Representation} from "cc-sharing"
+import {SharingParent, Context, PublishResponse, Representation, LaunchApplication} from "cc-sharing"
 import {CodapShimParams, CODAPPhone, CODAPParams, CODAPCommand,
         SetCopyUrlMessage, SetCopyUrlMessageName,
         MergeIntoDocumentMessage, MergeIntoDocumentMessageName,
@@ -55,6 +55,12 @@ export interface IFrameApi {
   changeGroup?: () => void
   mergeIntoDocument?: (representation:Representation) => void
   copyToClipboard?: (representation:Representation) => void
+  openInCollabSpace?: (application:LaunchApplication) => void
+}
+
+export const OpenInCollabSpaceMessageName = "openInCollabSpace"
+export interface OpenInCollabSpaceMessage {
+  application:LaunchApplication
 }
 
 export type AuthoredState = CODAPAuthoredState | CollabSpaceAuthoredState
@@ -152,6 +158,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     this.waitForInnerIframe = this.waitForInnerIframe.bind(this)
     this.copyToClipboard = this.copyToClipboard.bind(this)
     this.mergeIntoDocument = this.mergeIntoDocument.bind(this)
+    this.openInCollabSpace = this.openInCollabSpace.bind(this)
 
     const demoUID = getUID("demo")
     const demoUser = getParam("demoUser")
@@ -420,6 +427,13 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     })
   }
 
+  openInCollabSpace(application:LaunchApplication) {
+    this.waitForInnerIframe(() => {
+      const openInCollabSpaceMessage:OpenInCollabSpaceMessage = {application}
+      this.innerIframePhone.post(OpenInCollabSpaceMessageName, openInCollabSpaceMessage)
+    })
+  }
+
   pollForCODAPInteractiveState(authoredState:CODAPAuthoredState) {
     const poll = () => this.getCODAPInteractiveState(authoredState)
     setTimeout(poll, 1000)
@@ -541,7 +555,6 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         group: this.state.group,
         offering: initInteractiveData.interactive.id,
         class:  classInfo.classHash,
-        localId: "TODO",
         requestTime: new Date().toISOString()
       }
       this.innerIframePhone = iframePhone.ParentEndpoint(this.refs.iframe)
@@ -590,7 +603,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         handlePublish: this.handlePublish,
         setLightboxImageUrl: this.setLightboxImageUrl,
         copyToClipboard: this.copyToClipboard,
-        mergeIntoDocument: this.mergeIntoDocument
+        mergeIntoDocument: this.mergeIntoDocument,
+        openInCollabSpace: this.openInCollabSpace
       }
       return <div>
               <div id="iframe-container">

@@ -218,6 +218,13 @@ export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, Use
     return []
   }
 
+  openInCollabSpace(application:LaunchApplication) {
+    debugger
+    if (this.props.iframeApi.openInCollabSpace) {
+      this.props.iframeApi.openInCollabSpace(application)
+    }
+  }
+
   renderApplicationName(application:LaunchApplication) {
     const classUrl = this.props.classInfoUrl
     const href = `../dashboard/?class=${encodeURIComponent(classUrl)}&application=${encodeURIComponent(application.launchUrl)}`
@@ -227,7 +234,7 @@ export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, Use
         <div>
           <div className="user-snapshot-item-application-item-name">{application.name}</div>
           <div className="user-snapshot-item-application-item-options">
-            <div className="user-snapshot-item-application-item-option-item">Add to Collaboration Space</div>
+            <div className="user-snapshot-item-application-item-option-item" onClick={() => this.openInCollabSpace(application)}>Add to Collaboration Space</div>
             <a className="user-snapshot-item-application-item-option-item" href={href} target="_blank">Open in Dashboard</a>
           </div>
         </div>
