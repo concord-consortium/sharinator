@@ -185,6 +185,8 @@ export interface UserSnapshotItemProps {
   snapshot: PublishResponse
   iframeApi: IFrameApi
   classInfoUrl: string
+  name: UserName
+  number: number
 }
 
 export interface UserSnapshotItemState {
@@ -213,15 +215,15 @@ export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, Use
   renderChildItems():JSX.Element[] {
     const {snapshot} = this.props
     if (snapshot.children) {
-      return snapshot.children.map((child, i) => <UserSnapshotItem key={i} snapshot={child} parents={this.state.parentsPlusMe} iframeApi={this.props.iframeApi} classInfoUrl={this.props.classInfoUrl} />)
+      return snapshot.children.map((child, i) => <UserSnapshotItem key={i} snapshot={child} parents={this.state.parentsPlusMe} iframeApi={this.props.iframeApi} classInfoUrl={this.props.classInfoUrl} name={this.props.name} number={this.props.number} />)
     }
     return []
   }
 
   openInCollabSpace(application:LaunchApplication) {
-    debugger
     if (this.props.iframeApi.openInCollabSpace) {
-      this.props.iframeApi.openInCollabSpace(application)
+      const title = `${this.props.name.fullname} (#${this.props.number}): ${application.name}`
+      this.props.iframeApi.openInCollabSpace(title, application)
     }
   }
 
@@ -313,7 +315,7 @@ export class UserRootSnapshotItem extends React.Component<UserRootSnapshotItemPr
     return (
       <div className="user-snapshot-root-item">
         <div className="user-snapshot-root-item-user">{name.fullname}</div>
-        <UserSnapshotItem snapshot={snapshot} parents={[]} iframeApi={this.props.iframeApi} classInfoUrl={this.props.classInfoUrl} />
+        <UserSnapshotItem snapshot={snapshot} parents={[]} iframeApi={this.props.iframeApi} classInfoUrl={this.props.classInfoUrl} name={name} number={number} />
         {this.renderCreatedAt()}
       </div>
     )

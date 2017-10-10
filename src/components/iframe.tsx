@@ -55,11 +55,12 @@ export interface IFrameApi {
   changeGroup?: () => void
   mergeIntoDocument?: (representation:Representation) => void
   copyToClipboard?: (representation:Representation) => void
-  openInCollabSpace?: (application:LaunchApplication) => void
+  openInCollabSpace?: (title: string, application:LaunchApplication) => void
 }
 
 export const OpenInCollabSpaceMessageName = "openInCollabSpace"
 export interface OpenInCollabSpaceMessage {
+  title: string
   application:LaunchApplication
 }
 
@@ -427,9 +428,9 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     })
   }
 
-  openInCollabSpace(application:LaunchApplication) {
+  openInCollabSpace(title: string, application:LaunchApplication) {
     this.waitForInnerIframe(() => {
-      const openInCollabSpaceMessage:OpenInCollabSpaceMessage = {application}
+      const openInCollabSpaceMessage:OpenInCollabSpaceMessage = {title, application}
       this.innerIframePhone.post(OpenInCollabSpaceMessageName, openInCollabSpaceMessage)
     })
   }
