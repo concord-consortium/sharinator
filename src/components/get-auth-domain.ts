@@ -6,5 +6,10 @@ export default (url:string|null):string => {
   }
   const a = document.createElement("A") as HTMLAnchorElement
   a.href = url
-  return escapeFirebaseKey(a.host)
+  let {host} = a
+  // convert demo firebase functions to demo host
+  if (host.indexOf("cloudfunctions")) {
+    host = "demo"
+  }
+  return escapeFirebaseKey(host)
 }

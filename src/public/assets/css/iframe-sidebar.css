@@ -170,6 +170,18 @@ button {
   margin-left: 10px;
   font-size: 0.9em;
 }
+.user-snapshot-item-application-item-options {
+  margin-left: 10px;
+}
+.user-snapshot-item-application-item-option-item:hover {
+  cursor: pointer;
+  text-decoration: underline;
+}
+a.user-snapshot-item-application-item-option-item {
+  color: #000;
+  text-decoration: none;
+}
+
 .user-snapshot-item-representation-item-options {
   margin-left: 10px;
 }
@@ -192,4 +204,8 @@ a.user-snapshot-item-representation-item-option-item {
 }
 .user-snapshot-item-representation-item img {
   width: 50%;
+}
+
+.disabled-link {
+  text-decoration: line-through !important;
 }

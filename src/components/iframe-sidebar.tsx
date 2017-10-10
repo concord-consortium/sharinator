@@ -5,7 +5,7 @@ import {FirebaseInteractive, FirebaseUserInteractive, FirebaseDataContextRefMap,
 import {ClassInfo, GetUserName} from "./class-info"
 import {SuperagentError, SuperagentResponse, Firebase, FirebaseGroupMap, FirebaseRef, FirebaseSavedSnapshot, FirebaseSnapshotSnapshots} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
-import {PublishResponse, Representation, CODAP, CODAPDataContext, Jpeg, Png, Gif, Text} from "cc-sharing"
+import {PublishResponse, Representation, CODAP, CODAPDataContext, Jpeg, Png, Gif, Text, LaunchApplication, CollabSpace} from "cc-sharing"
 import * as refs from "./refs"
 
 const queryString = require("query-string")
@@ -14,21 +14,17 @@ const superagent = require("superagent")
 
 declare var firebase: Firebase
 
-export const mergedDataContextName = "Merged"
-export const mergedDataContextTitle = "Merged"
-export const mergedUserCollectionName = "Merged"
-export const mergedUserCollectionTitle = "Merged"
-export const mergedUserAttributeName = "User"
-export const mergedUserAttributeTitle = "User"
-export const mergedEmailAndVersionAttributeName = "EmailAndVersion"
-export const mergedEmailAndVersionAttributeTitle = "EmailAndVersion"
+const disableLink = (e:React.MouseEvent<HTMLElement>) => {
+  alert("This link is temporarily disabled")
+  e.preventDefault()
+  e.stopPropagation()
+}
 
 export interface IFrameSidebarProps {
   initInteractiveData: InitInteractiveData
   viewOnlyMode: boolean
   group: number
   groups: FirebaseGroupMap
-  snapshotsRef: FirebaseRef|null
   iframeApi: IFrameApi
   authDomain: string
 }
@@ -39,41 +35,11 @@ export interface IFrameSidebarState {
   publishing: boolean
   publishingError: string|null
   publishingStatus: string|null
-  userInteractives: PublishedUserInteractives[]
   myEmail: string
   initTimedout: boolean
   userSnapshots: UserSnapshot[]
   classInfoUrl: string
-}
-
-export interface CopyResults {
-  status: string
-  valid: boolean
-  id: number
-  readAccessKey: string
-  readWriteAccessKey: string
-}
-
-export interface PublishedUserInteractives {
-  email: string
-  name: UserName|null
-  type: "teacher" | "student"
-  userInteractives: FirebaseUserInteractive[]
-}
-
-export interface UserInteractivesProps {
-  userInteractives: PublishedUserInteractives
-  classHash: string
-  interactiveId: number
-  email: string
-  initInteractiveData: InitInteractiveData
-  myEmail: string
-  classInfo: ClassInfo
-  authDomain: string
-}
-
-export interface UserInteractivesState {
-  showAll: boolean
+  snapshotsRef: FirebaseRef|null
 }
 
 export interface UserSnapshot {
@@ -84,575 +50,6 @@ export interface UserSnapshot {
 
 export interface UserSnapshotMap {
   [s: string]: UserSnapshot
-}
-
-export class UserInteractives extends React.Component<UserInteractivesProps, UserInteractivesState> {
-  constructor(props: UserInteractivesProps) {
-    super(props)
-    this.state = {
-      showAll: false
-    }
-    this.toggleShowAll = this.toggleShowAll.bind(this)
-  }
-
-  toggleShowAll() {
-    this.setState({showAll: !this.state.showAll})
-  }
-
-  getVersion(index:number) {
-    return this.props.userInteractives.userInteractives.length - index
-  }
-
-  renderAll() {
-    if (!this.state.showAll) {
-      return null
-    }
-    const {userInteractives} = this.props
-    return this.props.userInteractives.userInteractives.slice(1).map((userInteractive, index) => {
-      return (
-        <UserInteractive
-          key={userInteractive.createdAt}
-          userInteractive={userInteractive}
-          version={this.getVersion(index + 1)}
-          classHash={this.props.classHash}
-          interactiveId={this.props.interactiveId}
-          initInteractiveData={this.props.initInteractiveData}
-          email={this.props.userInteractives.email}
-          first={false}
-          myEmail={this.props.myEmail}
-          classInfo={this.props.classInfo}
-          authDomain={this.props.authDomain}
-         />
-      )
-    })
-  }
-
-  render() {
-    const {userInteractives} = this.props
-    const {name} = userInteractives
-    const hasMoreThanOne = userInteractives.userInteractives.length > 1
-    return (
-      <div className="user-interactives">
-        <div className="user-interactives-name" onClick={this.toggleShowAll}>
-          {name ? name.fullname : null}
-        </div>
-        <UserInteractive
-          userInteractive={userInteractives.userInteractives[0]}
-          version={this.getVersion(0)}
-          classHash={this.props.classHash}
-          interactiveId={this.props.interactiveId}
-          email={this.props.email}
-          first={true}
-          initInteractiveData={this.props.initInteractiveData}
-          myEmail={this.props.myEmail}
-          classInfo={this.props.classInfo}
-          authDomain={this.props.authDomain}
-        />
-        {this.renderAll()}
-      </div>
-    )
-  }
-}
-
-export interface UserInteractiveProps {
-  userInteractive: FirebaseUserInteractive
-  version: number
-  classHash: string
-  interactiveId: number
-  email: string
-  first: boolean
-  initInteractiveData: InitInteractiveData
-  myEmail: string
-  classInfo: ClassInfo
-  authDomain: string
-}
-
-export interface UserInteractiveState {
-  lastCreatedAt: number
-  highlightChange: boolean
-}
-
-export class UserInteractive extends React.Component<UserInteractiveProps, UserInteractiveState> {
-  private highlightTimeout: number
-
-  constructor(props: UserInteractiveProps) {
-    super(props)
-    this.clearHighlight = this.clearHighlight.bind(this)
-    this.state = {
-      lastCreatedAt: props.userInteractive.createdAt,
-      highlightChange: false
-    }
-  }
-
-  componentWillReceiveProps(nextProps:UserInteractiveProps) {
-    if (nextProps.userInteractive.createdAt !== this.state.lastCreatedAt) {
-      clearTimeout(this.highlightTimeout)
-      this.highlightTimeout = window.setTimeout(this.clearHighlight, 1000)
-      this.setState({
-        highlightChange: true,
-        lastCreatedAt: nextProps.userInteractive.createdAt
-      })
-    }
-  }
-
-  clearHighlight() {
-    this.setState({highlightChange: false})
-  }
-
-  renderCreatedAt() {
-    const now = (new Date()).getTime()
-    const diff = Math.max(now - this.props.userInteractive.createdAt, 0) / 1000
-    const plural = (count:number) => count === 1 ? "" : "s"
-    let when:string = "Just now"
-    if (diff > 59) {
-      if (diff < 60*60) {
-        const minutes = Math.round(diff/60)
-        when = `${minutes} minute${plural(minutes)} ago`
-      }
-      else if (diff < 60*60*24) {
-        const hours = Math.round(diff/(60*60))
-        when = `${hours} hour${plural(hours)} ago`
-      }
-      else {
-        const days = Math.round(diff/(60*60*24))
-        when = `${days} day${plural(days)} ago`
-      }
-    }
-    return <div className="user-interactive-created-at">{when}</div>
-  }
-
-  render() {
-    const {userInteractive} = this.props
-    const classes = ["user-interactive"]
-    if (!this.props.first) {
-      classes.push("user-interactive-with-border")
-    }
-    if (this.state.highlightChange) {
-      classes.push("user-interactive-highlight-change")
-    }
-    return (
-      <div className={classes.join(" ")}>
-        <UserInteractiveDocument
-          userInteractive={userInteractive}
-          version={this.props.version}
-          classHash={this.props.classHash}
-          interactiveId={this.props.interactiveId}
-          initInteractiveData={this.props.initInteractiveData}
-          email={this.props.email}
-        />
-        {Object.keys(userInteractive.dataContexts).map((firebaseId) => {
-          return (
-            <UserInteractiveDataContext
-              key={firebaseId}
-              dataContextId={firebaseId}
-              dataContextName={userInteractive.dataContexts[firebaseId]}
-              version={this.props.version}
-              classHash={this.props.classHash}
-              interactiveId={this.props.interactiveId}
-              email={this.props.email}
-              myEmail={this.props.myEmail}
-              classInfo={this.props.classInfo}
-              authDomain={this.props.authDomain}
-            />
-          )
-        })}
-        {this.renderCreatedAt()}
-      </div>
-    )
-  }
-}
-
-export interface UserInteractiveDocumentProps {
-  userInteractive: FirebaseUserInteractive
-  version: number
-  classHash: string
-  interactiveId: number
-  initInteractiveData: InitInteractiveData
-  email: string
-}
-
-export interface UserInteractiveDocumentState {
-  showOptions: boolean
-}
-
-export class UserInteractiveDocument extends React.Component<UserInteractiveDocumentProps, UserInteractiveDocumentState> {
-  constructor(props: UserInteractiveDocumentProps) {
-    super(props)
-    this.state = {
-      showOptions: false
-    }
-    this.toggleShowOptions = this.toggleShowOptions.bind(this)
-    this.handleReplace = this.handleReplace.bind(this)
-  }
-
-  toggleShowOptions() {
-    this.setState({showOptions: !this.state.showOptions})
-  }
-
-  handleReplace() {
-
-  }
-
-  renderOptions() {
-    if (!this.state.showOptions) {
-      return null
-    }
-    const classUrl = this.props.initInteractiveData.classInfoUrl
-    const href = `../dashboard/?class=${classUrl}&interactive=${this.props.interactiveId}&user=${this.props.email}&createdAt=${this.props.userInteractive.createdAt}`
-
-    return (
-      <div className="user-interactive-document-options">
-        <a className="user-interactive-view-document user-interactive-option" href={href} target="_blank">View In Dashboard</a>
-        <div className="user-interactive-replace-document user-interactive-option">TDB: Replace My Document</div>
-      </div>
-    )
-  }
-
-  render() {
-    return (
-      <div>
-        <div className="user-interactive-document" onClick={this.toggleShowOptions}>Document #{this.props.version}</div>
-        {this.renderOptions()}
-      </div>
-    )
-  }
-}
-
-export interface UserInteractiveDataContextProps {
-  dataContextId: string
-  dataContextName: string
-  version: number
-  classHash: string
-  interactiveId: number
-  email: string
-  myEmail: string
-  classInfo: ClassInfo
-  authDomain: string
-}
-
-export type MergeState = "Merging..." | "Merged" | "Already merged!" | "Could not merge!" | null
-
-export interface UserInteractiveDataContextState {
-  showOptions: boolean
-  mergeState: MergeState
-  dataContext: any  // TODO
-}
-
-export class UserInteractiveDataContext extends React.Component<UserInteractiveDataContextProps, UserInteractiveDataContextState> {
-  private loading = false
-  private tree:any = null  // TODO
-
-  constructor(props: UserInteractiveDataContextProps) {
-    super(props)
-    this.state = {
-      showOptions: false,
-      mergeState: null,
-      dataContext: null
-    }
-    this.toggleShowOptions = this.toggleShowOptions.bind(this)
-    this.handleMerge = this.handleMerge.bind(this)
-  }
-
-  loadDataContext() {
-    if (!this.loading && (this.state.dataContext === null)) {
-      this.loading = true
-      const dataContextRef = refs.makeUserDataContextRef(this.props.authDomain, this.props.classHash, this.props.interactiveId, this.props.email, this.props.dataContextId)
-      dataContextRef.once("value", (snapshot:any) => {  // TODO
-        try {
-          // convert to a tree
-          const tree:any = {}  // TODO
-          const leaves:any = {}  // TODO
-          const dataContext:any = JSON.parse(snapshot.val())  // TODO
-          Object.keys(dataContext.cases).forEach((id) => {
-            const _case:any = dataContext.cases[id]  // TODO
-            const parent = _case.parent ? leaves[_case.parent] : null
-            const leaf = {
-              values: _case.values,
-              collection: dataContext.collections[_case.collection].name,
-              children: {},
-              parent: parent
-            }
-            leaves[id] = leaf
-            if (parent) {
-              parent.children[id] = leaf
-            }
-            else {
-              tree[id] = leaf
-            }
-          })
-
-          this.tree = tree
-          this.setState({dataContext: dataContext})
-        }
-        catch (e) {
-
-        }
-      })
-    }
-  }
-
-  toggleShowOptions() {
-    this.loadDataContext()
-    this.setState({showOptions: !this.state.showOptions})
-  }
-
-  handleMerge() {
-    /*
-    const dataContextName = this.state.dataContext.name
-
-    this.setState({mergeState: "Merging..."})
-
-    const showThenClear = (mergeState:MergeState) => {
-      this.setState({mergeState: mergeState})
-      setTimeout(() => {
-        this.setState({mergeState: null})
-      }, 2000)
-    }
-
-    const mergedDataContextInfo = () => {
-      const {dataContext} = this.state
-      return {
-        name: `Merged${dataContext.name}`,
-        title: `Merged: ${dataContext.title}`
-      }
-    }
-
-    const merge = (callback: (caseId:number) => void) => {
-      checkIfAlreadyMerged((existingCaseId:number) => {
-        if (existingCaseId) {
-          showThenClear("Already merged!")
-          callback(existingCaseId)
-        }
-        else {
-          createNewMergeCase((newCaseId) => {
-            addCases(this.tree, newCaseId, () => {
-              showThenClear("Merged")
-              callback(newCaseId)
-            })
-          })
-        }
-      })
-    }
-
-    const checkIfAlreadyMerged = (callback: (caseId:number) => void) => {
-      const mergedDataContext = mergedDataContextInfo()
-      this.callCODAP({
-        action: 'get',
-        resource: `dataContext[${mergedDataContext.name}].collection[${mergedUserCollectionName}].caseSearch[${mergedEmailAndVersionAttributeName}==${this.props.email}:${this.props.version}]`
-      }, (result:any) => {  // TODO
-        callback(result.success && (result.values.length > 0) ? result.values[0].id : 0)
-      })
-    }
-
-    const createNewMergeCase = (callback: (caseId:number) => void) => {
-      const mergedDataContext = mergedDataContextInfo()
-      const values:any = {} // TODO
-      const them = this.props.classInfo.getUserName(this.props.email)
-      values[mergedUserAttributeName] = `${them.found ? them.name.fullname : this.props.email} #${this.props.version}`
-      values[mergedEmailAndVersionAttributeName] = `${this.props.email}:${this.props.version}`
-
-      this.callCODAP({
-        action: 'create',
-        resource: `dataContext[${mergedDataContext.name}].collection[${mergedUserCollectionName}].case`,
-        values: [{
-          parent: null,
-          values: values
-        }]
-      }, (result:any) => { // TODO
-        callback(result.values[0].id)
-      })
-    }
-
-    const addCases = (branch:any, parentId:number, callback:Function) => {  // TODO
-      const mergedDataContext = mergedDataContextInfo()
-      const atRoot = branch === this.tree
-      const cases = Object.keys(branch).map((id) => branch[id])
-
-      const checkIfDone = () => {
-        if (atRoot) {
-          callback()
-        }
-      }
-
-      const addEachCase = () => {
-        if (cases.length === 0) {
-          checkIfDone()
-        }
-        else {
-          const _case = cases.shift()
-          this.callCODAP({
-            action: 'create',
-            resource: `dataContext[${mergedDataContext.name}].collection[${_case.collection}].case`,
-            values: {
-              parent: parentId,
-              values: _case.values
-            }
-          }, (result:any) => { // TODO
-            addCases(_case.children, result.values[0].id, callback)
-            addEachCase()
-          })
-        }
-      }
-
-      const addAllCases = () => {
-        const values = cases.map((_case) => { return { parent: parentId, values: _case.values }})
-        this.callCODAP({
-          action: 'create',
-          resource: `dataContext[${mergedDataContext.name}].collection[${cases[0].collection}].case`,
-          values: values
-        }, (result:any) => { // TODO
-          checkIfDone()
-        })
-      }
-
-      const processCases = () => {
-        if (cases.length === 0) {
-          checkIfDone()
-        }
-        else {
-          if (Object.keys(cases[0].children).length > 0) {
-            // case has children so we need to add each case one and a time to get the id
-            addEachCase()
-          }
-          else {
-            // no children so we can bulk add all the cases
-            addAllCases()
-          }
-        }
-      }
-
-      processCases()
-    }
-
-    const ensureMergedDataContextExists = (callback:() => void) => {
-      const mergedDataContext = mergedDataContextInfo()
-      this.callCODAP({
-        action: 'get',
-        resource: `dataContext[${mergedDataContext.name}]`
-      }, (result:any) => {  // TODO
-        const collections:any[] = [] // TODO
-
-        // add all the collections
-        const {dataContext} = this.state
-        Object.keys(dataContext.collections).forEach((id) => {
-          const collection = dataContext.collections[id]
-          collections.push({
-            name: collection.name,
-            title: collection.title,
-            parent: collection.parent ? collection.parent : mergedUserCollectionName,
-            attrs: collection.attrs
-          })
-        })
-
-        if (!result.success) {
-          // if merged data context does not exist create the merged collection
-          collections.unshift({
-            name: mergedUserCollectionName,
-            title: mergedUserCollectionTitle,
-            attrs: [
-              {name: mergedUserAttributeName, title: mergedUserAttributeTitle},
-              {name: mergedEmailAndVersionAttributeName, title: mergedEmailAndVersionAttributeTitle, hidden: true}
-            ]
-          })
-
-          this.callCODAP({
-            action: 'create',
-            resource: 'dataContext',
-            values: {
-              name: mergedDataContext.name,
-              title: mergedDataContext.title,
-              collections: collections
-            }
-          }, (result:any) => {  // TODO
-            callback()
-          })
-        }
-        else {
-          // otherwise ensure that all the collections exist on each merge
-          // (this is in case the DI does not add the collections until after startup like the Dataflow DI)
-          this.callCODAP({
-            action: 'create',
-            resource: 'collection',
-            values: collections
-          }, (result:any) => {  // TODO
-            callback()
-          })
-        }
-      });
-    }
-
-    const showCaseTable = (callback: () => void) => {
-      const mergedDataContext = mergedDataContextInfo()
-      this.callCODAP({
-        action: 'get',
-        resource: `component[${mergedDataContext.name}]`
-      }, (result:any) => {  // TODO
-        if (!result.success) {
-          this.callCODAP({
-            action: 'create',
-            resource: 'component',
-            values: {
-              type: 'caseTable',
-              name: mergedDataContext.name,
-              title: mergedDataContext.title,
-              dataContext: mergedDataContext.name
-            }
-          }, (result:any) => {  // TODO
-            callback()
-          });
-        }
-        else {
-          callback()
-        }
-      });
-    }
-
-    const selectMergedCase = (caseId:number) => {
-      const mergedDataContext = mergedDataContextInfo()
-      this.callCODAP({
-        action: 'create',
-        resource: `dataContext[${mergedDataContext.name}].selectionList`,
-        values: [caseId]
-      })
-    }
-
-    ensureMergedDataContextExists(() => {
-      merge((caseId) => {
-        showCaseTable(() => {
-          selectMergedCase(caseId)
-        })
-      })
-    })
-    */
-  }
-
-  renderOptions() {
-    if (!this.state.showOptions) {
-      return null
-    }
-    if (!this.state.dataContext) {
-      return (
-        <div className="user-interactive-datacontext-options">
-          Loading data...
-        </div>
-      )
-    }
-    return (
-      <div className="user-interactive-datacontext-options">
-        <div className="user-interactive-merge-datacontext user-interactive-option" onClick={this.handleMerge}>Merge Into My Document</div>
-        {this.state.mergeState ? <div className="user-interactive-action-state">{this.state.mergeState}</div> : null}
-      </div>
-    )
-  }
-
-  render() {
-    return (
-      <div>
-        <div className="user-interactive-datacontext" onClick={this.toggleShowOptions}>{this.props.dataContextName} #{this.props.version}</div>
-        {this.renderOptions()}
-      </div>
-    )
-  }
 }
 
 export interface UserSnapshotRepresentationProps {
@@ -703,10 +100,11 @@ export class UserSnapshotRepresentation extends React.Component<UserSnapshotRepr
     if (this.state.expanded) {
       const classUrl = this.props.classInfoUrl
       const href = `../dashboard/?class=${encodeURIComponent(classUrl)}&representation=${encodeURIComponent(representation.dataUrl)}`
+      // ADD BACK: <a className="user-snapshot-item-representation-item-option-item" href={href} target="_blank">Open In Dashboard</a>
 
       return (
         <div className="user-snapshot-item-representation-item-options">
-          <a className="user-snapshot-item-representation-item-option-item" href={href} target="_blank">Open In Dashboard</a>
+          <a className="user-snapshot-item-representation-item-option-item" onClick={disableLink}>Open In Dashboard</a>
         </div>
       )
     }
@@ -790,19 +188,26 @@ export class UserSnapshotRepresentation extends React.Component<UserSnapshotRepr
 }
 
 export interface UserSnapshotItemProps {
-  root: boolean
+  parents: PublishResponse[]
   snapshot: PublishResponse
   iframeApi: IFrameApi
   classInfoUrl: string
+  name: UserName
+  number: number
 }
 
 export interface UserSnapshotItemState {
+  withinCollabSpace: boolean
+  parentsPlusMe: PublishResponse[]
 }
 
 export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, UserSnapshotItemState> {
   constructor(props: UserSnapshotItemProps) {
     super(props)
+    const withinCollabSpace = this.props.parents.find((parent) => parent.application.type ? parent.application.type.type == CollabSpace.type : false)
     this.state = {
+      withinCollabSpace: !!withinCollabSpace,
+      parentsPlusMe: this.props.parents.concat(this.props.snapshot)
     }
   }
 
@@ -817,28 +222,53 @@ export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, Use
   renderChildItems():JSX.Element[] {
     const {snapshot} = this.props
     if (snapshot.children) {
-      return snapshot.children.map((child, i) => <UserSnapshotItem key={i} snapshot={child} root={false} iframeApi={this.props.iframeApi} classInfoUrl={this.props.classInfoUrl} />)
+      return snapshot.children.map((child, i) => <UserSnapshotItem key={i} snapshot={child} parents={this.state.parentsPlusMe} iframeApi={this.props.iframeApi} classInfoUrl={this.props.classInfoUrl} name={this.props.name} number={this.props.number} />)
     }
     return []
+  }
+
+  openInCollabSpace(application:LaunchApplication) {
+    if (this.props.iframeApi.openInCollabSpace) {
+      const title = `${this.props.name.fullname} (#${this.props.number}): ${application.name}`
+      this.props.iframeApi.openInCollabSpace(title, application)
+    }
+  }
+
+  renderApplicationName(application:LaunchApplication) {
+    const classUrl = this.props.classInfoUrl
+    const href = `../dashboard/?class=${encodeURIComponent(classUrl)}&application=${encodeURIComponent(application.launchUrl)}`
+    // ADD BACK: <a className="user-snapshot-item-application-item-option-item" href={href} target="_blank">Open in Dashboard</a>
+
+    if (this.state.withinCollabSpace) {
+      return (
+        <div>
+          <div className="user-snapshot-item-application-item-name">{application.name}</div>
+          <div className="user-snapshot-item-application-item-options">
+            <div className="user-snapshot-item-application-item-option-item" onClick={() => this.openInCollabSpace(application)}>Add to Collaboration Space</div>
+            <a className="user-snapshot-item-application-item-option-item disabled-link" onClick={disableLink}>Open in Dashboard</a>
+          </div>
+        </div>
+      )
+    }
+
+    return <a className="user-snapshot-item-application-name" href={href} target="_blank">{application.name}</a>
   }
 
   render() {
     const {snapshot} = this.props
 
-    if (!this.props.root) {
-      const classUrl = this.props.classInfoUrl
-      const href = `../dashboard/?class=${encodeURIComponent(classUrl)}&application=${encodeURIComponent(snapshot.application.launchUrl)}`
-
+    if (this.props.parents.length !== 0) {
       return (
         <div className="user-snapshot-item">
           <div className="user-snapshot-item-application">
-            <a className="user-snapshot-item-application-name" href={href} target="_blank">{snapshot.application.name}</a>
+            {this.renderApplicationName(snapshot.application)}
             {this.renderRepresentations()}
             {this.renderChildItems()}
           </div>
         </div>
       )
     }
+
     return (
       <div className="user-snapshot-item">
         {this.renderRepresentations()}
@@ -893,7 +323,7 @@ export class UserRootSnapshotItem extends React.Component<UserRootSnapshotItemPr
     return (
       <div className="user-snapshot-root-item">
         <div className="user-snapshot-root-item-user">{name.fullname}</div>
-        <UserSnapshotItem snapshot={snapshot} root={true} iframeApi={this.props.iframeApi} classInfoUrl={this.props.classInfoUrl} />
+        <UserSnapshotItem snapshot={snapshot} parents={[]} iframeApi={this.props.iframeApi} classInfoUrl={this.props.classInfoUrl} name={name} number={number} />
         {this.renderCreatedAt()}
       </div>
     )
@@ -904,8 +334,6 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
   private interactiveRef:any // TODO
   private userInteractivesRef:any // TODO
   private classInfo:ClassInfo
-  private classroomRef:any // TODO
-  private snapshotRef:FirebaseRef
 
   constructor(props: IFrameSidebarProps) {
     super(props)
@@ -917,11 +345,11 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
       publishing: false,
       publishingError: null,
       publishingStatus: null,
-      userInteractives: [],
       myEmail: this.props.initInteractiveData.authInfo.email,
       initTimedout: false,
       userSnapshots: [],
-      classInfoUrl: this.props.initInteractiveData.classInfoUrl || ""
+      classInfoUrl: this.props.initInteractiveData.classInfoUrl || "",
+      snapshotsRef: null
     }
 
     this.classInfo = new ClassInfo(this.props.initInteractiveData.classInfoUrl || "")
@@ -939,71 +367,12 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
       }
 
       this.setState({
-        classHash: info.classHash
-      })
-
-      this.classroomRef = refs.makeClassroomRef(this.props.authDomain, info.classHash)
-      this.classroomRef.on("value", (snapshot:any) => { // TODO
-        const firebaseData:FirebaseData = snapshot.val()
-        const publishedUserInteractives:PublishedUserInteractives[] = []
-        const interactiveKey = `interactive_${this.props.initInteractiveData.interactive.id}`
-
-        const sortUserInteractives = (a: FirebaseUserInteractive, b: FirebaseUserInteractive):number => {
-          return b.createdAt - a.createdAt
-        }
-        const sortPublishedUserInteractives = (a: PublishedUserInteractives, b: PublishedUserInteractives):number => {
-          if (!a.name || !b.name) { return 0 }
-          if (a.name._firstName < b.name._firstName) { return -1 }
-          if (a.name._firstName > b.name._firstName) { return 1 }
-          if (a.name._lastName < b.name._lastName) { return -1 }
-          if (a.name._lastName > b.name._lastName) { return 1 }
-          return 0;
-        }
-
-        if (firebaseData) {
-
-          let usernameNotFound = false
-
-          Object.keys(firebaseData.users || {}).forEach((email) => {
-            const interactive = (firebaseData.users[email].interactives || {})[interactiveKey]
-            if (interactive) {
-              const userInteractives:FirebaseUserInteractive[] = []
-              const user = this.classInfo.getUserName(email)
-              usernameNotFound = usernameNotFound || !user.found
-              Object.keys(interactive).forEach((publishKey) => {
-                userInteractives.push(interactive[publishKey])
-              })
-              if (userInteractives.length > 0) {
-                publishedUserInteractives.push({
-                  email: email,
-                  name: user.name,
-                  type: "student",
-                  userInteractives: userInteractives.sort(sortUserInteractives)
-                })
-              }
-            }
-          })
-
-          if (usernameNotFound) {
-            this.classInfo.getStudentNames((err, names) => {
-              if (!err) {
-                const userInteractives = this.state.userInteractives.slice()
-                userInteractives.forEach((userInteractive) => {
-                  userInteractive.name = this.classInfo.getUserName(userInteractive.email).name
-                })
-              }
-            })
-          }
-        }
-
-        this.setState({userInteractives: publishedUserInteractives.sort(sortPublishedUserInteractives)})
+        classHash: info.classHash,
+        snapshotsRef: refs.makeSnapshotsRef(this.props.authDomain, info.classHash, this.props.initInteractiveData.interactive.id)
+      }, () => {
+        this.listenForSnapshots()
       })
     })
-    this.listenForSnapshots()
-  }
-
-  componentWillUpdate() {
-    this.listenForSnapshots()
   }
 
   sortUserSnapshots(a: UserSnapshot, b: UserSnapshot):number {
@@ -1016,9 +385,9 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
   }
 
   listenForSnapshots() {
-    if (this.props.snapshotsRef && (this.snapshotRef !== this.props.snapshotsRef)) {
-      this.snapshotRef = this.props.snapshotsRef
-      this.props.snapshotsRef.on("value", (snapshot:FirebaseSnapshotSnapshots) => {
+    const {snapshotsRef} = this.state
+    if (snapshotsRef) {
+      snapshotsRef.on("value", (snapshot:FirebaseSnapshotSnapshots) => {
 
         const snapshotMap = snapshot.val() || {}
         const userSnapshotMap:UserSnapshotMap = {}
@@ -1109,33 +478,6 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     return <div className="status">{this.state.publishingStatus}</div>
   }
 
-  renderUserInteractives() {
-    if ((this.state.classHash === null) || (this.state.userInteractives.length === 0)) {
-      return null
-    }
-
-    return (
-      <div className="user-interactive-list">
-        { this.state.userInteractives.map((userInteractives) => {
-          return (
-            <UserInteractives
-              key={userInteractives.email}
-              userInteractives={userInteractives}
-              classHash={this.state.classHash || ""}
-              interactiveId={this.props.initInteractiveData.interactive.id}
-              email={userInteractives.email}
-              initInteractiveData={this.props.initInteractiveData}
-              myEmail={this.state.myEmail}
-              classInfo={this.classInfo}
-              authDomain={this.props.authDomain}
-            />
-          )
-        })
-        }
-      </div>
-    )
-  }
-
   renderUserSnapshots() {
     if (!this.state.userSnapshots) {
       return null
@@ -1187,7 +529,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     }
     return (
       <div className="buttons">
-        <button className="button button-primary" onClick={this.onPublish} disabled={this.state.publishing}>Publish</button>
+        <button className="button button-primary disabled-link" onClick={this.onPublish} disabled={this.state.publishing}>Publish</button>
       </div>
     )
   }
@@ -1206,8 +548,6 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
              </div>
     }
 
-    // const href = `../dashboard/?class=${this.props.initInteractiveData.classInfoUrl}`
-    //            <a className="button button-primary" href={href} target="_blank">View</a>
     return <div id="iframe-sidebar">
              { this.renderUsernameHeader() }
              { this.renderButtons() }

@@ -8,12 +8,13 @@ import {SuperagentError, SuperagentResponse, IFramePhone, Firebase,
         FirebaseSavedSnapshot, FirebaseSavedSnapshotGroup} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
 import getAuthDomain from "./get-auth-domain"
-import {SharingParent, Context, PublishResponse, Representation} from "cc-sharing"
+import {SharingParent, Context, PublishResponse, Representation, LaunchApplication} from "cc-sharing"
 import {CodapShimParams, CODAPPhone, CODAPParams, CODAPCommand,
         SetCopyUrlMessage, SetCopyUrlMessageName,
         MergeIntoDocumentMessage, MergeIntoDocumentMessageName,
         CopyToClipboardMessage, CopyToClipboardMessageName} from "./codap-shim"
 import * as refs from "./refs"
+import {parseCODAPUrlIntoAuthoredState, parseCollaborationSpaceUrlIntoAuthoredState} from "./url-parsers"
 
 const queryString = require("query-string")
 const superagent = require("superagent")
@@ -54,6 +55,13 @@ export interface IFrameApi {
   changeGroup?: () => void
   mergeIntoDocument?: (representation:Representation) => void
   copyToClipboard?: (representation:Representation) => void
+  openInCollabSpace?: (title: string, application:LaunchApplication) => void
+}
+
+export const OpenInCollabSpaceMessageName = "openInCollabSpace"
+export interface OpenInCollabSpaceMessage {
+  title: string
+  application:LaunchApplication
 }
 
 export type AuthoredState = CODAPAuthoredState | CollabSpaceAuthoredState
@@ -151,6 +159,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     this.waitForInnerIframe = this.waitForInnerIframe.bind(this)
     this.copyToClipboard = this.copyToClipboard.bind(this)
     this.mergeIntoDocument = this.mergeIntoDocument.bind(this)
+    this.openInCollabSpace = this.openInCollabSpace.bind(this)
 
     const demoUID = getUID("demo")
     const demoUser = getParam("demoUser")
@@ -419,6 +428,13 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     })
   }
 
+  openInCollabSpace(title: string, application:LaunchApplication) {
+    this.waitForInnerIframe(() => {
+      const openInCollabSpaceMessage:OpenInCollabSpaceMessage = {title, application}
+      this.innerIframePhone.post(OpenInCollabSpaceMessageName, openInCollabSpaceMessage)
+    })
+  }
+
   pollForCODAPInteractiveState(authoredState:CODAPAuthoredState) {
     const poll = () => this.getCODAPInteractiveState(authoredState)
     setTimeout(poll, 1000)
@@ -535,12 +551,11 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     if (initInteractiveData && classInfo) {
       const context:Context = {
         protocolVersion: "1.0.0",
-        user: {displayName: "REMOVE", id: initInteractiveData.authInfo.email},
+        user: initInteractiveData.authInfo.email,
         id: initInteractiveData.authInfo.email,
-        group: {displayName: "REMOVE", id: this.state.group},
-        offering: {displayName: "REMOVE", id: initInteractiveData.interactive.id},
-        clazz:  {displayName: "REMOVE", id: classInfo.classHash},
-        localId: "TODO",
+        group: this.state.group,
+        offering: initInteractiveData.interactive.id,
+        class:  classInfo.classHash,
         requestTime: new Date().toISOString()
       }
       this.innerIframePhone = iframePhone.ParentEndpoint(this.refs.iframe)
@@ -589,7 +604,8 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         handlePublish: this.handlePublish,
         setLightboxImageUrl: this.setLightboxImageUrl,
         copyToClipboard: this.copyToClipboard,
-        mergeIntoDocument: this.mergeIntoDocument
+        mergeIntoDocument: this.mergeIntoDocument,
+        openInCollabSpace: this.openInCollabSpace
       }
       return <div>
               <div id="iframe-container">
@@ -601,7 +617,6 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
                 viewOnlyMode={false}
                 group={this.state.group}
                 groups={this.state.groups}
-                snapshotsRef={this.state.snapshotsRef}
                 iframeApi={iframeApi}
                 authDomain={this.state.authDomain}
               />
@@ -695,51 +710,3 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   }
 }
 
-export function parseCODAPUrlIntoAuthoredState(url:string, grouped:boolean) {
-  const [docStoreUrl, urlQuery, ...restOfUrl] = url.split("?")
-  const urlMatches = docStoreUrl.match(/^(https?:\/\/[^/]+\/)v2\/documents\/(\d+)\/(auto)?launch/)
-  const launchParams = queryString.parse(urlQuery || "")
-
-  if (!urlMatches || !launchParams.server) {
-    throw new Error("This URL does not appear to be a shared URL from the LARA tab in CODAP")
-  }
-
-  const [codapUrl, serverQuery, ...restOfServer] = launchParams.server.split("?")
-  const codapParams = queryString.parse(serverQuery || "")
-
-  const matchProtocol = (url:string):string => {
-    const a = document.createElement("a")
-    a.href = url
-    a.protocol = location.protocol
-    return a.href
-  }
-
-  const authoredState:AuthoredState = {
-    type: "codap",
-    grouped: grouped,
-    laraSharedUrl: url,
-    docStoreUrl: matchProtocol(urlMatches[1].replace(/\/+$/, "")), // remove trailing slashes
-    codapUrl: matchProtocol(codapUrl),
-    codapParams: codapParams,
-    documentId: urlMatches[2]
-  }
-
-  return authoredState
-}
-
-export function parseCollaborationSpaceUrlIntoAuthoredState(url:string, grouped:boolean):AuthoredState {
-  const [baseUrl, hash, ...rest] = url.split("#")
-  const params = queryString.parse(hash || "")
-
-  if (!params.session) {
-    throw new Error("No session hash parameter was found in the collaboration space url")
-  }
-
-  return {
-    type: "collabSpace",
-    grouped: grouped,
-    fullUrl: url,
-    baseUrl: baseUrl,
-    session: params.session
-  }
-}
