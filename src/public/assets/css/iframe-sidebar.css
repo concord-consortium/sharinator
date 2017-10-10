@@ -205,3 +205,7 @@ a.user-snapshot-item-representation-item-option-item {
 .user-snapshot-item-representation-item img {
   width: 50%;
 }
+
+.disabled-link {
+  text-decoration: line-through !important;
+}
