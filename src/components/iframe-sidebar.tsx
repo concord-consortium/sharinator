@@ -104,7 +104,7 @@ export class UserSnapshotRepresentation extends React.Component<UserSnapshotRepr
 
       return (
         <div className="user-snapshot-item-representation-item-options">
-          <a className="user-snapshot-item-representation-item-option-item" onClick={disableLink}>Open In Dashboard</a>
+          <a className="user-snapshot-item-representation-item-option-item disabled-link" onClick={disableLink}>Open In Dashboard</a>
         </div>
       )
     }
@@ -529,7 +529,7 @@ export class IFrameSidebar extends React.Component<IFrameSidebarProps, IFrameSid
     }
     return (
       <div className="buttons">
-        <button className="button button-primary disabled-link" onClick={this.onPublish} disabled={this.state.publishing}>Publish</button>
+        <button className="button button-primary" onClick={this.onPublish} disabled={this.state.publishing}>Publish</button>
       </div>
     )
   }
