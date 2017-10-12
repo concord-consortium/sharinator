@@ -5,7 +5,7 @@ import { ClassroomPage } from "./classroom-page"
 import { DashboardPage } from "./dashboard-page"
 import { ClassInfo } from "./class-info"
 import getAuthDomain from "./get-auth-domain"
-import {SuperagentError, SuperagentResponse, Firebase, FirebaseSnapshot, FirebaseRef, ClassListItem, MyClassListResponse, FirebaseSavedSnapshot} from "./types"
+import {SuperagentError, SuperagentResponse, Firebase, FirebaseSnapshot, FirebaseRef, ClassListItem, MyClassListResponse, FirebaseSavedSnapshot, SnapshotUserInteractive} from "./types"
 import { PublishResponse } from "cc-sharing"
 import * as refs from "./refs"
 
@@ -32,6 +32,8 @@ export interface AppState {
   firebaseData: FirebaseData|null
   classes: ClassListItem[]
   authDomain: string
+  snapshotMap: SnapshotUserInteractiveMap
+  snapshotItem: SnapshotUserInteractive|null
 }
 
 export class App extends React.Component<AppProps, AppState> {
@@ -56,7 +58,9 @@ export class App extends React.Component<AppProps, AppState> {
       activity: [],
       firebaseData: null,
       classes: [],
-      authDomain: "none"
+      authDomain: "none",
+      snapshotMap: {},
+      snapshotItem: null
     }
   }
 
@@ -161,11 +165,12 @@ export class App extends React.Component<AppProps, AppState> {
         const userMap:UserMap = {}
         let userNamesNotFound:boolean = false
         const snapshotMap:SnapshotUserInteractiveMap = {}
+        let snapshotItem:SnapshotUserInteractive|null = null
 
         const fillSnapshotMap = (snapshot:PublishResponse, savedSnapshot:FirebaseSavedSnapshot, userInteractive:UserInteractive, user:User) => {
-          snapshotMap[snapshot.application.launchUrl] = {savedSnapshot, userInteractive, user}
+          snapshotMap[snapshot.application.launchUrl] = {type: "application", savedSnapshot, userInteractive, user, application: snapshot.application}
           snapshot.representations.forEach((representation) => {
-            snapshotMap[representation.dataUrl] = {savedSnapshot, userInteractive, user}
+            snapshotMap[representation.dataUrl] = {type: "representation", savedSnapshot, userInteractive, user, representation}
           })
           if (snapshot.children) {
             snapshot.children.forEach((child) => {
@@ -260,10 +265,10 @@ export class App extends React.Component<AppProps, AppState> {
             })
 
             if (query.representation || query.application) {
-              const item = snapshotMap[query.representation || query.application]
-              if (item) {
-                userInteractive = item.userInteractive
-                user = item.user
+              snapshotItem = snapshotMap[query.representation || query.application]
+              if (snapshotItem) {
+                userInteractive = snapshotItem.userInteractive
+                user = snapshotItem.user
               }
               else {
                 error = "Sorry, the requested info was not found"
@@ -306,7 +311,9 @@ export class App extends React.Component<AppProps, AppState> {
           activity: activity,
           user: user || this.state.user,
           userInteractive: userInteractive || this.state.userInteractive,
-          firebaseData: firebaseData
+          firebaseData: firebaseData,
+          snapshotMap: snapshotMap,
+          snapshotItem: snapshotItem
         })
 
         if (userNamesNotFound) {
@@ -371,10 +378,9 @@ export class App extends React.Component<AppProps, AppState> {
 
   renderPage():JSX.Element|null {
     if (this.state.class !== null) {
-      if ((this.state.userInteractive !== null) && (this.state.user !== null)) {
+      if (this.state.snapshotItem !== null) {
         return <UserPage
-                 userInteractive={this.state.userInteractive}
-                 user={this.state.user}
+                 snapshotItem={this.state.snapshotItem}
                  setUserInteractive={this.setUserInteractive}
                  getInteractiveHref={this.getInteractiveHref}
                  authDomain={this.state.authDomain}
