@@ -36,6 +36,7 @@ export interface UserInteractive {
   name: string
   url: string
   createdAt: number
+  snapshotMap: SnapshotUserInteractiveMap
 }
 
 export interface UserInteractivesMap {

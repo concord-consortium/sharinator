@@ -14,8 +14,8 @@ const queryString = require("query-string")
 declare var iframePhone: IFramePhone
 
 export interface UserPageProps {
-  setUserInteractive:(user:User, interactive:UserInteractive) => void
-  getInteractiveHref: (user:User, userInteractive:UserInteractive) => string
+  setSnapshotItem: (snapshotItem:SnapshotUserInteractive) => void
+  getSnapshotHref: (snapshotItem:SnapshotUserInteractive) => string
   snapshotItem: SnapshotUserInteractive
   authDomain: string
 }
@@ -30,7 +30,7 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
 
   constructor(props: UserPageProps) {
     super(props)
-    this.versionSelected = this.versionSelected.bind(this)
+    //this.versionSelected = this.versionSelected.bind(this)
 
     const query = queryString.parse(location.search)
     const {snapshotItem} = this.props
@@ -80,6 +80,7 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
     iframe: HTMLIFrameElement
   }
 
+  /*
   versionSelected(e:React.SyntheticEvent<HTMLSelectElement>) {
     e.preventDefault()
     const {userInteractive, user} = this.props.snapshotItem
@@ -87,7 +88,7 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
     const interactives = user.interactives[userInteractive.id]
     const interactive = interactives.filter((interactive) => { return interactive.createdAt === value})[0]
     if (interactive) {
-      this.props.setUserInteractive(user, interactive)
+      this.props.setSnapshotItem(user, interactive)
     }
   }
 
@@ -103,6 +104,7 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
     })
     return <div><select ref="createdAtSelect" onChange={this.versionSelected} value={userInteractive.createdAt}>{options}</select></div>
   }
+  */
 
   render() {
     const {userInteractive, user} = this.props.snapshotItem

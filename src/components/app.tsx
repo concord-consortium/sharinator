@@ -24,8 +24,6 @@ export interface AppState {
   className: string|null
   loading: boolean
   error: string|null
-  userInteractive: UserInteractive|null
-  user: User|null
   interactives: Array<Interactive>
   users: Array<User>,
   activity: Array<Activity>
@@ -43,16 +41,14 @@ export class App extends React.Component<AppProps, AppState> {
   constructor(props: AppProps) {
     super(props)
 
-    this.setUserInteractive = this.setUserInteractive.bind(this)
-    this.getInteractiveHref = this.getInteractiveHref.bind(this)
+    this.setSnapshotItem = this.setSnapshotItem.bind(this)
+    this.getSnapshotHref = this.getSnapshotHref.bind(this)
 
     this.state = {
       class: null,
       className: null,
       loading: true,
       error: null,
-      userInteractive: null,
-      user: null,
       interactives: [],
       users: [],
       activity: [],
@@ -227,7 +223,8 @@ export class App extends React.Component<AppProps, AppState> {
                   id: firebaseInteractiveId,
                   name: interactive.name,
                   url: snapshot.application.launchUrl,
-                  createdAt: savedSnapshot.createdAt
+                  createdAt: savedSnapshot.createdAt,
+                  snapshotMap: {}
                 }
                 userInteractives.push(userInteractive)
 
@@ -258,10 +255,7 @@ export class App extends React.Component<AppProps, AppState> {
           if (firstLoad) {
             window.addEventListener("popstate", (e) => {
               const state = e.state || {}
-              const user = state.user || null
-              const interactive = state.interactive || null
-
-              this.setState({userInteractive: state.userInteractive || null, user: state.user || null})
+              this.setState({snapshotItem: state.snapshotItem || null})
             })
 
             if (query.representation || query.application) {
@@ -275,27 +269,6 @@ export class App extends React.Component<AppProps, AppState> {
               }
             }
 
-              /*
-            if (query.interactive && query.user) {
-              user = userMap[query.user]
-              const interactiveKey = `interactive_${query.interactive}`
-              const interactive = interactiveMap[interactiveKey]
-              if (user && interactive) {
-                let userInteractives = user.interactives[interactive.id]
-                if (userInteractives) {
-                  if (query.createdAt) {
-                    createdAt = parseInt(query.createdAt, 10)
-                    userInteractives = userInteractives.filter((userInteractive) => { return userInteractive.createdAt === createdAt })
-                  }
-                  userInteractive = userInteractives[0] || null
-                }
-              }
-
-              if (!user || !userInteractive) {
-                error = "Sorry, the requested user interactive was not found!"
-              }
-            }
-            */
             firstLoad = false
           }
         }
@@ -309,8 +282,6 @@ export class App extends React.Component<AppProps, AppState> {
           interactives: interactives,
           users: users,
           activity: activity,
-          user: user || this.state.user,
-          userInteractive: userInteractive || this.state.userInteractive,
           firebaseData: firebaseData,
           snapshotMap: snapshotMap,
           snapshotItem: snapshotItem
@@ -346,12 +317,12 @@ export class App extends React.Component<AppProps, AppState> {
     if (history.pushState && this.state.class) {
       history.pushState({}, "", `${location.pathname}?class=${this.state.class}`)
     }
-    this.setState({userInteractive: null, user: null})
+    this.setState({snapshotItem: null})
   }
 
   renderNav():JSX.Element|null {
     if (this.state.class !== null) {
-      const showingUserInteractive = (this.state.user !== null) && (this.state.userInteractive !== null)
+      const showingUserInteractive = (this.state.snapshotItem !== null)
       return <div className="nav">
                { showingUserInteractive && this.state.className !== null ? <h3>{this.state.className}</h3> : null }
                { showingUserInteractive ? <button key="classroom" className="button button-primary" onClick={this.onClassroomClick.bind(this)}>View All</button> : null }
@@ -360,20 +331,19 @@ export class App extends React.Component<AppProps, AppState> {
     return null
   }
 
-  getInteractiveHref(user:User, userInteractive:UserInteractive):string {
-    return `${location.pathname}?class=${this.state.class}&interactive=${userInteractive.id.split("_")[1]}&user=${user.id}&createdAt=${userInteractive.createdAt}`
+  getSnapshotHref(snapshotItem:SnapshotUserInteractive):string {
+    if (snapshotItem.type === "application") {
+      return `${location.pathname}?class=${this.state.class}&application=${encodeURIComponent(snapshotItem.application.launchUrl)}`
+    }
+    return `${location.pathname}?class=${this.state.class}&representation=${encodeURIComponent(snapshotItem.representation.dataUrl)}`
   }
 
-  setUserInteractive(user:User, userInteractive:UserInteractive) {
+  setSnapshotItem(snapshotItem:SnapshotUserInteractive) {
     if (history.pushState) {
-      const href = this.getInteractiveHref(user, userInteractive)
-      history.pushState({user: user, userInteractive: userInteractive}, "", href)
+      const href = this.getSnapshotHref(snapshotItem)
+      history.pushState({snapshotItem}, "", href)
     }
-
-    this.setState({
-      user: user,
-      userInteractive: userInteractive
-    })
+    this.setState({snapshotItem})
   }
 
   renderPage():JSX.Element|null {
@@ -381,8 +351,8 @@ export class App extends React.Component<AppProps, AppState> {
       if (this.state.snapshotItem !== null) {
         return <UserPage
                  snapshotItem={this.state.snapshotItem}
-                 setUserInteractive={this.setUserInteractive}
-                 getInteractiveHref={this.getInteractiveHref}
+                 setSnapshotItem={this.setSnapshotItem}
+                 getSnapshotHref={this.getSnapshotHref}
                  authDomain={this.state.authDomain}
                  />
       }
@@ -402,8 +372,8 @@ export class App extends React.Component<AppProps, AppState> {
                interactives={this.state.interactives}
                users={this.state.users}
                activity={this.state.activity}
-               setUserInteractive={this.setUserInteractive}
-               getInteractiveHref={this.getInteractiveHref}
+               setSnapshotItem={this.setSnapshotItem}
+               getSnapshotHref={this.getSnapshotHref}
                classInfo={this.classInfo}
                classes={this.state.classes}
                authDomain={this.state.authDomain}

@@ -1,14 +1,15 @@
 import * as React from "react";
-import { Interactive, InteractiveMap, User, UserMap, UserInteractive, Activity, ClassListItem, FirebaseRef, Firebase, FirebaseSnapshot, FirebaseInteractive, FirebaseUser, FirebaseData, FirebaseUserInteractive} from "./types"
+import { Interactive, InteractiveMap, User, UserMap, UserInteractive, Activity, ClassListItem, FirebaseRef, Firebase, FirebaseSnapshot, FirebaseInteractive, FirebaseUser, FirebaseData, FirebaseUserInteractive, SnapshotUserInteractive, FirebaseSavedSnapshot, SnapshotUserInteractiveMap} from "./types"
 import { ClassInfo } from "./class-info"
 import { ago } from "./ago"
+import { PublishResponse, CollabSpace } from "cc-sharing"
 import * as refs from "./refs"
 
 declare var firebase: Firebase
 
 export interface DashboardPageProps {
-  setUserInteractive:(user:User, interactive:UserInteractive) => void
-  getInteractiveHref: (user:User, userInteractive:UserInteractive) => string
+  setSnapshotItem: (snapshotItem:SnapshotUserInteractive) => void
+  getSnapshotHref: (snapshotItem:SnapshotUserInteractive) => string
   class: string,
   interactives: Array<Interactive>
   users: Array<User>
@@ -166,6 +167,19 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
                 let error:string|null = null
                 let createdAt:number|null = null
                 const interactiveMap:InteractiveMap = {}
+                const userMap:UserMap = {}
+
+                const fillSnapshotMap = (snapshot:PublishResponse, savedSnapshot:FirebaseSavedSnapshot, userInteractive:UserInteractive, user:User) => {
+                  userInteractive.snapshotMap[snapshot.application.launchUrl] = {type: "application", savedSnapshot, userInteractive, user, application: snapshot.application}
+                  snapshot.representations.forEach((representation) => {
+                    userInteractive.snapshotMap[representation.dataUrl] = {type: "representation", savedSnapshot, userInteractive, user, representation}
+                  })
+                  if (snapshot.children) {
+                    snapshot.children.forEach((child) => {
+                      fillSnapshotMap(child, savedSnapshot, userInteractive, user)
+                    })
+                  }
+                }
 
                 if (firebaseData) {
                   if (firebaseData.interactives) {
@@ -182,45 +196,63 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
                     })
                   }
 
-                  /* if (firebaseData.users) {
+                  if (firebaseData.snapshots) {
                     extendedClassInfo.users = []
-                    Object.keys(firebaseData.users).forEach((firebaseUserId) => {
-                      const firebaseUser:FirebaseUser = firebaseData.users[firebaseUserId]
-                      const userName = extendedClassInfo.info.getUserName(firebaseUserId)
-                      const user:User = {
-                        id: firebaseUserId,
-                        name: userName.name,
-                        interactives: {}
+
+                    Object.keys(firebaseData.snapshots).forEach((firebaseInteractiveId) => {
+                      const savedSnapshotMap = firebaseData.snapshots[firebaseInteractiveId]
+
+                      const firebaseInteractive = interactiveMap[firebaseInteractiveId]
+                      let interactive = interactiveMap[firebaseInteractiveId]
+                      if (!interactive) {
+                        return
                       }
 
-                      if (firebaseUser.interactives) {
-                        Object.keys(firebaseUser.interactives).forEach((firebaseInteractiveId) => {
-                          const interactive = interactiveMap[firebaseInteractiveId]
-                          if (interactive) {
-                            const userInteractives = user.interactives[firebaseInteractiveId] = user.interactives[firebaseInteractiveId] || []
-                            const firebaseUserInteractives = firebaseUser.interactives[firebaseInteractiveId]
-                            Object.keys(firebaseUserInteractives).forEach((firebaseUserInteractiveId) => {
-                              const firebaseUserInteractive = firebaseUserInteractives[firebaseUserInteractiveId]
-                              const userInteractive:UserInteractive = {
-                                id: firebaseInteractiveId,
-                                name: interactive.name,
-                                url: firebaseUserInteractive.documentUrl,
-                                createdAt: firebaseUserInteractive.createdAt
-                              }
-                              userInteractives.push(userInteractive)
+                      Object.keys(savedSnapshotMap).forEach((savedSnapshotMapKey) => {
+                        const savedSnapshot = savedSnapshotMap[savedSnapshotMapKey]
+                        const {snapshot} = savedSnapshot
 
-                              activity.push({
-                                user: user,
-                                userInteractive: userInteractive
-                              })
-                            })
-                            userInteractives.sort((a, b) => {return b.createdAt - a.createdAt })
+                        const userName = extendedClassInfo.info.getUserName(savedSnapshot.user)
+                        let user = userMap[savedSnapshot.user]
+                        if (!user) {
+                          user = {
+                            id: savedSnapshot.user,
+                            name: userName.name,
+                            interactives: {}
                           }
+                          extendedClassInfo.users.push(user)
+                          userMap[savedSnapshot.user] = user
+                        }
+
+                        const userInteractives = user.interactives[firebaseInteractiveId] = user.interactives[firebaseInteractiveId] || []
+                        const userInteractive:UserInteractive = {
+                          id: firebaseInteractiveId,
+                          name: interactive.name,
+                          url: snapshot.application.launchUrl,
+                          createdAt: savedSnapshot.createdAt,
+                          snapshotMap: {}
+                        }
+                        userInteractives.push(userInteractive)
+
+                        fillSnapshotMap(snapshot, savedSnapshot, userInteractive, user)
+
+                        activity.push({
+                          user: user,
+                          userInteractive: userInteractive
                         })
-                      }
-                      extendedClassInfo.users.push(user)
+                      })
                     })
-                  } */
+
+                    extendedClassInfo.users.forEach((user) => {
+                      Object.keys(user.interactives).forEach((interactiveId) => {
+                        user.interactives[interactiveId].sort((a, b) => {return b.createdAt - a.createdAt })
+                        const interactive = interactiveMap[interactiveId]
+                        if (interactive) {
+                          interactive.users[user.id] = user
+                        }
+                      })
+                    })
+                  }
 
                   this.generateRows()
                 }
@@ -319,97 +351,6 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
       rowDates: rowDates,
       classes: classes
     })
-  }
-
-  createOnClick(href: string, user:User, userInteractive:UserInteractive):ClickHandler {
-    return (e:React.MouseEvent<HTMLAnchorElement>) => {
-      e.preventDefault()
-      this.props.setUserInteractive(user, userInteractive)
-    }
-  }
-
-  renderUser(user:User):JSX.Element {
-    const interactives:Array<JSX.Element> = Object.keys(user.interactives).map<JSX.Element>((interactiveId) => {
-      const userInteractives = user.interactives[interactiveId]
-      const userInteractive = userInteractives[0]
-      const key = `${user.id}-${interactiveId}`
-      const href = this.props.getInteractiveHref(user, userInteractive)
-      const onClick = this.createOnClick(href, user, userInteractive)
-      return <span key={key}><a href={href} onClick={onClick}>{userInteractive.name}</a> ({userInteractives.length})</span>
-    })
-
-    return <tr key={user.id}>
-             <td>{user.name.fullname}</td>
-             <td>{interactives}</td>
-           </tr>
-  }
-
-  renderInteractive(interactive:Interactive):JSX.Element {
-    const users:Array<JSX.Element> = Object.keys(interactive.users).map<JSX.Element>((userId) => {
-      const user = interactive.users[userId]
-      const userInteractives = user.interactives[interactive.id]
-      const userInteractive = userInteractives[0]
-      const key = `${user.id}-${interactive.id}`
-      const href = this.props.getInteractiveHref(user, userInteractive)
-      const onClick = this.createOnClick(href, user, userInteractive)
-      return <span key={key}><a href={href} onClick={onClick}>{user.name.fullname}</a> ({userInteractives.length})</span>
-    })
-
-    return <tr key={interactive.id}>
-             <td>{interactive.name}</td>
-             <td>{users}</td>
-           </tr>
-  }
-
-  renderUsers():JSX.Element {
-    if (this.props.users.length === 0) {
-      return <div>No teachers or students have published any interactives yet</div>
-    }
-    return <table className="u-full-width">
-             <thead>
-               <tr>
-                 <th>User</th>
-                 <th>Published Interactives</th>
-               </tr>
-             </thead>
-             <tbody>
-               {this.props.users.map(this.renderUser.bind(this))}
-             </tbody>
-           </table>
-  }
-
-  renderInteractives():JSX.Element {
-    if (this.props.interactives.length === 0) {
-      return <div>No interactives have been published yet</div>
-    }
-    return <table className="u-full-width">
-             <thead>
-               <tr>
-                 <th>Published Interactive</th>
-                 <th>Users</th>
-               </tr>
-             </thead>
-             <tbody>
-               {this.props.interactives.map(this.renderInteractive.bind(this))}
-             </tbody>
-           </table>
-  }
-
-  renderActivity(activity:Activity, index:number):JSX.Element {
-    const href = this.props.getInteractiveHref(activity.user, activity.userInteractive)
-    const onClick = this.createOnClick(href, activity.user, activity.userInteractive)
-    return <div className="activity" key={`${activity.user.id}-${activity.userInteractive.id}-${index}`}>
-            {activity.user.name.fullname} published
-            <a href={href} onClick={onClick}>{activity.userInteractive.name}</a>
-            {ago(activity.userInteractive.createdAt)}
-           </div>
-  }
-
-  renderActivityList():JSX.Element {
-    if (this.props.activity.length === 0) {
-      return <div>There has been no activity in this classroom yet</div>
-    }
-    return <div className="activity-list">{this.props.activity.map(this.renderActivity.bind(this))}</div>
   }
 
   selectUser(e:React.ChangeEvent<HTMLSelectElement>) {
@@ -533,9 +474,30 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
 
   renderUserInteractive(rowId: number, user:User, userInteractive:UserInteractive, version: number) {
     const key = `${rowId}-${user.id}-${userInteractive.id}`
-    const href = this.props.getInteractiveHref(user, userInteractive)
-    const onClick = this.createOnClick(href, user, userInteractive)
-    return <a href={href} onClick={onClick}>{userInteractive.name} <span>#{version}</span></a>
+    const links:JSX.Element[] = []
+    Object.keys(userInteractive.snapshotMap).forEach((launchUrl) => {
+      const snapshotItem = userInteractive.snapshotMap[launchUrl]
+      // skip collabspance for now
+      // TODO: renable later!
+      if ((snapshotItem.type === "application") && snapshotItem.application.type && (snapshotItem.application.type.type === CollabSpace.type)) {
+        return
+      }
+      if (snapshotItem.type === "representation") {
+        return
+      }
+      const name = snapshotItem.type === "application" ? snapshotItem.application.name : snapshotItem.representation.name
+      if (!name || name.length === 0) {
+        return
+      }
+      const href = this.props.getSnapshotHref(snapshotItem)
+      const onClick = (e:React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault()
+        this.props.setSnapshotItem(snapshotItem)
+      }
+      //links.push(<li key={launchUrl}><a href={href} onClick={onClick}>{name} <span>#{version}</span></a></li>)
+      links.push(<li key={launchUrl}><a href={href} onClick={onClick}>{name}</a></li>)
+    })
+    return <div>{userInteractive.name}<ul className="snapshot-links">{links}</ul></div>
   }
 
   render() {

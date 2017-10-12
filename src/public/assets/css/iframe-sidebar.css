@@ -165,6 +165,10 @@ button {
   left: 0;
   z-index: 100;
   opacity: 0;
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
 }
 
 .user-snapshot-items {
