@@ -485,7 +485,8 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
       if (snapshotItem.type === "representation") {
         return
       }
-      const name = snapshotItem.type === "application" ? snapshotItem.application.name : snapshotItem.representation.name
+      //const name = snapshotItem.type === "application" ? snapshotItem.application.name : snapshotItem.representation.name
+      const name = snapshotItem.application.name
       if (!name || name.length === 0) {
         return
       }
