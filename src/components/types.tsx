@@ -1,4 +1,4 @@
-import {PublishResponse} from 'cc-sharing'
+import { PublishResponse, LaunchApplication, Representation } from 'cc-sharing'
 
 export interface Interactive {
   id: string
@@ -36,6 +36,7 @@ export interface UserInteractive {
   name: string
   url: string
   createdAt: number
+  snapshotMap: SnapshotUserInteractiveMap
 }
 
 export interface UserInteractivesMap {
@@ -157,11 +158,23 @@ export interface FirebaseRef {
   push: () => any
 }
 
-export interface SnapshotUserInteractive {
-  snapshot: FirebaseSavedSnapshot
+export type SnapshotUserInteractive = SnapshotApplicationUserInteractive | SnapshotRepresentationUserInteractive
+export interface SnapshotApplicationUserInteractive {
+  type: "application"
+  savedSnapshot: FirebaseSavedSnapshot
   userInteractive: UserInteractive
   user: User
+  application: LaunchApplication
 }
+export interface SnapshotRepresentationUserInteractive {
+  type: "representation"
+  savedSnapshot: FirebaseSavedSnapshot
+  userInteractive: UserInteractive
+  user: User
+  representation: Representation
+}
+
+
 export interface SnapshotUserInteractiveMap {
   [s: string]: SnapshotUserInteractive
 }

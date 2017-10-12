@@ -14,12 +14,6 @@ const superagent = require("superagent")
 
 declare var firebase: Firebase
 
-const disableLink = (e:React.MouseEvent<HTMLElement>) => {
-  alert("This link is temporarily disabled")
-  e.preventDefault()
-  e.stopPropagation()
-}
-
 export interface IFrameSidebarProps {
   initInteractiveData: InitInteractiveData
   viewOnlyMode: boolean
@@ -100,11 +94,10 @@ export class UserSnapshotRepresentation extends React.Component<UserSnapshotRepr
     if (this.state.expanded) {
       const classUrl = this.props.classInfoUrl
       const href = `../dashboard/?class=${encodeURIComponent(classUrl)}&representation=${encodeURIComponent(representation.dataUrl)}`
-      // ADD BACK: <a className="user-snapshot-item-representation-item-option-item" href={href} target="_blank">Open In Dashboard</a>
 
       return (
         <div className="user-snapshot-item-representation-item-options">
-          <a className="user-snapshot-item-representation-item-option-item disabled-link" onClick={disableLink}>Open In Dashboard</a>
+          <a className="user-snapshot-item-representation-item-option-item" href={href} target="_blank">Open In Dashboard</a>
         </div>
       )
     }
@@ -237,15 +230,16 @@ export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, Use
   renderApplicationName(application:LaunchApplication) {
     const classUrl = this.props.classInfoUrl
     const href = `../dashboard/?class=${encodeURIComponent(classUrl)}&application=${encodeURIComponent(application.launchUrl)}`
-    // ADD BACK: <a className="user-snapshot-item-application-item-option-item" href={href} target="_blank">Open in Dashboard</a>
 
     if (this.state.withinCollabSpace) {
+      // for now disallow codraw to be added
+      const allowAddToCollabSpace = application.launchUrl.indexOf("codraw") === -1
       return (
         <div>
           <div className="user-snapshot-item-application-item-name">{application.name}</div>
           <div className="user-snapshot-item-application-item-options">
-            <div className="user-snapshot-item-application-item-option-item" onClick={() => this.openInCollabSpace(application)}>Add to Collaboration Space</div>
-            <a className="user-snapshot-item-application-item-option-item disabled-link" onClick={disableLink}>Open in Dashboard</a>
+            {allowAddToCollabSpace ? <div className="user-snapshot-item-application-item-option-item" onClick={() => this.openInCollabSpace(application)}>Add to Collaboration Space</div> : null}
+            <a className="user-snapshot-item-application-item-option-item" href={href} target="_blank">Open in Dashboard</a>
           </div>
         </div>
       )

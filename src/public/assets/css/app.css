@@ -132,6 +132,12 @@ table.dashboard a {
 table.dashboard td.rowDate {
   text-align: right;
 }
+table.dashboard ul.snapshot-links {
+  margin: 0;
+}
+table.dashboard ul.snapshot-links li {
+  margin: 0;
+}
 
 .sort {
   margin-left: 10px;
