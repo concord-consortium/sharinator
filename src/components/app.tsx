@@ -5,7 +5,8 @@ import { ClassroomPage } from "./classroom-page"
 import { DashboardPage } from "./dashboard-page"
 import { ClassInfo } from "./class-info"
 import getAuthDomain from "./get-auth-domain"
-import {SuperagentError, SuperagentResponse, Firebase, FirebaseSnapshot, FirebaseRef, ClassListItem, MyClassListResponse} from "./types"
+import {SuperagentError, SuperagentResponse, Firebase, FirebaseSnapshot, FirebaseRef, ClassListItem, MyClassListResponse, FirebaseSavedSnapshot} from "./types"
+import { PublishResponse } from "cc-sharing"
 import * as refs from "./refs"
 
 const superagent = require("superagent")
@@ -161,6 +162,18 @@ export class App extends React.Component<AppProps, AppState> {
         let userNamesNotFound:boolean = false
         const snapshotMap:SnapshotUserInteractiveMap = {}
 
+        const fillSnapshotMap = (snapshot:PublishResponse, savedSnapshot:FirebaseSavedSnapshot, userInteractive:UserInteractive, user:User) => {
+          snapshotMap[snapshot.application.launchUrl] = {savedSnapshot, userInteractive, user}
+          snapshot.representations.forEach((representation) => {
+            snapshotMap[representation.dataUrl] = {savedSnapshot, userInteractive, user}
+          })
+          if (snapshot.children) {
+            snapshot.children.forEach((child) => {
+              fillSnapshotMap(child, savedSnapshot, userInteractive, user)
+            })
+          }
+        }
+
         if (firebaseData) {
           if (firebaseData.interactives) {
             Object.keys(firebaseData.interactives).forEach((firebaseInteractiveId) => {
@@ -177,47 +190,49 @@ export class App extends React.Component<AppProps, AppState> {
 
           if (firebaseData.snapshots) {
             Object.keys(firebaseData.snapshots).forEach((firebaseInteractiveId) => {
-              const interactive = interactiveMap[firebaseInteractiveId]
-              if (interactive) {
-                const snapshots = firebaseData.snapshots[firebaseInteractiveId]
-                Object.keys(snapshots).forEach((firebaseSnapshotId) => {
-                  const snapshot = snapshots[firebaseSnapshotId]
+              const savedSnapshotMap = firebaseData.snapshots[firebaseInteractiveId]
 
-                  const userName = this.classInfo.getUserName(snapshot.user)
-                  if (!userName.found) {
-                    userNamesNotFound = true
-                  }
-
-                  let user = userMap[snapshot.user]
-                  if (!user) {
-                    user = {
-                      id: snapshot.user,
-                      name: userName.name,
-                      interactives: {}
-                    }
-                    users.push(user)
-                    userMap[snapshot.user] = user
-                  }
-
-                  const userInteractives = user.interactives[firebaseInteractiveId] = user.interactives[firebaseInteractiveId] || []
-                  const userInteractive:UserInteractive = {
-                    id: firebaseInteractiveId,
-                    name: interactive.name,
-                    url: snapshot.snapshot.application.launchUrl,
-                    createdAt: snapshot.createdAt
-                  }
-                  userInteractives.push(userInteractive)
-
-                  snapshot.snapshot.representations.forEach((representation) => {
-                    snapshotMap[representation.dataUrl] = {snapshot, userInteractive, user}
-                  })
-
-                  activity.push({
-                    user: user,
-                    userInteractive: userInteractive
-                  })
-                })
+              const firebaseInteractive = interactiveMap[firebaseInteractiveId]
+              let interactive = interactiveMap[firebaseInteractiveId]
+              if (!interactive) {
+                return
               }
+
+              Object.keys(savedSnapshotMap).forEach((savedSnapshotMapKey) => {
+                const savedSnapshot = savedSnapshotMap[savedSnapshotMapKey]
+                const {snapshot} = savedSnapshot
+
+                const userName = this.classInfo.getUserName(savedSnapshot.user)
+                if (!userName.found) {
+                  userNamesNotFound = true
+                }
+                let user = userMap[savedSnapshot.user]
+                if (!user) {
+                  user = {
+                    id: savedSnapshot.user,
+                    name: userName.name,
+                    interactives: {}
+                  }
+                  users.push(user)
+                  userMap[savedSnapshot.user] = user
+                }
+
+                const userInteractives = user.interactives[firebaseInteractiveId] = user.interactives[firebaseInteractiveId] || []
+                const userInteractive:UserInteractive = {
+                  id: firebaseInteractiveId,
+                  name: interactive.name,
+                  url: snapshot.application.launchUrl,
+                  createdAt: savedSnapshot.createdAt
+                }
+                userInteractives.push(userInteractive)
+
+                fillSnapshotMap(snapshot, savedSnapshot, userInteractive, user)
+
+                activity.push({
+                  user: user,
+                  userInteractive: userInteractive
+                })
+              })
             })
           }
 
@@ -244,8 +259,8 @@ export class App extends React.Component<AppProps, AppState> {
               this.setState({userInteractive: state.userInteractive || null, user: state.user || null})
             })
 
-            if (query.representation) {
-              const item = snapshotMap[query.representation]
+            if (query.representation || query.application) {
+              const item = snapshotMap[query.representation || query.application]
               if (item) {
                 userInteractive = item.userInteractive
                 user = item.user
@@ -254,7 +269,8 @@ export class App extends React.Component<AppProps, AppState> {
                 error = "Sorry, the requested info was not found"
               }
             }
-            /*
+
+              /*
             if (query.interactive && query.user) {
               user = userMap[query.user]
               const interactiveKey = `interactive_${query.interactive}`

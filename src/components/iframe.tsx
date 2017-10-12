@@ -5,7 +5,7 @@ import { getParam, getUID, FirebaseDemo, DemoFirebaseSnapshot } from "./demo"
 import {SuperagentError, SuperagentResponse, IFramePhone, Firebase,
         InteractiveState, GlobalInteractiveState, LinkedState,
         FirebaseGroupMap, FirebaseGroupSnapshot, FirebaseRef, FirebaseGroupUser,
-        FirebaseSavedSnapshot, FirebaseSavedSnapshotGroup} from "./types"
+        FirebaseSavedSnapshot, FirebaseSavedSnapshotGroup, FirebaseInteractive} from "./types"
 import escapeFirebaseKey from "./escape-firebase-key"
 import getAuthDomain from "./get-auth-domain"
 import {SharingParent, Context, PublishResponse, Representation, LaunchApplication} from "cc-sharing"
@@ -44,6 +44,7 @@ export interface IFrameState {
   classInfo: AllClassInfo|null
   iframeType: AuthoredStateType|null
   snapshotsRef:FirebaseRef|null
+  interactiveRef:FirebaseRef|null,
   lightboxImageUrl: string|null
   appType: AppType
   authDomain: string
@@ -185,6 +186,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
       classInfo: null,
       iframeType: null,
       snapshotsRef: null,
+      interactiveRef: null,
       lightboxImageUrl: null,
       appType: "CODAP",
       authDomain: "none"
@@ -285,6 +287,7 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
         else {
           this.setState({
             classInfo: info,
+            interactiveRef: refs.makeInteractiveRef(this.state.authDomain, info.classHash, initInteractiveData.interactive.id),
             snapshotsRef: refs.makeSnapshotsRef(this.state.authDomain, info.classHash, initInteractiveData.interactive.id)
           }, () => {
             this.setState({src: this.generateIframeSrc()})
@@ -529,7 +532,11 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
   receivePublish(snapshot:PublishResponse) {
     this.cleanSnapshotForFirebase(snapshot)
 
-    if (this.state.snapshotsRef && this.state.initInteractiveData) {
+    if (this.state.snapshotsRef && this.state.interactiveRef && this.state.initInteractiveData) {
+      // save the interactive name (noop after it is first set)
+      const firebaseInteractive:FirebaseInteractive = {name: this.state.initInteractiveData.interactive.name}
+      this.state.interactiveRef.set(firebaseInteractive)
+
       const snapshotGroup:FirebaseSavedSnapshotGroup|null = this.state.group && this.state.groups[this.state.group] ? {id: this.state.group, members: this.state.groups[this.state.group].users || {}} : null
       const pushedShapshot:FirebaseSavedSnapshot = {
         createdAt: firebase.database.ServerValue.TIMESTAMP,

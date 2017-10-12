@@ -232,11 +232,13 @@ export class UserSnapshotItem extends React.Component<UserSnapshotItemProps, Use
     const href = `../dashboard/?class=${encodeURIComponent(classUrl)}&application=${encodeURIComponent(application.launchUrl)}`
 
     if (this.state.withinCollabSpace) {
+      // for now disallow codraw to be added
+      const allowAddToCollabSpace = application.launchUrl.indexOf("codraw") === -1
       return (
         <div>
           <div className="user-snapshot-item-application-item-name">{application.name}</div>
           <div className="user-snapshot-item-application-item-options">
-            <div className="user-snapshot-item-application-item-option-item" onClick={() => this.openInCollabSpace(application)}>Add to Collaboration Space</div>
+            {allowAddToCollabSpace ? <div className="user-snapshot-item-application-item-option-item" onClick={() => this.openInCollabSpace(application)}>Add to Collaboration Space</div> : null}
             <a className="user-snapshot-item-application-item-option-item" href={href} target="_blank">Open in Dashboard</a>
           </div>
         </div>

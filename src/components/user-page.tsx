@@ -88,14 +88,9 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
   }
 
   render() {
-    return <div className="page">
-      <div className="page-header">
-        <h4>{this.props.user.name.fullname}: {this.props.userInteractive.name}</h4>
-        { this.renderDropdown() }
-      </div>
-      <div id="iframe" className="u-full-width">
-        <iframe className="user-page-iframe" ref="iframe" src={this.state.iframeUrl}></iframe>
-        <IFrameSidebar
+    /*
+      REMOVE for now
+       <IFrameSidebar
           initInteractiveData={this.state.initInteractiveData}
           viewOnlyMode={true}
           group={0}
@@ -103,6 +98,16 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
           iframeApi={{}}
           authDomain={this.props.authDomain}
         />
+
+    */
+    return <div className="page">
+      <div className="page-header">
+        <h4>{this.props.user.name.fullname}: {this.props.userInteractive.name}</h4>
+        { this.renderDropdown() }
+      </div>
+      <div id="iframe" className="u-full-width">
+        <iframe className="user-page-iframe" ref="iframe" src={this.state.iframeUrl}></iframe>
+        <div className="user-page-iframe-readonly-overlay"></div>
       </div>
     </div>
   }

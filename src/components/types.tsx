@@ -158,7 +158,7 @@ export interface FirebaseRef {
 }
 
 export interface SnapshotUserInteractive {
-  snapshot: FirebaseSavedSnapshot
+  savedSnapshot: FirebaseSavedSnapshot
   userInteractive: UserInteractive
   user: User
 }

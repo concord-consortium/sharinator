@@ -154,7 +154,17 @@ button {
 
 .user-page-iframe {
   height: 700px;
-  width: 715px;
+  width: 100%; /* 715px; */
+}
+
+.user-page-iframe-readonly-overlay {
+  position: absolute;
+  top: 0;
+  right: 20px;
+  bottom: 20px;
+  left: 0;
+  z-index: 100;
+  opacity: 0;
 }
 
 .user-snapshot-items {
@@ -170,8 +180,11 @@ button {
   margin-left: 10px;
   font-size: 0.9em;
 }
+.user-snapshot-item-application-item-name {
+  font-style: italic;
+}
 .user-snapshot-item-application-item-options {
-  margin-left: 10px;
+  margin: 0 0 5px 10px;
 }
 .user-snapshot-item-application-item-option-item:hover {
   cursor: pointer;
