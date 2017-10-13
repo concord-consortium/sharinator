@@ -39,6 +39,7 @@ interface DashboardRow {
   user: User
   className: string
   interactive: UserInteractive
+  otherVersions: UserInteractive[],
   version: number
   rowDate: RowDate
   _class: ExtendedClassInfo
@@ -76,6 +77,91 @@ interface ClassInfoMap {
 }
 
 export type ClickHandler = (e:React.MouseEvent<HTMLAnchorElement>) => void
+
+interface DashboardRowVersionLinksProps {
+  row: DashboardRow
+  setSnapshotItem: (snapshotItem:SnapshotUserInteractive) => void
+  getSnapshotHref: (snapshotItem:SnapshotUserInteractive) => string
+}
+
+interface DashboardRowVersionLinksState {
+  showOlderLinks: boolean
+}
+
+export class DashboardRowVersionLinks extends React.Component<DashboardRowVersionLinksProps, DashboardRowVersionLinksState> {
+  constructor(props: DashboardRowVersionLinksProps) {
+    super(props)
+    this.toggleOlderLinks = this.toggleOlderLinks.bind(this)
+    this.state = {
+      showOlderLinks: false
+    }
+  }
+
+  renderUserInteractiveLinks(userInteractive:UserInteractive, version:number) {
+    const links:JSX.Element[] = []
+    Object.keys(userInteractive.snapshotMap).forEach((launchUrl) => {
+      const snapshotItem = userInteractive.snapshotMap[launchUrl]
+      // skip collabspance for now
+      // TODO: renable later!
+      if ((snapshotItem.type === "application") && snapshotItem.application.type && (snapshotItem.application.type.type === CollabSpace.type)) {
+        return
+      }
+      if (snapshotItem.type === "representation") {
+        return
+      }
+      //const name = snapshotItem.type === "application" ? snapshotItem.application.name : snapshotItem.representation.name
+      const name = snapshotItem.application.name
+      if (!name || name.length === 0) {
+        return
+      }
+      const href = this.props.getSnapshotHref(snapshotItem)
+      const onClick = (e:React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault()
+        this.props.setSnapshotItem(snapshotItem)
+      }
+      //links.push(<li key={launchUrl}><a href={href} onClick={onClick}>{name} <span>#{version}</span></a></li>)
+      links.push(<li key={launchUrl}><a href={href} onClick={onClick}>{name}</a> {`#${version}`}</li>)
+    })
+    if (links.length === 0) {
+      return null
+    }
+    return <ul className="snapshot-links">{links}</ul>
+  }
+
+  toggleOlderLinks(e:React.MouseEvent<HTMLElement>) {
+    e.preventDefault()
+    this.setState({showOlderLinks: !this.state.showOlderLinks})
+  }
+
+  renderOlderInterativeLinks(row:DashboardRow) {
+    if (row.version <= 1) {
+      return null
+    }
+    const olderLinks:any = []
+    if (this.state.showOlderLinks) {
+      row.otherVersions.forEach((userInteractive, i) => {
+        const version = row.version - i - 1
+        const links = this.renderUserInteractiveLinks(userInteractive, version)
+        if (links) {
+          olderLinks.push(<div key={i}>{links}</div>)
+        }
+      })
+    }
+    const showHide = this.state.showOlderLinks ? "Hide" : "Show"
+    return <div>
+             <div className="show-older-versions" onClick={this.toggleOlderLinks}>{showHide} older versions...</div>
+             {olderLinks}
+           </div>
+  }
+
+  render() {
+    const {row} = this.props
+    return <div>
+            {this.renderUserInteractiveLinks(row.interactive, row.version)}
+            {this.renderOlderInterativeLinks(row)}
+           </div>
+  }
+}
 
 export class DashboardPage extends React.Component<DashboardPageProps, DashboardPageState> {
 
@@ -302,6 +388,7 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
             user: user,
             className: extendedClassInfo.name || "",
             interactive: interactive,
+            otherVersions: interactives.slice(1),
             version: interactives.length,
             rowDate: rowDate,
             _class: extendedClassInfo
@@ -472,33 +559,11 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
       .filter((row) => this.state.selectedClass ? row._class.url === this.state.selectedClass : true)
   }
 
-  renderUserInteractive(rowId: number, user:User, userInteractive:UserInteractive, version: number) {
-    const key = `${rowId}-${user.id}-${userInteractive.id}`
-    const links:JSX.Element[] = []
-    Object.keys(userInteractive.snapshotMap).forEach((launchUrl) => {
-      const snapshotItem = userInteractive.snapshotMap[launchUrl]
-      // skip collabspance for now
-      // TODO: renable later!
-      if ((snapshotItem.type === "application") && snapshotItem.application.type && (snapshotItem.application.type.type === CollabSpace.type)) {
-        return
-      }
-      if (snapshotItem.type === "representation") {
-        return
-      }
-      //const name = snapshotItem.type === "application" ? snapshotItem.application.name : snapshotItem.representation.name
-      const name = snapshotItem.application.name
-      if (!name || name.length === 0) {
-        return
-      }
-      const href = this.props.getSnapshotHref(snapshotItem)
-      const onClick = (e:React.MouseEvent<HTMLAnchorElement>) => {
-        e.preventDefault()
-        this.props.setSnapshotItem(snapshotItem)
-      }
-      //links.push(<li key={launchUrl}><a href={href} onClick={onClick}>{name} <span>#{version}</span></a></li>)
-      links.push(<li key={launchUrl}><a href={href} onClick={onClick}>{name}</a></li>)
-    })
-    return <div>{userInteractive.name}<ul className="snapshot-links">{links}</ul></div>
+  renderUserInteractive(row:DashboardRow) {
+    return <div>
+            {row.interactive.name}
+            <DashboardRowVersionLinks row={row} getSnapshotHref={this.props.getSnapshotHref} setSnapshotItem={this.props.setSnapshotItem} />
+           </div>
   }
 
   render() {
@@ -511,7 +576,7 @@ export class DashboardPage extends React.Component<DashboardPageProps, Dashboard
               <tr key={row.id}>
                 <td>{row.user.name.fullname}</td>
                 <td>{row.className}</td>
-                <td>{this.renderUserInteractive(row.id, row.user, row.interactive, row.version)}</td>
+                <td>{this.renderUserInteractive(row)}</td>
                 <td className="rowDate">{row.rowDate.time}</td>
               </tr>
             )

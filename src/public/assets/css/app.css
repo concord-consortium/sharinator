@@ -150,3 +150,10 @@ table.dashboard ul.snapshot-links li {
 .sort-active {
   color: darkgreen;
 }
+.show-older-versions {
+  font-size: 0.9em;
+  font-style: italic;
+  color: #1eaedb;
+  cursor: pointer;
+  user-select: none;
+}
