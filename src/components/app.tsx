@@ -284,7 +284,7 @@ export class App extends React.Component<AppProps, AppState> {
           activity: activity,
           firebaseData: firebaseData,
           snapshotMap: snapshotMap,
-          snapshotItem: snapshotItem
+          snapshotItem: snapshotItem || this.state.snapshotItem
         })
 
         if (userNamesNotFound) {
