@@ -252,7 +252,6 @@ export class IFrame extends React.Component<IFrameProps, IFrameState> {
     }
     const group = this.state.group ? `${this.state.group}` : "0"
     const session = `${this.state.classInfo.classHash}_${initInteractiveData.interactive.id}_${group}`
-    console.log(`CollabSpace session: ${session}`)
     return `${authoredState.baseUrl}#sessionTemplate=${authoredState.session}&session=${session}`
   }
 
