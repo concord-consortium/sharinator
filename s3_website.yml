@@ -26,5 +26,4 @@ max_age:
 cloudfront_distribution_config:
   aliases:
     quantity: 1
-    items:
-      CNAME0: sharinator.concord.org
+      - sharinator.concord.org
