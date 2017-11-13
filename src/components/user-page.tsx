@@ -64,6 +64,12 @@ export class UserPage extends React.Component<UserPageProps, UserPageState> {
       iframeUrl = iframeUrl.replace("?", "?embeddedServer=yes")
     }
 
+    // signal the app to ignore being iframed
+    const [url, ...rest] = iframeUrl.split("#")
+    const hashQuery = queryString.parse(rest.join("#") || "")
+    hashQuery.ignoreIframe = true
+    iframeUrl = `${url}#${queryString.stringify(hashQuery)}`
+
     this.state = {
       currentInteractiveCount: 0,
       initInteractiveData: initInteractiveData,
